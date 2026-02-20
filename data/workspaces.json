@@ -1,11 +1,25 @@
 {
+  "users": [
+    {
+      "id": "u_mlut8f3y",
+      "username": "admin",
+      "passwordHash": "$2b$10$HeUuXAlrwsrbAmA3ENAwMON9whoWbCYv3Doj52JV2cBlsUu/R8BX.",
+      "createdAt": "2026-02-20T11:32:06.242Z"
+    },
+    {
+      "id": "u_mlut8gyc_657",
+      "username": "user1",
+      "passwordHash": "$2b$10$q7QHzwuj5BHvwswVshN0nOxdC4fNZGzg6vcUPZ7Zx2diWQsc9Seoi",
+      "createdAt": "2026-02-20T11:32:08.609Z"
+    }
+  ],
   "workspaces": [
     {
       "id": "default",
       "name": "Default Workspace",
       "config": {
         "HEADLESS": "true",
-        "RECIPIENTS": "918893620806,918590629143,971569486201",
+        "RECIPIENTS": "918893620806,15551234567,447911123456",
         "STARTUP_MESSAGE": "Automation is live.",
         "BULK_SEND_MODE": "instant",
         "BULK_DELAY_MS": "1500",
@@ -23,7 +37,13 @@
         "SCHEDULE_MESSAGE": "Daily reminder"
       },
       "createdAt": "2026-02-20T09:28:06.244Z",
-      "reports": []
+      "reports": [],
+      "members": [
+        {
+          "userId": "u_mlut8f3y",
+          "role": "owner"
+        }
+      ]
     },
     {
       "id": "new",
@@ -79,7 +99,13 @@
           "message": "FGHJ"
         }
       ],
-      "createdAt": "2026-02-20T10:46:55.948Z"
+      "createdAt": "2026-02-20T10:46:55.948Z",
+      "members": [
+        {
+          "userId": "u_mlut8f3y",
+          "role": "owner"
+        }
+      ]
     }
   ]
 }
