@@ -697,6 +697,56 @@ async function restartClientBridge(workspace, runtime, reason) {
   }
 }
 
+async function waitForConnected(runtime, timeoutMs = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (!runtime.client) {
+      return false;
+    }
+    try {
+      const state = await runtime.client.getState();
+      runtime.lastWaState = state || "";
+      if (state === "CONNECTED") {
+        return true;
+      }
+    } catch (_err) {
+      // ignore transient errors while reconnecting
+    }
+    await sleep(1000);
+  }
+  return false;
+}
+
+async function ensureSendableConnection(workspace, runtime) {
+  if (!runtime.client) {
+    throw new Error("WhatsApp client is not running.");
+  }
+  if (runtime.ready) {
+    return;
+  }
+
+  let connected = await waitForConnected(runtime, 3000);
+  if (connected) {
+    markWorkspaceReady(workspace, runtime);
+    return;
+  }
+
+  if (runtime.authenticated) {
+    await restartClientBridge(
+      workspace,
+      runtime,
+      "Authenticated but not connected for send attempt. Restarting bridge."
+    );
+    connected = await waitForConnected(runtime, 25000);
+    if (connected) {
+      markWorkspaceReady(workspace, runtime);
+      return;
+    }
+  }
+
+  throw new Error("WhatsApp is not connected yet. Please rescan QR or press Start again.");
+}
+
 function startReadyProbe(workspace, runtime) {
   stopReadyProbe(runtime);
   runtime.readyProbeTimer = setInterval(async () => {
@@ -732,6 +782,7 @@ async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
   if (!runtime.client || (!runtime.ready && !runtime.authenticated)) {
     throw new Error("WhatsApp client is not connected yet.");
   }
+  await ensureSendableConnection(workspace, runtime);
 
   const recipients = workspaceRecipientsChatIds(workspace);
   if (recipients.length === 0) {
