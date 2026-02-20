@@ -1,0 +1,269 @@
+:root {
+  --bg: #f6f3ec;
+  --panel: #fffdf9;
+  --ink: #1f2329;
+  --muted: #65707b;
+  --line: #dfd7c9;
+  --primary: #0f8f67;
+  --accent: #cc5f1a;
+  --danger: #9a2432;
+  --shadow: 0 14px 40px rgba(0, 0, 0, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 15% 15%, #f8d6a8 0, transparent 28%),
+    radial-gradient(circle at 88% 22%, #b8e4d5 0, transparent 35%),
+    linear-gradient(165deg, #f6f3ec 0%, #eef4ef 100%);
+  min-height: 100vh;
+}
+
+.layout {
+  max-width: 1120px;
+  margin: 30px auto;
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(12, 1fr);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.hero {
+  grid-column: span 8;
+}
+
+.qr-panel {
+  grid-column: span 4;
+}
+
+.config-panel,
+.logs-panel,
+.custom-panel,
+.reports-panel {
+  grid-column: span 12;
+}
+
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+
+h1,
+h2 {
+  margin: 0 0 10px;
+}
+
+.brand-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0f8f67, #cc5f1a);
+  color: #fff;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  letter-spacing: 0.06em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-row,
+.action-row {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace-row {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+
+.status-chip {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", monospace;
+  background: #f6fbf8;
+}
+
+.status-chip.muted {
+  background: #f7f7f7;
+}
+
+.btn {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.btn.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.btn.accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.qr-box {
+  margin-top: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  min-height: 250px;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  background: #fff;
+}
+
+.qr-box img {
+  max-width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+#customForm {
+  display: grid;
+  gap: 10px;
+}
+
+#events {
+  margin: 0;
+  background: #1f2329;
+  color: #f1f3f4;
+  border-radius: 12px;
+  min-height: 140px;
+  padding: 12px;
+  overflow: auto;
+  font-family: "IBM Plex Mono", monospace;
+  white-space: pre-wrap;
+}
+
+.report-controls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.report-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+#reportLogs {
+  margin: 0;
+  background: #f8f8f8;
+  color: #212529;
+  border-radius: 12px;
+  min-height: 150px;
+  padding: 12px;
+  overflow: auto;
+  font-family: "IBM Plex Mono", monospace;
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .qr-panel,
+  .config-panel,
+  .logs-panel,
+  .custom-panel {
+    grid-column: span 12;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-controls,
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .span-2 {
+    grid-column: span 1;
+  }
+
+  .workspace-row {
+    grid-template-columns: 1fr;
+  }
+}

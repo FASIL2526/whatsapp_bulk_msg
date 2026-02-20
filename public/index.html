@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RestartX WhatsApp Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel hero">
+        <div class="brand-row">
+          <div class="brand-mark">RX</div>
+          <div>
+            <p class="eyebrow">RestartX</p>
+            <h1>WhatsApp Automation Console</h1>
+          </div>
+        </div>
+        <p class="subtitle">Manage multiple QR sessions, bulk messages, keyword replies, and schedules.</p>
+
+        <div class="workspace-row">
+          <label>
+            Workspace
+            <select id="workspaceSelect"></select>
+          </label>
+          <label>
+            New Workspace Name
+            <input id="workspaceNameInput" type="text" placeholder="Sales Team" />
+          </label>
+          <button id="createWorkspaceBtn" class="btn">Create Workspace</button>
+        </div>
+
+        <div class="status-row">
+          <div class="status-chip" id="statusChip">stopped</div>
+          <div class="status-chip muted" id="schedulerChip">scheduler: off</div>
+          <div class="status-chip muted" id="recipientChip">recipients: 0</div>
+        </div>
+        <div class="action-row">
+          <button id="startBtn" class="btn primary">Start WhatsApp</button>
+          <button id="stopBtn" class="btn">Stop</button>
+          <button id="sendStartupBtn" class="btn accent">Send Startup Message</button>
+        </div>
+      </section>
+
+      <section class="panel qr-panel">
+        <h2>QR Login</h2>
+        <p>Choose workspace, click <strong>Start WhatsApp</strong>, then scan the QR in this panel.</p>
+        <div class="qr-box" id="qrBox">No QR yet</div>
+      </section>
+
+      <section class="panel config-panel">
+        <h2>Workspace Configuration</h2>
+        <form id="configForm" class="form-grid">
+          <label>
+            Headless Browser
+            <select name="HEADLESS">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+
+          <label class="span-2">
+            Recipients (comma or new line)
+            <textarea name="RECIPIENTS" rows="4" placeholder="15551234567,447911123456"></textarea>
+          </label>
+
+          <label class="span-2">
+            Startup Message
+            <textarea name="STARTUP_MESSAGE" rows="2"></textarea>
+          </label>
+
+          <label>
+            Bulk Send Mode
+            <select name="BULK_SEND_MODE">
+              <option value="instant">instant</option>
+              <option value="staggered">staggered delay</option>
+              <option value="random">random delay</option>
+            </select>
+          </label>
+
+          <label>
+            Stagger Delay (ms)
+            <input name="BULK_DELAY_MS" type="number" min="100" step="100" />
+          </label>
+
+          <label>
+            Random Min Delay (ms)
+            <input name="BULK_RANDOM_MIN_MS" type="number" min="100" step="100" />
+          </label>
+
+          <label>
+            Random Max Delay (ms)
+            <input name="BULK_RANDOM_MAX_MS" type="number" min="100" step="100" />
+          </label>
+
+          <label>
+            Template Mode
+            <select name="BULK_TEMPLATE_MODE">
+              <option value="single">single message</option>
+              <option value="rotate">rotate list</option>
+              <option value="random">random list</option>
+            </select>
+          </label>
+
+          <label class="span-2">
+            Template Lines (one per line)
+            <textarea
+              name="BULK_TEMPLATE_LINES"
+              rows="3"
+              placeholder="Hey there, quick update...&#10;Hi, just checking in...&#10;Hello from our team..."
+            ></textarea>
+          </label>
+
+          <label>
+            Auto Reply Enabled
+            <select name="AUTO_REPLY_ENABLED">
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </label>
+
+          <label>
+            Auto Reply Mode
+            <select name="AUTO_REPLY_MODE">
+              <option value="exact">exact match</option>
+              <option value="contains">contains keyword</option>
+              <option value="rules">rules list</option>
+            </select>
+          </label>
+
+          <label>
+            Auto Reply Trigger
+            <input name="AUTO_REPLY_TRIGGER" type="text" placeholder="hi" />
+          </label>
+
+          <label class="span-2">
+            Auto Reply Text
+            <textarea name="AUTO_REPLY_TEXT" rows="2"></textarea>
+          </label>
+
+          <label class="span-2">
+            Auto Reply Rules (one per line: trigger => response)
+            <textarea
+              name="AUTO_REPLY_RULES"
+              rows="4"
+              placeholder="price => Our current price list is ...&#10;location => We are in ...&#10;help => Tell me your issue and we will assist."
+            ></textarea>
+          </label>
+
+          <label>
+            Schedule Enabled
+            <select name="SCHEDULE_ENABLED">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select>
+          </label>
+
+          <label>
+            Cron Expression
+            <input name="SCHEDULE_CRON" type="text" placeholder="0 9 * * *" />
+          </label>
+
+          <label class="span-2">
+            Scheduled Message
+            <textarea name="SCHEDULE_MESSAGE" rows="2"></textarea>
+          </label>
+
+          <button class="btn primary span-2" type="submit">Save Configuration</button>
+        </form>
+      </section>
+
+      <section class="panel custom-panel">
+        <h2>Send Custom Bulk Message</h2>
+        <form id="customForm" class="form-grid">
+          <textarea
+            class="span-2"
+            name="message"
+            rows="3"
+            placeholder="Type message to send now to all recipients"
+          ></textarea>
+
+          <label>
+            Send Mode Override
+            <select name="mode">
+              <option value="">use workspace default</option>
+              <option value="instant">instant</option>
+              <option value="staggered">staggered delay</option>
+              <option value="random">random delay</option>
+            </select>
+          </label>
+
+          <label>
+            Template Mode Override
+            <select name="templateMode">
+              <option value="">use workspace default</option>
+              <option value="single">single message</option>
+              <option value="rotate">rotate list</option>
+              <option value="random">random list</option>
+            </select>
+          </label>
+
+          <label>
+            Delay (ms)
+            <input name="delayMs" type="number" min="100" step="100" placeholder="1500" />
+          </label>
+
+          <label>
+            Random Min (ms)
+            <input name="randomMinMs" type="number" min="100" step="100" placeholder="700" />
+          </label>
+
+          <label>
+            Random Max (ms)
+            <input name="randomMaxMs" type="number" min="100" step="100" placeholder="2500" />
+          </label>
+
+          <label class="span-2">
+            Template Lines Override (one per line)
+            <textarea name="templateLines" rows="2" placeholder="Template A&#10;Template B"></textarea>
+          </label>
+
+          <button type="submit" class="btn accent span-2">Send Now</button>
+        </form>
+      </section>
+
+      <section class="panel logs-panel">
+        <h2>Events</h2>
+        <pre id="events"></pre>
+      </section>
+
+      <section class="panel reports-panel">
+        <h2>Reports</h2>
+        <div class="report-controls">
+          <label>
+            From
+            <input id="reportFrom" type="datetime-local" />
+          </label>
+          <label>
+            To
+            <input id="reportTo" type="datetime-local" />
+          </label>
+          <button id="refreshReportsBtn" class="btn">Refresh Reports</button>
+          <a id="exportCsvLink" class="btn" href="#" target="_blank" rel="noreferrer">Export CSV</a>
+        </div>
+
+        <div class="report-grid">
+          <div class="status-chip">Total: <span id="reportTotal">0</span></div>
+          <div class="status-chip">Sent OK: <span id="reportSentOk">0</span></div>
+          <div class="status-chip">Sent Failed: <span id="reportSentFailed">0</span></div>
+          <div class="status-chip">Auto Replies: <span id="reportAutoReplies">0</span></div>
+        </div>
+
+        <h3>Recent Logs</h3>
+        <pre id="reportLogs"></pre>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
