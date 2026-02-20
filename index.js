@@ -301,22 +301,11 @@ function findChromeUnderCache(cacheRoot) {
   return "";
 }
 
-function resolveChromeExecutablePath() {
+function resolveChromeExecutablePath(options = {}) {
+  const includeSystem = options.includeSystem !== false;
   const envPath = (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
   if (envPath && fs.existsSync(envPath)) {
     return envPath;
-  }
-
-  const candidates = [
-    "/usr/bin/google-chrome",
-    "/usr/bin/google-chrome-stable",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/chromium",
-  ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
   }
 
   const cacheCandidates = [
@@ -331,6 +320,20 @@ function resolveChromeExecutablePath() {
     const found = findChromeUnderCache(cacheRoot);
     if (found) {
       return found;
+    }
+  }
+
+  if (includeSystem) {
+    const candidates = [
+      "/usr/bin/google-chrome",
+      "/usr/bin/google-chrome-stable",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/chromium",
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
     }
   }
 
@@ -373,7 +376,7 @@ function statusHint(lastError) {
 }
 
 async function ensureChromeExecutablePath(runtime) {
-  const existing = resolveChromeExecutablePath();
+  const existing = resolveChromeExecutablePath({ includeSystem: false });
   if (existing) {
     return existing;
   }
@@ -398,7 +401,11 @@ async function ensureChromeExecutablePath(runtime) {
     return "";
   }
 
-  return resolveChromeExecutablePath();
+  const managed = resolveChromeExecutablePath({ includeSystem: false });
+  if (managed) {
+    return managed;
+  }
+  return resolveChromeExecutablePath({ includeSystem: true });
 }
 
 function getRuntime(workspaceId) {
@@ -627,17 +634,16 @@ async function createClientForWorkspace(workspace) {
 
   const headless = workspace.config.HEADLESS !== "false";
   const executablePath = await ensureChromeExecutablePath(runtime);
+  const isRender = process.env.RENDER === "true";
+  const launchArgs = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
+  if (isRender) {
+    launchArgs.push("--no-zygote", "--single-process");
+  }
   runtime.client = new Client({
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
     puppeteer: {
       headless,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-zygote",
-        "--single-process",
-      ],
+      args: launchArgs,
       executablePath: executablePath || undefined,
     },
   });
