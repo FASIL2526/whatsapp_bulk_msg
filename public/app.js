@@ -40,6 +40,7 @@ const lastErrorByWorkspace = new Map();
 let connectElapsedSec = 0;
 let connectActive = false;
 let workspaceReady = false;
+let workspaceAuthenticated = false;
 let authToken = localStorage.getItem("rx_auth_token") || "";
 let currentUser = null;
 
@@ -218,6 +219,7 @@ async function refreshStatus() {
     schedulerChip.textContent = `scheduler: ${status.hasScheduler ? "on" : "off"}`;
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
     workspaceReady = Boolean(status.ready);
+    workspaceAuthenticated = Boolean(status.authenticated);
     connectElapsedSec = status.connectElapsedSec || 0;
     connectActive = !status.ready && ["starting", "qr_ready", "authenticated"].includes(status.status);
     connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
@@ -228,7 +230,7 @@ async function refreshStatus() {
       statusHintText.textContent = status.hint ? `Hint: ${status.hint}` : "";
     }
     if (sendStartupBtn) {
-      sendStartupBtn.disabled = !workspaceReady;
+      sendStartupBtn.disabled = !(workspaceReady || workspaceAuthenticated);
     }
 
     if (status.qrDataUrl) {
@@ -343,8 +345,8 @@ stopBtn.addEventListener("click", async () => {
 });
 
 sendStartupBtn.addEventListener("click", async () => {
-  if (!workspaceReady) {
-    log(`[${activeWorkspaceId}] WhatsApp client is not ready yet.`);
+  if (!(workspaceReady || workspaceAuthenticated)) {
+    log(`[${activeWorkspaceId}] WhatsApp client is not connected yet.`);
     return;
   }
   try {
@@ -358,8 +360,8 @@ sendStartupBtn.addEventListener("click", async () => {
 
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!workspaceReady) {
-    log(`[${activeWorkspaceId}] WhatsApp client is not ready yet.`);
+  if (!(workspaceReady || workspaceAuthenticated)) {
+    log(`[${activeWorkspaceId}] WhatsApp client is not connected yet.`);
     return;
   }
   try {

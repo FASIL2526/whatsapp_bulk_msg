@@ -729,8 +729,8 @@ function startReadyProbe(workspace, runtime) {
 }
 
 async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
-  if (!runtime.client || !runtime.ready) {
-    throw new Error("WhatsApp client is not ready.");
+  if (!runtime.client || (!runtime.ready && !runtime.authenticated)) {
+    throw new Error("WhatsApp client is not connected yet.");
   }
 
   const recipients = workspaceRecipientsChatIds(workspace);
@@ -840,6 +840,7 @@ async function createClientForWorkspace(workspace) {
     runtime.status = "authenticated";
     runtime.authenticatedAt = Date.now();
     runtime.recoveryAttempted = false;
+    runtime.qrDataUrl = "";
     startReadyProbe(workspace, runtime);
   });
 
