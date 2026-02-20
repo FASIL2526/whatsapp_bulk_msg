@@ -10,10 +10,13 @@ const cron = require("node-cron");
 const QRCode = require("qrcode");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const { install: installBrowser } = require("@puppeteer/browsers");
+const multer = require("multer");
+const XLSX = require("xlsx");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = path.join(__dirname, "data");
@@ -390,6 +393,7 @@ function getRuntime(workspaceId) {
       status: "stopped",
       authenticated: false,
       ready: false,
+      startRequestedAt: null,
       qrDataUrl: "",
       lastError: "",
       client: null,
@@ -636,6 +640,7 @@ async function createClientForWorkspace(workspace) {
   runtime.client.on("ready", () => {
     runtime.status = "ready";
     runtime.ready = true;
+    runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
     setupScheduler(workspace, runtime);
   });
@@ -703,6 +708,7 @@ async function createClientForWorkspace(workspace) {
     runtime.status = `disconnected: ${reason}`;
     runtime.ready = false;
     runtime.authenticated = false;
+    runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
     stopScheduler(runtime);
     runtime.client = null;
@@ -715,6 +721,7 @@ async function createClientForWorkspace(workspace) {
       runtime.status = "error";
       runtime.ready = false;
       runtime.authenticated = false;
+      runtime.startRequestedAt = null;
       runtime.client = null;
     });
 }
@@ -729,6 +736,7 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.status = "stopped";
   runtime.ready = false;
   runtime.authenticated = false;
+  runtime.startRequestedAt = null;
   runtime.qrDataUrl = "";
 }
 
@@ -821,10 +829,15 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
   }
 
   const runtime = getRuntime(workspace.id);
+  const connectElapsedSec =
+    runtime.startRequestedAt && !runtime.ready
+      ? Math.max(0, Math.floor((Date.now() - runtime.startRequestedAt) / 1000))
+      : 0;
   res.json({
     status: runtime.status,
     ready: runtime.ready,
     authenticated: runtime.authenticated,
+    connectElapsedSec,
     qrDataUrl: runtime.qrDataUrl,
     hasScheduler: Boolean(runtime.scheduler),
     recipientsCount: workspaceRecipientsChatIds(workspace).length,
@@ -854,6 +867,7 @@ app.post("/api/workspaces/:workspaceId/start", async (req, res) => {
 
   try {
     runtime.status = "starting";
+    runtime.startRequestedAt = Date.now();
     runtime.lastError = "";
     await createClientForWorkspace(workspace);
     res.json({ ok: true, status: runtime.status });
@@ -861,6 +875,60 @@ app.post("/api/workspaces/:workspaceId/start", async (req, res) => {
     runtime.status = "error";
     runtime.lastError = err.message;
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+function extractNumbersFromWorkbookBuffer(buffer) {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const numbers = [];
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+    for (const row of rows) {
+      if (!Array.isArray(row)) {
+        continue;
+      }
+      for (const cell of row) {
+        const onlyDigits = String(cell ?? "").replace(/[^0-9]/g, "");
+        if (onlyDigits.length >= 7 && onlyDigits.length <= 15) {
+          numbers.push(onlyDigits);
+        }
+      }
+    }
+  }
+  return numbers;
+}
+
+app.post("/api/workspaces/:workspaceId/recipients/import", upload.single("file"), (req, res) => {
+  const workspace = requireWorkspace(req, res);
+  if (!workspace) {
+    return;
+  }
+
+  if (!req.file?.buffer) {
+    res.status(400).json({ ok: false, error: "File is required." });
+    return;
+  }
+
+  try {
+    const imported = extractNumbersFromWorkbookBuffer(req.file.buffer);
+    const uniqueImported = [...new Set(imported)];
+    const mode = req.body?.mode === "replace" ? "replace" : "append";
+    const existing = normalizeRecipients(workspace.config.RECIPIENTS || "");
+    const finalList =
+      mode === "replace" ? uniqueImported : [...new Set([...existing, ...uniqueImported])];
+
+    workspace.config.RECIPIENTS = finalList.join(",");
+    saveStore();
+
+    res.json({
+      ok: true,
+      mode,
+      importedCount: uniqueImported.length,
+      totalRecipients: finalList.length,
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: `Failed to parse file: ${err.message}` });
   }
 });
 

@@ -11,6 +11,8 @@ Web app to manage WhatsApp Web automation:
 - run scheduled bulk sends with cron
 - automation replies (exact, contains, or multi-rule list)
 - reports dashboard (summary, recent logs, CSV export)
+- Excel/CSV recipient import (append or replace)
+- connect timer with wait guidance while WhatsApp starts
 
 ## Setup
 

@@ -22,9 +22,15 @@ const reportSentOk = document.getElementById("reportSentOk");
 const reportSentFailed = document.getElementById("reportSentFailed");
 const reportAutoReplies = document.getElementById("reportAutoReplies");
 const reportLogs = document.getElementById("reportLogs");
+const connectTimer = document.getElementById("connectTimer");
+const importForm = document.getElementById("importForm");
+const recipientsFileInput = document.getElementById("recipientsFile");
+const importResult = document.getElementById("importResult");
 
 let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
+let connectElapsedSec = 0;
+let connectActive = false;
 
 function log(message) {
   const ts = new Date().toLocaleTimeString();
@@ -138,6 +144,9 @@ async function refreshStatus() {
     statusChip.textContent = status.status;
     schedulerChip.textContent = `scheduler: ${status.hasScheduler ? "on" : "off"}`;
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
+    connectElapsedSec = status.connectElapsedSec || 0;
+    connectActive = !status.ready && ["starting", "qr_ready", "authenticated"].includes(status.status);
+    connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
 
     if (status.qrDataUrl) {
       qrBox.innerHTML = `<img alt="WhatsApp QR" src="${status.qrDataUrl}" />`;
@@ -158,6 +167,14 @@ async function refreshStatus() {
     log(err.message);
   }
 }
+
+setInterval(() => {
+  if (!connectActive) {
+    return;
+  }
+  connectElapsedSec += 1;
+  connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
+}, 1000);
 
 async function loadConfig() {
   if (!activeWorkspaceId) {
@@ -271,6 +288,33 @@ customForm.addEventListener("submit", async (event) => {
 
 refreshReportsBtn.addEventListener("click", async () => {
   await refreshReports();
+});
+
+importForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!recipientsFileInput.files?.length) {
+    importResult.textContent = "Select an Excel/CSV file first.";
+    return;
+  }
+
+  try {
+    const formData = new FormData(importForm);
+    formData.set("file", recipientsFileInput.files[0]);
+    const res = await fetch(workspacePath("/recipients/import"), {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || "Import failed.");
+    }
+
+    importResult.textContent = `Imported ${data.importedCount} numbers. Total recipients: ${data.totalRecipients}.`;
+    await loadConfig();
+    await refreshStatus();
+  } catch (err) {
+    importResult.textContent = err.message;
+  }
 });
 
 (async function init() {

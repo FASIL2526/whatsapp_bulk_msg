@@ -94,6 +94,18 @@ h2 {
   color: var(--muted);
 }
 
+.connect-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+#connectTimer {
+  margin-left: 6px;
+  font-family: "IBM Plex Mono", monospace;
+  color: var(--ink);
+}
+
 .status-row,
 .action-row {
   margin-top: 14px;
@@ -197,6 +209,31 @@ textarea {
   grid-column: span 2;
 }
 
+.import-box {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: #fcfbf8;
+}
+
+.import-box h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.import-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+
+.import-result {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 #customForm {
   display: grid;
   gap: 10px;
@@ -255,7 +292,8 @@ textarea {
   }
 
   .report-controls,
-  .report-grid {
+  .report-grid,
+  .import-form {
     grid-template-columns: 1fr;
   }
 
