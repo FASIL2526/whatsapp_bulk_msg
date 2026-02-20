@@ -29,6 +29,20 @@ npm start
 
 Open `http://localhost:3000`.
 
+## Render Deploy Note (Chrome Required)
+
+If you deploy on Render, install Chrome during build:
+
+```bash
+npm ci && npx puppeteer browsers install chrome
+```
+
+Set environment variable:
+
+```bash
+PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+```
+
 ## How to use
 
 1. Create/select workspace.

@@ -260,6 +260,62 @@ function toCsv(rows) {
   return rows.map((row) => row.map((value) => esc(value)).join(",")).join("\n");
 }
 
+function findChromeUnderCache(cacheRoot) {
+  if (!cacheRoot || !fs.existsSync(cacheRoot)) {
+    return "";
+  }
+
+  const queue = [{ dir: cacheRoot, depth: 0 }];
+  const maxDepth = 6;
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || current.depth > maxDepth) {
+      continue;
+    }
+
+    let entries = [];
+    try {
+      entries = fs.readdirSync(current.dir, { withFileTypes: true });
+    } catch (_err) {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(current.dir, entry.name);
+      if (entry.isFile() && entry.name === "chrome") {
+        return fullPath;
+      }
+      if (entry.isDirectory()) {
+        queue.push({ dir: fullPath, depth: current.depth + 1 });
+      }
+    }
+  }
+
+  return "";
+}
+
+function resolveChromeExecutablePath() {
+  const envPath = (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+  if (envPath && fs.existsSync(envPath)) {
+    return envPath;
+  }
+
+  const candidates = [
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  const cacheRoot = process.env.PUPPETEER_CACHE_DIR || path.join(process.env.HOME || "/opt/render", ".cache", "puppeteer");
+  return findChromeUnderCache(cacheRoot);
+}
+
 function getRuntime(workspaceId) {
   if (!runtimeByWorkspaceId.has(workspaceId)) {
     runtimeByWorkspaceId.set(workspaceId, {
@@ -484,11 +540,13 @@ function createClientForWorkspace(workspace) {
   }
 
   const headless = workspace.config.HEADLESS !== "false";
+  const executablePath = resolveChromeExecutablePath();
   runtime.client = new Client({
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
     puppeteer: {
       headless,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: executablePath || undefined,
     },
   });
 

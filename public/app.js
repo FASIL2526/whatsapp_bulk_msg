@@ -24,6 +24,7 @@ const reportAutoReplies = document.getElementById("reportAutoReplies");
 const reportLogs = document.getElementById("reportLogs");
 
 let activeWorkspaceId = "";
+const lastErrorByWorkspace = new Map();
 
 function log(message) {
   const ts = new Date().toLocaleTimeString();
@@ -145,7 +146,13 @@ async function refreshStatus() {
     }
 
     if (status.lastError) {
-      log(`[${activeWorkspaceId}] error: ${status.lastError}`);
+      const prev = lastErrorByWorkspace.get(activeWorkspaceId);
+      if (prev !== status.lastError) {
+        log(`[${activeWorkspaceId}] error: ${status.lastError}`);
+        lastErrorByWorkspace.set(activeWorkspaceId, status.lastError);
+      }
+    } else {
+      lastErrorByWorkspace.delete(activeWorkspaceId);
     }
   } catch (err) {
     log(err.message);

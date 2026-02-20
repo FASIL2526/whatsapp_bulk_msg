@@ -7,14 +7,23 @@
         "HEADLESS": "true",
         "RECIPIENTS": "918893620806,918590629143,971569486201",
         "STARTUP_MESSAGE": "Automation is live.",
+        "BULK_SEND_MODE": "instant",
+        "BULK_DELAY_MS": "1500",
+        "BULK_RANDOM_MIN_MS": "700",
+        "BULK_RANDOM_MAX_MS": "2500",
+        "BULK_TEMPLATE_MODE": "single",
+        "BULK_TEMPLATE_LINES": "",
         "AUTO_REPLY_ENABLED": "true",
+        "AUTO_REPLY_MODE": "exact",
         "AUTO_REPLY_TRIGGER": "hi",
         "AUTO_REPLY_TEXT": "Hello! This is an auto-reply.",
+        "AUTO_REPLY_RULES": "",
         "SCHEDULE_ENABLED": "false",
         "SCHEDULE_CRON": "0 9 * * *",
         "SCHEDULE_MESSAGE": "Daily reminder"
       },
-      "createdAt": "2026-02-20T09:28:06.244Z"
+      "createdAt": "2026-02-20T09:28:06.244Z",
+      "reports": []
     }
   ]
 }
