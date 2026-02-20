@@ -67,6 +67,9 @@ function workspacePath(suffix) {
 }
 
 function reportParams() {
+  if (!reportFromInput || !reportToInput) {
+    return "";
+  }
   const params = new URLSearchParams();
   if (reportFromInput.value) {
     params.set("from", new Date(reportFromInput.value).toISOString());
@@ -78,6 +81,9 @@ function reportParams() {
 }
 
 function setDefaultReportWindow() {
+  if (!reportFromInput || !reportToInput) {
+    return;
+  }
   const now = new Date();
   const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   reportFromInput.value = from.toISOString().slice(0, 16);
@@ -85,7 +91,15 @@ function setDefaultReportWindow() {
 }
 
 async function refreshReports() {
-  if (!activeWorkspaceId) {
+  if (
+    !activeWorkspaceId ||
+    !reportTotal ||
+    !reportSentOk ||
+    !reportSentFailed ||
+    !reportAutoReplies ||
+    !reportLogs ||
+    !exportCsvLink
+  ) {
     return;
   }
 
@@ -286,36 +300,40 @@ customForm.addEventListener("submit", async (event) => {
   }
 });
 
-refreshReportsBtn.addEventListener("click", async () => {
-  await refreshReports();
-});
+if (refreshReportsBtn) {
+  refreshReportsBtn.addEventListener("click", async () => {
+    await refreshReports();
+  });
+}
 
-importForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!recipientsFileInput.files?.length) {
-    importResult.textContent = "Select an Excel/CSV file first.";
-    return;
-  }
-
-  try {
-    const formData = new FormData(importForm);
-    formData.set("file", recipientsFileInput.files[0]);
-    const res = await fetch(workspacePath("/recipients/import"), {
-      method: "POST",
-      body: formData,
-    });
-    const data = await res.json();
-    if (!res.ok || data.ok === false) {
-      throw new Error(data.error || "Import failed.");
+if (importForm && recipientsFileInput && importResult) {
+  importForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!recipientsFileInput.files?.length) {
+      importResult.textContent = "Select an Excel/CSV file first.";
+      return;
     }
 
-    importResult.textContent = `Imported ${data.importedCount} numbers. Total recipients: ${data.totalRecipients}.`;
-    await loadConfig();
-    await refreshStatus();
-  } catch (err) {
-    importResult.textContent = err.message;
-  }
-});
+    try {
+      const formData = new FormData(importForm);
+      formData.set("file", recipientsFileInput.files[0]);
+      const res = await fetch(workspacePath("/recipients/import"), {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || "Import failed.");
+      }
+
+      importResult.textContent = `Imported ${data.importedCount} numbers. Total recipients: ${data.totalRecipients}.`;
+      await loadConfig();
+      await refreshStatus();
+    } catch (err) {
+      importResult.textContent = err.message;
+    }
+  });
+}
 
 (async function init() {
   setDefaultReportWindow();

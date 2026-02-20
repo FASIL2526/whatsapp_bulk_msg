@@ -358,6 +358,20 @@ function chromeDebugInfo() {
   };
 }
 
+function statusHint(lastError) {
+  const msg = String(lastError || "");
+  if (!msg) {
+    return "";
+  }
+  if (msg.includes("Could not find Chrome")) {
+    return "Chrome is missing on host. Verify Render build installs Chrome and cache path is set.";
+  }
+  if (msg.includes("Target.setAutoAttach") || msg.includes("Target closed")) {
+    return "Chrome started then crashed. Try HEADLESS=true and ensure sandbox/dev-shm flags are enabled.";
+  }
+  return "";
+}
+
 async function ensureChromeExecutablePath(runtime) {
   const existing = resolveChromeExecutablePath();
   if (existing) {
@@ -617,7 +631,13 @@ async function createClientForWorkspace(workspace) {
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
     puppeteer: {
       headless,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-zygote",
+        "--single-process",
+      ],
       executablePath: executablePath || undefined,
     },
   });
@@ -842,6 +862,7 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
     hasScheduler: Boolean(runtime.scheduler),
     recipientsCount: workspaceRecipientsChatIds(workspace).length,
     lastError: runtime.lastError,
+    hint: statusHint(runtime.lastError),
   });
 });
 
