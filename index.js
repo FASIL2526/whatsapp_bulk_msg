@@ -453,7 +453,26 @@ function statusHint(lastError) {
   if (msg.includes("Target.setAutoAttach") || msg.includes("Target closed")) {
     return "Chrome started then crashed. Try HEADLESS=true and ensure sandbox/dev-shm flags are enabled.";
   }
+  if (msg.includes("The browser is already running for")) {
+    return "Session profile is locked by another Chromium process. Stop the old process or clear stale session lock files.";
+  }
   return "";
+}
+
+function clearStaleProfileLocks(workspaceId) {
+  const sessionDir = path.join(process.cwd(), ".wwebjs_auth", `session-workspace-${workspaceId}`);
+  const lockFiles = ["SingletonLock", "SingletonSocket", "SingletonCookie"];
+
+  for (const file of lockFiles) {
+    const target = path.join(sessionDir, file);
+    if (fs.existsSync(target)) {
+      try {
+        fs.rmSync(target, { force: true });
+      } catch (_err) {
+        // Ignore lock cleanup failures; launch will report if still blocked.
+      }
+    }
+  }
 }
 
 async function ensureChromeExecutablePath(runtime) {
@@ -713,6 +732,8 @@ async function createClientForWorkspace(workspace) {
     return;
   }
 
+  clearStaleProfileLocks(workspace.id);
+
   const headless = workspace.config.HEADLESS !== "false";
   const executablePath = await ensureChromeExecutablePath(runtime);
   const isRender = process.env.RENDER === "true";
@@ -824,6 +845,22 @@ async function createClientForWorkspace(workspace) {
   runtime.client
     .initialize()
     .catch((err) => {
+      const message = String(err?.message || "");
+      if (message.includes("The browser is already running for") && !runtime._retryAfterLockCleanup) {
+        runtime._retryAfterLockCleanup = true;
+        clearStaleProfileLocks(workspace.id);
+        runtime.client = null;
+        createClientForWorkspace(workspace).catch((innerErr) => {
+          runtime.lastError = `Initialize failed: ${innerErr.message}`;
+          runtime.status = "error";
+          runtime.ready = false;
+          runtime.authenticated = false;
+          runtime.startRequestedAt = null;
+          runtime.client = null;
+        });
+        return;
+      }
+      runtime._retryAfterLockCleanup = false;
       runtime.lastError = `Initialize failed: ${err.message}`;
       runtime.status = "error";
       runtime.ready = false;
