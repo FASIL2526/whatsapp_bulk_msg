@@ -26,6 +26,8 @@ const connectTimer = document.getElementById("connectTimer");
 const importForm = document.getElementById("importForm");
 const recipientsFileInput = document.getElementById("recipientsFile");
 const importResult = document.getElementById("importResult");
+const connectStateText = document.getElementById("connectStateText");
+const statusHintText = document.getElementById("statusHintText");
 const authShell = document.getElementById("authShell");
 const authForm = document.getElementById("authForm");
 const authMessage = document.getElementById("authMessage");
@@ -37,6 +39,7 @@ let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
 let connectElapsedSec = 0;
 let connectActive = false;
+let workspaceReady = false;
 let authToken = localStorage.getItem("rx_auth_token") || "";
 let currentUser = null;
 
@@ -214,9 +217,19 @@ async function refreshStatus() {
     statusChip.textContent = status.status;
     schedulerChip.textContent = `scheduler: ${status.hasScheduler ? "on" : "off"}`;
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
+    workspaceReady = Boolean(status.ready);
     connectElapsedSec = status.connectElapsedSec || 0;
     connectActive = !status.ready && ["starting", "qr_ready", "authenticated"].includes(status.status);
     connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
+    if (connectStateText) {
+      connectStateText.textContent = `WA state: ${status.waState || status.status || "-"}`;
+    }
+    if (statusHintText) {
+      statusHintText.textContent = status.hint ? `Hint: ${status.hint}` : "";
+    }
+    if (sendStartupBtn) {
+      sendStartupBtn.disabled = !workspaceReady;
+    }
 
     if (status.qrDataUrl) {
       qrBox.innerHTML = `<img alt="WhatsApp QR" src="${status.qrDataUrl}" />`;
@@ -330,6 +343,10 @@ stopBtn.addEventListener("click", async () => {
 });
 
 sendStartupBtn.addEventListener("click", async () => {
+  if (!workspaceReady) {
+    log(`[${activeWorkspaceId}] WhatsApp client is not ready yet.`);
+    return;
+  }
   try {
     const result = await getJson(workspacePath("/send-startup"), { method: "POST" });
     log(`[${activeWorkspaceId}] startup message sent to ${result.results.length} recipients`);
@@ -341,6 +358,10 @@ sendStartupBtn.addEventListener("click", async () => {
 
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!workspaceReady) {
+    log(`[${activeWorkspaceId}] WhatsApp client is not ready yet.`);
+    return;
+  }
   try {
     const payload = formToObject(customForm);
     const result = await getJson(workspacePath("/send-custom"), {
