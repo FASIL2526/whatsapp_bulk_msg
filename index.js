@@ -9,6 +9,7 @@ const express = require("express");
 const cron = require("node-cron");
 const QRCode = require("qrcode");
 const { Client, LocalAuth } = require("whatsapp-web.js");
+const { install: installBrowser } = require("@puppeteer/browsers");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -354,6 +355,35 @@ function chromeDebugInfo() {
   };
 }
 
+async function ensureChromeExecutablePath(runtime) {
+  const existing = resolveChromeExecutablePath();
+  if (existing) {
+    return existing;
+  }
+
+  if (process.env.AUTO_INSTALL_CHROME === "false") {
+    return "";
+  }
+
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  const buildId = process.env.CHROME_BUILD_ID || "145.0.7632.77";
+
+  try {
+    await installBrowser({
+      browser: "chrome",
+      buildId,
+      cacheDir,
+    });
+  } catch (err) {
+    if (runtime) {
+      runtime.lastError = `Chrome auto-install failed: ${err.message}`;
+    }
+    return "";
+  }
+
+  return resolveChromeExecutablePath();
+}
+
 function getRuntime(workspaceId) {
   if (!runtimeByWorkspaceId.has(workspaceId)) {
     runtimeByWorkspaceId.set(workspaceId, {
@@ -571,14 +601,14 @@ function setupScheduler(workspace, runtime) {
   });
 }
 
-function createClientForWorkspace(workspace) {
+async function createClientForWorkspace(workspace) {
   const runtime = getRuntime(workspace.id);
   if (runtime.client) {
     return;
   }
 
   const headless = workspace.config.HEADLESS !== "false";
-  const executablePath = resolveChromeExecutablePath();
+  const executablePath = await ensureChromeExecutablePath(runtime);
   runtime.client = new Client({
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
     puppeteer: {
@@ -806,7 +836,7 @@ app.get("/api/debug/chrome", (_req, res) => {
   res.json(chromeDebugInfo());
 });
 
-app.post("/api/workspaces/:workspaceId/start", (req, res) => {
+app.post("/api/workspaces/:workspaceId/start", async (req, res) => {
   const workspace = requireWorkspace(req, res);
   if (!workspace) {
     return;
@@ -817,11 +847,21 @@ app.post("/api/workspaces/:workspaceId/start", (req, res) => {
     res.json({ ok: true, status: runtime.status });
     return;
   }
+  if (runtime.status === "starting") {
+    res.json({ ok: true, status: runtime.status });
+    return;
+  }
 
-  runtime.status = "starting";
-  runtime.lastError = "";
-  createClientForWorkspace(workspace);
-  res.json({ ok: true, status: runtime.status });
+  try {
+    runtime.status = "starting";
+    runtime.lastError = "";
+    await createClientForWorkspace(workspace);
+    res.json({ ok: true, status: runtime.status });
+  } catch (err) {
+    runtime.status = "error";
+    runtime.lastError = err.message;
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 app.post("/api/workspaces/:workspaceId/stop", async (req, res) => {
