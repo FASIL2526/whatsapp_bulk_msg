@@ -31,16 +31,25 @@ Open `http://localhost:3000`.
 
 ## Render Deploy Note (Chrome Required)
 
-If you deploy on Render, install Chrome during build:
+Use this exact Render config.
+
+Build Command:
 
 ```bash
-npm ci && npx puppeteer browsers install chrome
+npm ci && npm run render-build
 ```
 
-Set environment variable:
+Start Command:
+
+```bash
+npm start
+```
+
+Environment Variables:
 
 ```bash
 PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
 ```
 
 ## How to use

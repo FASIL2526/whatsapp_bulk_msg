@@ -1,4 +1,7 @@
 require("dotenv").config();
+if (process.env.RENDER === "true" && !process.env.PUPPETEER_CACHE_DIR) {
+  process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
+}
 
 const fs = require("fs");
 const path = require("path");
@@ -312,8 +315,22 @@ function resolveChromeExecutablePath() {
     }
   }
 
-  const cacheRoot = process.env.PUPPETEER_CACHE_DIR || path.join(process.env.HOME || "/opt/render", ".cache", "puppeteer");
-  return findChromeUnderCache(cacheRoot);
+  const cacheCandidates = [
+    process.env.PUPPETEER_CACHE_DIR,
+    "/opt/render/.cache/puppeteer",
+    "/opt/render/project/.cache/puppeteer",
+    "/opt/render/project/src/.cache/puppeteer",
+    path.join(process.env.HOME || "/opt/render", ".cache", "puppeteer"),
+  ].filter(Boolean);
+
+  for (const cacheRoot of cacheCandidates) {
+    const found = findChromeUnderCache(cacheRoot);
+    if (found) {
+      return found;
+    }
+  }
+
+  return "";
 }
 
 function getRuntime(workspaceId) {
