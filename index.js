@@ -671,6 +671,32 @@ function stopReadyProbe(runtime) {
   }
 }
 
+async function restartClientBridge(workspace, runtime, reason) {
+  if (runtime.recoveryInProgress) {
+    return;
+  }
+  runtime.recoveryInProgress = true;
+  runtime.lastError = reason;
+  runtime.status = "restarting_bridge";
+  stopReadyProbe(runtime);
+  try {
+    if (runtime.client) {
+      await runtime.client.destroy();
+      runtime.client = null;
+    }
+  } catch (_err) {
+    runtime.client = null;
+  }
+  runtime.ready = false;
+  runtime.authenticated = false;
+  runtime.startRequestedAt = Date.now();
+  try {
+    await createClientForWorkspace(workspace);
+  } finally {
+    runtime.recoveryInProgress = false;
+  }
+}
+
 function startReadyProbe(workspace, runtime) {
   stopReadyProbe(runtime);
   runtime.readyProbeTimer = setInterval(async () => {
@@ -687,6 +713,17 @@ function startReadyProbe(workspace, runtime) {
       }
     } catch (_err) {
       // Ignore transient getState errors while WA Web finishes bootstrapping.
+    }
+
+    // Recovery: if authenticated but never ready for too long, restart client bridge once.
+    const waitedMs = runtime.authenticatedAt ? Date.now() - runtime.authenticatedAt : 0;
+    if (!runtime.ready && runtime.authenticated && waitedMs > 90000 && !runtime.recoveryAttempted) {
+      runtime.recoveryAttempted = true;
+      await restartClientBridge(
+        workspace,
+        runtime,
+        "Authenticated but not ready for 90s. Restarting WhatsApp bridge once."
+      );
     }
   }, 3000);
 }
@@ -802,6 +839,7 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticated = true;
     runtime.status = "authenticated";
     runtime.authenticatedAt = Date.now();
+    runtime.recoveryAttempted = false;
     startReadyProbe(workspace, runtime);
   });
 
@@ -815,6 +853,7 @@ async function createClientForWorkspace(workspace) {
 
   runtime.client.on("ready", () => {
     markWorkspaceReady(workspace, runtime);
+    runtime.recoveryAttempted = false;
     stopReadyProbe(runtime);
   });
 
@@ -883,6 +922,9 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticated = false;
     runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
+    runtime.authenticatedAt = null;
+    runtime.recoveryAttempted = false;
+    runtime.recoveryInProgress = false;
     stopReadyProbe(runtime);
     stopScheduler(runtime);
     runtime.client = null;
@@ -912,6 +954,9 @@ async function createClientForWorkspace(workspace) {
       runtime.ready = false;
       runtime.authenticated = false;
       runtime.startRequestedAt = null;
+      runtime.authenticatedAt = null;
+      runtime.recoveryAttempted = false;
+      runtime.recoveryInProgress = false;
       stopReadyProbe(runtime);
       runtime.client = null;
     });
@@ -932,6 +977,8 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.authenticated = false;
   runtime.startRequestedAt = null;
   runtime.authenticatedAt = null;
+  runtime.recoveryAttempted = false;
+  runtime.recoveryInProgress = false;
   runtime.lastWaState = "";
   stopReadyProbe(runtime);
   runtime.qrDataUrl = "";
