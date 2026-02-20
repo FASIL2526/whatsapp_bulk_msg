@@ -26,11 +26,19 @@ const connectTimer = document.getElementById("connectTimer");
 const importForm = document.getElementById("importForm");
 const recipientsFileInput = document.getElementById("recipientsFile");
 const importResult = document.getElementById("importResult");
+const authShell = document.getElementById("authShell");
+const authForm = document.getElementById("authForm");
+const authMessage = document.getElementById("authMessage");
+const registerBtn = document.getElementById("registerBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const userPill = document.getElementById("userPill");
 
 let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
 let connectElapsedSec = 0;
 let connectActive = false;
+let authToken = localStorage.getItem("rx_auth_token") || "";
+let currentUser = null;
 
 function log(message) {
   const ts = new Date().toLocaleTimeString();
@@ -51,12 +59,53 @@ function applyConfig(config) {
 }
 
 async function getJson(url, options) {
-  const res = await fetch(url, options);
+  const opts = { ...(options || {}) };
+  opts.headers = { ...(opts.headers || {}) };
+  if (authToken) {
+    opts.headers.Authorization = `Bearer ${authToken}`;
+  }
+  const res = await fetch(url, opts);
   const data = await res.json();
+  if (res.status === 401) {
+    clearAuth();
+  }
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || `Request failed: ${res.status}`);
   }
   return data;
+}
+
+function setAuth(token, user) {
+  authToken = token;
+  currentUser = user;
+  localStorage.setItem("rx_auth_token", token);
+  authShell.style.display = "none";
+  document.querySelector("main.layout").style.display = "";
+  userPill.textContent = user.username;
+}
+
+function clearAuth() {
+  authToken = "";
+  currentUser = null;
+  localStorage.removeItem("rx_auth_token");
+  authShell.style.display = "";
+  document.querySelector("main.layout").style.display = "none";
+  userPill.textContent = "-";
+}
+
+async function checkAuth() {
+  if (!authToken) {
+    clearAuth();
+    return false;
+  }
+  try {
+    const me = await getJson("/api/auth/me");
+    setAuth(authToken, me.user);
+    return true;
+  } catch (_err) {
+    clearAuth();
+    return false;
+  }
 }
 
 function workspacePath(suffix) {
@@ -145,7 +194,14 @@ async function loadWorkspaces() {
   }
 
   activeWorkspaceId = result.workspaces.find((ws) => ws.id === previous)?.id || result.workspaces[0]?.id || "";
-  workspaceSelect.value = activeWorkspaceId;
+  if (!activeWorkspaceId) {
+    statusChip.textContent = "no workspace";
+    schedulerChip.textContent = "scheduler: -";
+    recipientChip.textContent = "recipients: 0";
+    qrBox.textContent = "Create a workspace first.";
+  } else {
+    workspaceSelect.value = activeWorkspaceId;
+  }
 }
 
 async function refreshStatus() {
@@ -335,11 +391,64 @@ if (importForm && recipientsFileInput && importResult) {
   });
 }
 
+if (authForm && authMessage) {
+  authForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    authMessage.textContent = "";
+    const payload = formToObject(authForm);
+    try {
+      const result = await getJson("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setAuth(result.token, result.user);
+      await loadWorkspaces();
+      await loadConfig();
+      await refreshStatus();
+      await refreshReports();
+    } catch (err) {
+      authMessage.textContent = err.message;
+    }
+  });
+}
+
+if (registerBtn && authForm && authMessage) {
+  registerBtn.addEventListener("click", async () => {
+    authMessage.textContent = "";
+    const payload = formToObject(authForm);
+    try {
+      const result = await getJson("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setAuth(result.token, result.user);
+      await loadWorkspaces();
+      await loadConfig();
+      await refreshStatus();
+      await refreshReports();
+    } catch (err) {
+      authMessage.textContent = err.message;
+    }
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", () => {
+    clearAuth();
+  });
+}
+
 (async function init() {
+  document.querySelector("main.layout").style.display = "none";
   setDefaultReportWindow();
-  await loadWorkspaces();
-  await loadConfig();
-  await refreshStatus();
-  await refreshReports();
+  const ok = await checkAuth();
+  if (ok) {
+    await loadWorkspaces();
+    await loadConfig();
+    await refreshStatus();
+    await refreshReports();
+  }
   setInterval(refreshStatus, 5000);
 })();

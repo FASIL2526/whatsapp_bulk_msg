@@ -1,7 +1,9 @@
 # WhatsApp Web Automation Dashboard
 
 Web app to manage WhatsApp Web automation:
-- create multiple workspaces (no auth)
+- multi-user login (JWT auth)
+- workspace role permissions (owner/admin/member)
+- create multiple workspaces (auth required)
 - run multiple WhatsApp QR sessions at the same time
 - start/stop client per workspace
 - scan QR from browser page per workspace
@@ -22,6 +24,16 @@ cp .env.example .env
 ```
 
 Edit `.env` values as needed.
+
+## Auth
+
+- Default bootstrap user on first run:
+  - username: `admin`
+  - password: `admin12345`
+- Override with env:
+  - `ADMIN_USERNAME`
+  - `ADMIN_PASSWORD`
+  - `AUTH_SECRET`
 
 ## Run
 

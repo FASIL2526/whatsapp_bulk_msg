@@ -13,6 +13,27 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section class="auth-shell" id="authShell">
+      <div class="auth-card">
+        <h2>RestartX Login</h2>
+        <p>Sign in to access your workspaces.</p>
+        <form id="authForm" class="auth-form">
+          <label>
+            Username
+            <input name="username" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <div class="auth-actions">
+            <button type="submit" class="btn primary">Login</button>
+            <button type="button" id="registerBtn" class="btn">Register</button>
+          </div>
+          <p id="authMessage" class="auth-message"></p>
+        </form>
+      </div>
+    </section>
     <main class="layout">
       <section class="panel hero">
         <div class="brand-row">
@@ -26,6 +47,10 @@
 
         <div class="workspace-row">
           <label>
+            User
+            <div class="user-pill" id="userPill">-</div>
+          </label>
+          <label>
             Workspace
             <select id="workspaceSelect"></select>
           </label>
@@ -33,6 +58,7 @@
             New Workspace Name
             <input id="workspaceNameInput" type="text" placeholder="Sales Team" />
           </label>
+          <button id="logoutBtn" class="btn">Logout</button>
           <button id="createWorkspaceBtn" class="btn">Create Workspace</button>
         </div>
 

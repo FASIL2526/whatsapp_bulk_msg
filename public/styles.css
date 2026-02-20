@@ -25,6 +25,45 @@ body {
   min-height: 100vh;
 }
 
+.auth-shell {
+  max-width: 1120px;
+  margin: 24px auto 0;
+  padding: 0 14px;
+}
+
+.auth-card {
+  max-width: 520px;
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.auth-card h2 {
+  margin: 0 0 6px;
+}
+
+.auth-card p {
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.auth-message {
+  min-height: 18px;
+  font-size: 13px;
+}
+
 .layout {
   max-width: 1120px;
   margin: 30px auto;
@@ -118,8 +157,18 @@ h2 {
   margin-top: 14px;
   display: grid;
   gap: 10px;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 0.9fr 1fr 1fr auto auto;
   align-items: end;
+}
+
+.user-pill {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
 }
 
 .status-chip {

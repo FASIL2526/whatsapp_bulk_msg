@@ -12,6 +12,8 @@ const { Client, LocalAuth } = require("whatsapp-web.js");
 const { install: installBrowser } = require("@puppeteer/browsers");
 const multer = require("multer");
 const XLSX = require("xlsx");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -22,6 +24,8 @@ const PORT = Number(process.env.PORT || 3000);
 const DATA_DIR = path.join(__dirname, "data");
 const STORE_PATH = path.join(DATA_DIR, "workspaces.json");
 const MAX_REPORT_ENTRIES = 5000;
+const AUTH_SECRET = process.env.AUTH_SECRET || "restartx-dev-secret-change-me";
+const TOKEN_TTL = process.env.TOKEN_TTL || "7d";
 
 const DEFAULT_CONFIG = {
   HEADLESS: "true",
@@ -44,10 +48,17 @@ const DEFAULT_CONFIG = {
 };
 
 const store = {
+  users: [],
   workspaces: [],
 };
 
 const runtimeByWorkspaceId = new Map();
+
+const ROLE_RANK = {
+  member: 1,
+  admin: 2,
+  owner: 3,
+};
 
 function normalizeRecipients(raw) {
   return String(raw)
@@ -124,6 +135,63 @@ function sanitizeWorkspaceConfig(input) {
   return clean;
 }
 
+function normalizeUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "");
+}
+
+function safeUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    createdAt: user.createdAt,
+  };
+}
+
+function getUserById(userId) {
+  return store.users.find((user) => user.id === userId);
+}
+
+function getUserByUsername(username) {
+  return store.users.find((user) => user.username === username);
+}
+
+function ensureBootstrapAdmin() {
+  const adminUsername = normalizeUsername(process.env.ADMIN_USERNAME || "admin");
+  const adminPassword = String(process.env.ADMIN_PASSWORD || "admin12345");
+  if (!adminUsername) {
+    throw new Error("Invalid ADMIN_USERNAME");
+  }
+  let admin = getUserByUsername(adminUsername);
+  if (!admin) {
+    admin = {
+      id: `u_${Date.now().toString(36)}`,
+      username: adminUsername,
+      passwordHash: bcrypt.hashSync(adminPassword, 10),
+      createdAt: new Date().toISOString(),
+    };
+    store.users.push(admin);
+  }
+  return admin;
+}
+
+function workspaceMember(workspace, userId) {
+  const members = Array.isArray(workspace.members) ? workspace.members : [];
+  return members.find((member) => member.userId === userId) || null;
+}
+
+function hasWorkspaceRole(workspace, userId, minRole = "member") {
+  const member = workspaceMember(workspace, userId);
+  if (!member) {
+    return false;
+  }
+  const current = ROLE_RANK[member.role] || 0;
+  const required = ROLE_RANK[minRole] || 0;
+  return current >= required;
+}
+
 function toWorkspaceId(input) {
   const normalized = String(input || "")
     .toLowerCase()
@@ -143,8 +211,11 @@ function ensureStore() {
 
   if (fs.existsSync(STORE_PATH)) {
     const parsed = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
+    store.users = Array.isArray(parsed.users) ? parsed.users : [];
     store.workspaces = Array.isArray(parsed.workspaces) ? parsed.workspaces : [];
   }
+
+  const adminUser = ensureBootstrapAdmin();
 
   if (store.workspaces.length === 0) {
     store.workspaces.push({
@@ -152,6 +223,7 @@ function ensureStore() {
       name: "Default Workspace",
       config: sanitizeWorkspaceConfig({ ...DEFAULT_CONFIG, ...process.env }),
       reports: [],
+      members: [{ userId: adminUser.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     });
     saveStore();
@@ -162,16 +234,25 @@ function ensureStore() {
   store.workspaces = store.workspaces.map((workspace) => {
     const normalizedConfig = sanitizeWorkspaceConfig({ ...DEFAULT_CONFIG, ...(workspace.config || {}) });
     const normalizedReports = Array.isArray(workspace.reports) ? workspace.reports : [];
+    const normalizedMembers = Array.isArray(workspace.members) ? workspace.members : [];
     if (JSON.stringify(normalizedConfig) !== JSON.stringify(workspace.config || {})) {
       changed = true;
     }
     if (!Array.isArray(workspace.reports)) {
       changed = true;
     }
+    if (!Array.isArray(workspace.members)) {
+      changed = true;
+    }
+    if (normalizedMembers.length === 0) {
+      normalizedMembers.push({ userId: adminUser.id, role: "owner" });
+      changed = true;
+    }
     return {
       ...workspace,
       config: normalizedConfig,
       reports: normalizedReports,
+      members: normalizedMembers,
     };
   });
   if (changed) {
@@ -779,18 +860,116 @@ function workspaceSummary(workspace) {
   };
 }
 
-function requireWorkspace(req, res) {
+function authTokenFromReq(req) {
+  const authHeader = req.headers.authorization || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return "";
+  }
+  return authHeader.slice("Bearer ".length).trim();
+}
+
+function requireAuth(req, res, next) {
+  const token = authTokenFromReq(req);
+  if (!token) {
+    res.status(401).json({ ok: false, error: "Authentication required." });
+    return;
+  }
+  try {
+    const payload = jwt.verify(token, AUTH_SECRET);
+    const user = getUserById(payload.sub);
+    if (!user) {
+      res.status(401).json({ ok: false, error: "Invalid token user." });
+      return;
+    }
+    req.user = user;
+    next();
+  } catch (_err) {
+    res.status(401).json({ ok: false, error: "Invalid or expired token." });
+  }
+}
+
+function requireWorkspace(req, res, minRole = "member") {
   const workspace = getWorkspace(req.params.workspaceId);
   if (!workspace) {
     res.status(404).json({ ok: false, error: "Workspace not found." });
     return null;
   }
+  const userId = req.user?.id;
+  if (!userId || !hasWorkspaceRole(workspace, userId, minRole)) {
+    res.status(403).json({ ok: false, error: "Forbidden for this workspace." });
+    return null;
+  }
   return workspace;
 }
 
+function authPayload(user) {
+  const token = jwt.sign({ sub: user.id, username: user.username }, AUTH_SECRET, {
+    expiresIn: TOKEN_TTL,
+  });
+  return {
+    token,
+    user: safeUser(user),
+  };
+}
+
+app.post("/api/auth/register", (req, res) => {
+  try {
+    const username = normalizeUsername(req.body?.username);
+    const password = String(req.body?.password || "");
+    if (!username || username.length < 3) {
+      res.status(400).json({ ok: false, error: "Username must be at least 3 chars." });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ ok: false, error: "Password must be at least 6 chars." });
+      return;
+    }
+    if (getUserByUsername(username)) {
+      res.status(400).json({ ok: false, error: "Username already exists." });
+      return;
+    }
+    const user = {
+      id: `u_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
+      username,
+      passwordHash: bcrypt.hashSync(password, 10),
+      createdAt: new Date().toISOString(),
+    };
+    store.users.push(user);
+    saveStore();
+    res.json({ ok: true, ...authPayload(user) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/auth/login", (req, res) => {
+  const username = normalizeUsername(req.body?.username);
+  const password = String(req.body?.password || "");
+  const user = getUserByUsername(username);
+  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+    res.status(401).json({ ok: false, error: "Invalid username or password." });
+    return;
+  }
+  res.json({ ok: true, ...authPayload(user) });
+});
+
+app.get("/api/auth/me", requireAuth, (req, res) => {
+  res.json({ ok: true, user: safeUser(req.user) });
+});
+
+app.use("/api", (req, res, next) => {
+  if (req.path.startsWith("/auth/")) {
+    next();
+    return;
+  }
+  requireAuth(req, res, next);
+});
+
 app.get("/api/workspaces", (_req, res) => {
+  const userId = _req.user.id;
+  const allowed = store.workspaces.filter((workspace) => hasWorkspaceRole(workspace, userId, "member"));
   res.json({
-    workspaces: store.workspaces.map((workspace) => workspaceSummary(workspace)),
+    workspaces: allowed.map((workspace) => workspaceSummary(workspace)),
   });
 });
 
@@ -807,6 +986,7 @@ app.post("/api/workspaces", (req, res) => {
       name,
       config: { ...DEFAULT_CONFIG },
       reports: [],
+      members: [{ userId: req.user.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     };
 
@@ -820,7 +1000,7 @@ app.post("/api/workspaces", (req, res) => {
 });
 
 app.get("/api/workspaces/:workspaceId/config", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
     return;
   }
@@ -828,7 +1008,7 @@ app.get("/api/workspaces/:workspaceId/config", (req, res) => {
 });
 
 app.post("/api/workspaces/:workspaceId/config", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -849,7 +1029,7 @@ app.post("/api/workspaces/:workspaceId/config", (req, res) => {
 });
 
 app.get("/api/workspaces/:workspaceId/status", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
     return;
   }
@@ -877,7 +1057,7 @@ app.get("/api/debug/chrome", (_req, res) => {
 });
 
 app.post("/api/workspaces/:workspaceId/start", async (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -927,7 +1107,7 @@ function extractNumbersFromWorkbookBuffer(buffer) {
 }
 
 app.post("/api/workspaces/:workspaceId/recipients/import", upload.single("file"), (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -960,7 +1140,7 @@ app.post("/api/workspaces/:workspaceId/recipients/import", upload.single("file")
 });
 
 app.post("/api/workspaces/:workspaceId/stop", async (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -974,7 +1154,7 @@ app.post("/api/workspaces/:workspaceId/stop", async (req, res) => {
 });
 
 app.post("/api/workspaces/:workspaceId/send-startup", async (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -990,7 +1170,7 @@ app.post("/api/workspaces/:workspaceId/send-startup", async (req, res) => {
 });
 
 app.post("/api/workspaces/:workspaceId/send-custom", async (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) {
     return;
   }
@@ -1019,7 +1199,7 @@ app.post("/api/workspaces/:workspaceId/send-custom", async (req, res) => {
 });
 
 app.get("/api/workspaces/:workspaceId/reports/summary", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
     return;
   }
@@ -1033,7 +1213,7 @@ app.get("/api/workspaces/:workspaceId/reports/summary", (req, res) => {
 });
 
 app.get("/api/workspaces/:workspaceId/reports/logs", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
     return;
   }
@@ -1050,7 +1230,7 @@ app.get("/api/workspaces/:workspaceId/reports/logs", (req, res) => {
 });
 
 app.get("/api/workspaces/:workspaceId/reports/csv", (req, res) => {
-  const workspace = requireWorkspace(req, res);
+  const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
     return;
   }
@@ -1077,6 +1257,50 @@ app.get("/api/workspaces/:workspaceId/reports/csv", (req, res) => {
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename=\"${workspace.id}-reports.csv\"`);
   res.send(csv);
+});
+
+app.get("/api/workspaces/:workspaceId/members", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) {
+    return;
+  }
+  const members = (workspace.members || [])
+    .map((member) => {
+      const user = getUserById(member.userId);
+      if (!user) {
+        return null;
+      }
+      return {
+        userId: user.id,
+        username: user.username,
+        role: member.role,
+      };
+    })
+    .filter(Boolean);
+  res.json({ ok: true, members });
+});
+
+app.post("/api/workspaces/:workspaceId/members", (req, res) => {
+  const workspace = requireWorkspace(req, res, "owner");
+  if (!workspace) {
+    return;
+  }
+  const username = normalizeUsername(req.body?.username);
+  const role = sanitizeChoice(String(req.body?.role || "member"), ["member", "admin"], "member");
+  const user = getUserByUsername(username);
+  if (!user) {
+    res.status(404).json({ ok: false, error: "User not found." });
+    return;
+  }
+  workspace.members = Array.isArray(workspace.members) ? workspace.members : [];
+  const existing = workspace.members.find((member) => member.userId === user.id);
+  if (existing) {
+    existing.role = role;
+  } else {
+    workspace.members.push({ userId: user.id, role });
+  }
+  saveStore();
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => {
