@@ -333,6 +333,27 @@ function resolveChromeExecutablePath() {
   return "";
 }
 
+function chromeDebugInfo() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH || "",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+    process.env.PUPPETEER_CACHE_DIR || "",
+    "/opt/render/.cache/puppeteer",
+    "/opt/render/project/.cache/puppeteer",
+    "/opt/render/project/src/.cache/puppeteer",
+  ].filter(Boolean);
+
+  return {
+    render: process.env.RENDER === "true",
+    puppeteerCacheDir: process.env.PUPPETEER_CACHE_DIR || "",
+    resolvedExecutablePath: resolveChromeExecutablePath(),
+    candidatePaths: candidates,
+  };
+}
+
 function getRuntime(workspaceId) {
   if (!runtimeByWorkspaceId.has(workspaceId)) {
     runtimeByWorkspaceId.set(workspaceId, {
@@ -779,6 +800,10 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
     recipientsCount: workspaceRecipientsChatIds(workspace).length,
     lastError: runtime.lastError,
   });
+});
+
+app.get("/api/debug/chrome", (_req, res) => {
+  res.json(chromeDebugInfo());
 });
 
 app.post("/api/workspaces/:workspaceId/start", (req, res) => {

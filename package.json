@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "render-build": "PUPPETEER_CACHE_DIR=${PUPPETEER_CACHE_DIR:-/opt/render/.cache/puppeteer} npx puppeteer browsers install chrome"
+    "render-build": "PUPPETEER_CACHE_DIR=${PUPPETEER_CACHE_DIR:-/opt/render/.cache/puppeteer} CHROME_BUILD_ID=${CHROME_BUILD_ID:-145.0.7632.77} npx @puppeteer/browsers install chrome@${CHROME_BUILD_ID} --path ${PUPPETEER_CACHE_DIR}"
   },
   "keywords": [],
   "author": "",

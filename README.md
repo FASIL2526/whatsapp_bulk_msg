@@ -50,6 +50,7 @@ Environment Variables:
 ```bash
 PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
+CHROME_BUILD_ID=145.0.7632.77
 ```
 
 ## How to use
