@@ -664,6 +664,33 @@ function markWorkspaceReady(workspace, runtime) {
   setupScheduler(workspace, runtime);
 }
 
+function stopReadyProbe(runtime) {
+  if (runtime.readyProbeTimer) {
+    clearInterval(runtime.readyProbeTimer);
+    runtime.readyProbeTimer = null;
+  }
+}
+
+function startReadyProbe(workspace, runtime) {
+  stopReadyProbe(runtime);
+  runtime.readyProbeTimer = setInterval(async () => {
+    if (!runtime.client || runtime.ready) {
+      stopReadyProbe(runtime);
+      return;
+    }
+    try {
+      const state = await runtime.client.getState();
+      runtime.lastWaState = state || "";
+      if (state === "CONNECTED") {
+        markWorkspaceReady(workspace, runtime);
+        stopReadyProbe(runtime);
+      }
+    } catch (_err) {
+      // Ignore transient getState errors while WA Web finishes bootstrapping.
+    }
+  }, 3000);
+}
+
 async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
   if (!runtime.client || !runtime.ready) {
     throw new Error("WhatsApp client is not ready.");
@@ -775,33 +802,20 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticated = true;
     runtime.status = "authenticated";
     runtime.authenticatedAt = Date.now();
+    startReadyProbe(workspace, runtime);
+  });
 
-    // In some environments the "ready" event is flaky; fallback to WA state polling.
-    if (runtime.readyProbeTimer) {
-      clearInterval(runtime.readyProbeTimer);
+  runtime.client.on("change_state", (state) => {
+    runtime.lastWaState = state || "";
+    if (state === "CONNECTED") {
+      markWorkspaceReady(workspace, runtime);
+      stopReadyProbe(runtime);
     }
-    runtime.readyProbeTimer = setInterval(async () => {
-      if (!runtime.client || runtime.ready) {
-        clearInterval(runtime.readyProbeTimer);
-        runtime.readyProbeTimer = null;
-        return;
-      }
-      try {
-        const state = await runtime.client.getState();
-        runtime.lastWaState = state || "";
-        if (state === "CONNECTED") {
-          markWorkspaceReady(workspace, runtime);
-          clearInterval(runtime.readyProbeTimer);
-          runtime.readyProbeTimer = null;
-        }
-      } catch (_err) {
-        // Ignore transient getState errors while app boots.
-      }
-    }, 3000);
   });
 
   runtime.client.on("ready", () => {
     markWorkspaceReady(workspace, runtime);
+    stopReadyProbe(runtime);
   });
 
   runtime.client.on("message", async (msg) => {
@@ -869,10 +883,7 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticated = false;
     runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
-    if (runtime.readyProbeTimer) {
-      clearInterval(runtime.readyProbeTimer);
-      runtime.readyProbeTimer = null;
-    }
+    stopReadyProbe(runtime);
     stopScheduler(runtime);
     runtime.client = null;
   });
@@ -901,12 +912,12 @@ async function createClientForWorkspace(workspace) {
       runtime.ready = false;
       runtime.authenticated = false;
       runtime.startRequestedAt = null;
-      if (runtime.readyProbeTimer) {
-        clearInterval(runtime.readyProbeTimer);
-        runtime.readyProbeTimer = null;
-      }
+      stopReadyProbe(runtime);
       runtime.client = null;
     });
+
+  // Probe from the beginning so we can recover even if authenticated/ready events are missed.
+  startReadyProbe(workspace, runtime);
 }
 
 async function stopWorkspaceClient(workspaceId) {
@@ -922,10 +933,7 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.startRequestedAt = null;
   runtime.authenticatedAt = null;
   runtime.lastWaState = "";
-  if (runtime.readyProbeTimer) {
-    clearInterval(runtime.readyProbeTimer);
-    runtime.readyProbeTimer = null;
-  }
+  stopReadyProbe(runtime);
   runtime.qrDataUrl = "";
 }
 
@@ -1040,6 +1048,9 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 });
 
 app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   if (req.path.startsWith("/auth/")) {
     next();
     return;
