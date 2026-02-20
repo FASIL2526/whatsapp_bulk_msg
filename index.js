@@ -653,6 +653,17 @@ function stopScheduler(runtime) {
   }
 }
 
+function markWorkspaceReady(workspace, runtime) {
+  if (runtime.ready) {
+    return;
+  }
+  runtime.status = "ready";
+  runtime.ready = true;
+  runtime.startRequestedAt = null;
+  runtime.qrDataUrl = "";
+  setupScheduler(workspace, runtime);
+}
+
 async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
   if (!runtime.client || !runtime.ready) {
     throw new Error("WhatsApp client is not ready.");
@@ -763,14 +774,34 @@ async function createClientForWorkspace(workspace) {
   runtime.client.on("authenticated", () => {
     runtime.authenticated = true;
     runtime.status = "authenticated";
+    runtime.authenticatedAt = Date.now();
+
+    // In some environments the "ready" event is flaky; fallback to WA state polling.
+    if (runtime.readyProbeTimer) {
+      clearInterval(runtime.readyProbeTimer);
+    }
+    runtime.readyProbeTimer = setInterval(async () => {
+      if (!runtime.client || runtime.ready) {
+        clearInterval(runtime.readyProbeTimer);
+        runtime.readyProbeTimer = null;
+        return;
+      }
+      try {
+        const state = await runtime.client.getState();
+        runtime.lastWaState = state || "";
+        if (state === "CONNECTED") {
+          markWorkspaceReady(workspace, runtime);
+          clearInterval(runtime.readyProbeTimer);
+          runtime.readyProbeTimer = null;
+        }
+      } catch (_err) {
+        // Ignore transient getState errors while app boots.
+      }
+    }, 3000);
   });
 
   runtime.client.on("ready", () => {
-    runtime.status = "ready";
-    runtime.ready = true;
-    runtime.startRequestedAt = null;
-    runtime.qrDataUrl = "";
-    setupScheduler(workspace, runtime);
+    markWorkspaceReady(workspace, runtime);
   });
 
   runtime.client.on("message", async (msg) => {
@@ -838,6 +869,10 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticated = false;
     runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
+    if (runtime.readyProbeTimer) {
+      clearInterval(runtime.readyProbeTimer);
+      runtime.readyProbeTimer = null;
+    }
     stopScheduler(runtime);
     runtime.client = null;
   });
@@ -866,6 +901,10 @@ async function createClientForWorkspace(workspace) {
       runtime.ready = false;
       runtime.authenticated = false;
       runtime.startRequestedAt = null;
+      if (runtime.readyProbeTimer) {
+        clearInterval(runtime.readyProbeTimer);
+        runtime.readyProbeTimer = null;
+      }
       runtime.client = null;
     });
 }
@@ -881,6 +920,12 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.ready = false;
   runtime.authenticated = false;
   runtime.startRequestedAt = null;
+  runtime.authenticatedAt = null;
+  runtime.lastWaState = "";
+  if (runtime.readyProbeTimer) {
+    clearInterval(runtime.readyProbeTimer);
+    runtime.readyProbeTimer = null;
+  }
   runtime.qrDataUrl = "";
 }
 
@@ -1080,6 +1125,7 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
     status: runtime.status,
     ready: runtime.ready,
     authenticated: runtime.authenticated,
+    waState: runtime.lastWaState || "",
     connectElapsedSec,
     qrDataUrl: runtime.qrDataUrl,
     hasScheduler: Boolean(runtime.scheduler),
