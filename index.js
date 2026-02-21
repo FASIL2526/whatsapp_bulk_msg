@@ -400,7 +400,8 @@ function resolveSystemChromeExecutablePath() {
 function resolveChromeExecutablePath(options = {}) {
   const includeSystem = options.includeSystem !== false;
   const preferSystem = options.preferSystem !== false;
-  const envPath = (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+  const ignoreEnv = options.ignoreEnv === true;
+  const envPath = ignoreEnv ? "" : (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
   if (envPath && fs.existsSync(envPath)) {
     return envPath;
   }
@@ -497,7 +498,12 @@ function clearStaleProfileLocks(workspaceId) {
 }
 
 async function ensureChromeExecutablePath(runtime) {
-  const existing = resolveChromeExecutablePath({ includeSystem: true, preferSystem: true });
+  const forceSystemChrome = runtime && runtime._forceSystemChrome === true;
+  const existing = resolveChromeExecutablePath({
+    includeSystem: true,
+    preferSystem: true,
+    ignoreEnv: forceSystemChrome,
+  });
   if (existing) {
     return existing;
   }
@@ -526,7 +532,11 @@ async function ensureChromeExecutablePath(runtime) {
   if (managed) {
     return managed;
   }
-  return resolveChromeExecutablePath({ includeSystem: true, preferSystem: true });
+  return resolveChromeExecutablePath({
+    includeSystem: true,
+    preferSystem: true,
+    ignoreEnv: forceSystemChrome,
+  });
 }
 
 function getRuntime(workspaceId) {
@@ -928,6 +938,8 @@ async function createClientForWorkspace(workspace) {
     runtime.status = "authenticated";
     runtime.authenticatedAt = Date.now();
     runtime.recoveryAttempted = false;
+    runtime._retryAfterSharedLibFallback = false;
+    runtime._forceSystemChrome = false;
     runtime.qrDataUrl = "";
     startReadyProbe(workspace, runtime);
   });
@@ -943,6 +955,8 @@ async function createClientForWorkspace(workspace) {
   runtime.client.on("ready", () => {
     markWorkspaceReady(workspace, runtime);
     runtime.recoveryAttempted = false;
+    runtime._retryAfterSharedLibFallback = false;
+    runtime._forceSystemChrome = false;
     stopReadyProbe(runtime);
   });
 
@@ -1014,6 +1028,8 @@ async function createClientForWorkspace(workspace) {
     runtime.authenticatedAt = null;
     runtime.recoveryAttempted = false;
     runtime.recoveryInProgress = false;
+    runtime._retryAfterSharedLibFallback = false;
+    runtime._forceSystemChrome = false;
     stopReadyProbe(runtime);
     stopScheduler(runtime);
     runtime.client = null;
@@ -1023,6 +1039,22 @@ async function createClientForWorkspace(workspace) {
     .initialize()
     .catch((err) => {
       const message = String(err?.message || "");
+      if (message.includes("error while loading shared libraries") && !runtime._retryAfterSharedLibFallback) {
+        runtime._retryAfterSharedLibFallback = true;
+        runtime._forceSystemChrome = true;
+        runtime.client = null;
+        createClientForWorkspace(workspace).catch((innerErr) => {
+          runtime.lastError = `Initialize failed: ${innerErr.message}`;
+          runtime.status = "error";
+          runtime.ready = false;
+          runtime.authenticated = false;
+          runtime.startRequestedAt = null;
+          runtime.client = null;
+        });
+        return;
+      }
+      runtime._retryAfterSharedLibFallback = false;
+      runtime._forceSystemChrome = false;
       if (message.includes("The browser is already running for") && !runtime._retryAfterLockCleanup) {
         runtime._retryAfterLockCleanup = true;
         clearStaleProfileLocks(workspace.id);
