@@ -32,12 +32,11 @@ const registerBtn = document.getElementById("registerBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userPill = document.getElementById("userPill");
 
-const instantMessage1 = document.getElementById("instantMessage1");
-const instantMessage2 = document.getElementById("instantMessage2");
-const multiMessagePreview = document.getElementById("multiMessagePreview");
-const bulkProgress = document.getElementById("bulkProgress");
-const progressBar = document.getElementById("progressBar");
-const progressText = document.getElementById("progressText");
+const overviewTotal = document.getElementById("overviewTotal");
+const overviewRate = document.getElementById("overviewRate");
+const sidebar = document.getElementById("sidebar");
+const navItems = document.querySelectorAll(".nav-item");
+const viewContainers = document.querySelectorAll(".view-container");
 const customSubmitBtn = customForm?.querySelector('button[type="submit"]');
 
 let activeWorkspaceId = "";
@@ -161,7 +160,7 @@ function notifyDesktop(title, body) {
       if (permission === "granted") {
         new Notification(title, { body });
       }
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
@@ -201,9 +200,11 @@ function setAuth(token, user) {
   currentUser = user;
   localStorage.setItem("rx_auth_token", token);
   authShell.style.display = "none";
-  document.querySelector("main.layout").style.display = "grid";
+  sidebar.style.display = "flex";
+  document.querySelector("main.layout").style.display = "flex";
   userPill.textContent = user.username;
   syncCampaignButtonState();
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function clearAuth() {
@@ -211,6 +212,7 @@ function clearAuth() {
   currentUser = null;
   localStorage.removeItem("rx_auth_token");
   authShell.style.display = "flex";
+  sidebar.style.display = "none";
   document.querySelector("main.layout").style.display = "none";
   userPill.textContent = "-";
   syncCampaignButtonState();
@@ -285,10 +287,25 @@ async function refreshReports() {
     const suffix = params ? `?${params}` : "";
     const summaryData = await getJson(workspacePath(`/reports/summary${suffix}`));
 
-    reportTotal.textContent = summaryData.summary.total;
-    reportSentOk.textContent = summaryData.summary.sentOk;
-    reportSentFailed.textContent = summaryData.summary.sentFailed;
-    reportAutoReplies.textContent = summaryData.summary.autoReplies;
+    const setStats = (total, ok, failed, auto) => {
+      if (reportTotal) reportTotal.textContent = total;
+      if (reportSentOk) reportSentOk.textContent = ok;
+      if (reportSentFailed) reportSentFailed.textContent = failed;
+      if (reportAutoReplies) reportAutoReplies.textContent = auto;
+
+      if (overviewTotal) overviewTotal.textContent = total;
+      if (overviewRate) {
+        const rate = total > 0 ? Math.round((ok / total) * 100) : 0;
+        overviewRate.textContent = `${rate}%`;
+      }
+    };
+
+    setStats(
+      summaryData.summary.total,
+      summaryData.summary.sentOk,
+      summaryData.summary.sentFailed,
+      summaryData.summary.autoReplies
+    );
 
     exportCsvLink.href = workspacePath(`/reports/csv${suffix}`);
   } catch (err) {
@@ -586,6 +603,26 @@ if (logoutBtn) {
   logoutBtn.addEventListener("click", clearAuth);
 }
 
+// --- View Switching Logic ---
+navItems.forEach(item => {
+  item.addEventListener("click", () => {
+    const targetView = item.getAttribute("data-view");
+
+    // Update nav active state
+    navItems.forEach(i => i.classList.remove("active"));
+    item.classList.add("active");
+
+    // Show target view
+    viewContainers.forEach(view => {
+      if (view.id === `${targetView}View`) {
+        view.classList.add("active");
+      } else {
+        view.classList.remove("active");
+      }
+    });
+  });
+});
+
 (async function init() {
   syncCampaignButtonState();
   setDefaultReportWindow();
@@ -595,6 +632,7 @@ if (logoutBtn) {
     await loadConfig();
     await refreshStatus();
     await refreshReports();
+    if (window.lucide) window.lucide.createIcons();
   }
   setInterval(refreshStatus, 5000);
 })();

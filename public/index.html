@@ -11,13 +11,18 @@
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
 <body>
   <section class="auth-shell" id="authShell">
     <div class="panel auth-card">
-      <h2>RestartX Login</h2>
-      <p>Sign in to access your workspaces.</p>
+      <div class="brand-logo"
+        style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; justify-content: center;">
+        <div class="brand-mark">RX</div>
+        <h2 style="margin: 0;">RestartX Login</h2>
+      </div>
+      <p style="text-align: center; margin-bottom: 24px;">Sign in to access your workspaces.</p>
       <form id="authForm" class="auth-form">
         <label>
           Username
@@ -27,191 +32,281 @@
           Password
           <input name="password" type="password" autocomplete="current-password" required />
         </label>
-        <div class="auth-actions">
-          <button type="submit" class="btn primary">Login</button>
-          <button type="button" id="registerBtn" class="btn">Register</button>
+        <div class="auth-actions" style="margin-top: 24px;">
+          <button type="submit" class="btn primary" style="width: 100%; justify-content: center;">Login</button>
+          <button type="button" id="registerBtn" class="btn" style="width: 100%; justify-content: center;">Create
+            Account</button>
         </div>
         <p id="authMessage" class="auth-message"></p>
       </form>
     </div>
   </section>
 
-  <main class="layout" style="display: none;">
-    <section class="panel hero">
-      <div class="brand-section">
-        <div class="brand-row">
-          <div class="brand-mark">RX</div>
-          <div>
-            <p class="eyebrow">RestartX</p>
-            <h1>WhatsApp Automation</h1>
-          </div>
-        </div>
-        <p class="subtitle">Premium Management Console for Bulk Messaging & Automation.</p>
+  <nav class="sidebar" id="sidebar" style="display: none;">
+    <div class="sidebar-logo">
+      <div class="brand-mark">RX</div>
+      <span style="font-weight: 700; font-size: 20px;">RestartX</span>
+    </div>
 
-        <div class="status-grid">
-          <div class="status-chip"><span class="status-dot" id="statusDot"></span> Client: <span
-              id="statusChip">stopped</span></div>
-          <div class="status-chip">📅 <span id="schedulerChip">scheduler: off</span></div>
-          <div class="status-chip">👥 <span id="recipientChip">recipients: 0</span></div>
-        </div>
+    <div class="nav-links">
+      <button class="nav-item active" data-view="overview">
+        <i data-lucide="layout-dashboard"></i> Overview
+      </button>
+      <button class="nav-item" data-view="workspace">
+        <i data-lucide="settings"></i> Workspace
+      </button>
+      <button class="nav-item" data-view="campaigns">
+        <i data-lucide="send"></i> Campaigns
+      </button>
+      <button class="nav-item" data-view="analytics">
+        <i data-lucide="bar-chart-3"></i> Analytics
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="status-chip" style="border: none; background: rgba(0,0,0,0.05); padding: 12px;">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusChip" style="font-weight: 600;">stopped</span>
       </div>
 
-      <div class="controls-section">
-        <label class="theme-switch">
+      <div class="user-info" style="padding: 0 12px;">
+        <div class="muted" style="font-size: 12px;">Logged in as</div>
+        <div id="userPill" style="font-weight: 600;">-</div>
+      </div>
+
+      <div style="display: flex; gap: 8px; padding: 0 12px;">
+        <label class="theme-switch" style="scale: 0.8; margin-left: -5px;">
           <input type="checkbox" id="themeToggle">
           <span class="slider"></span>
         </label>
-        <div class="user-info">
-          <span class="muted">Logged in as:</span>
-          <strong id="userPill">-</strong>
-        </div>
-        <button id="logoutBtn" class="btn">Logout</button>
+        <button id="logoutBtn" class="btn" style="padding: 4px 8px; font-size: 12px; border: none;">
+          <i data-lucide="log-out"></i> Logout
+        </button>
       </div>
-    </section>
+    </div>
+  </nav>
 
-    <section class="panel qr-panel">
-      <h2>QR Login</h2>
-      <p class="muted">Click <strong>Start WhatsApp</strong> and scan the code.</p>
-      <div class="qr-box" id="qrBox">
-        <div class="muted">Client not started</div>
-      </div>
-      <div class="action-row" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
-        <button id="startBtn" class="btn primary" style="width: 100%;">Start WhatsApp</button>
-        <button id="stopBtn" class="btn" style="width: 100%;">Stop Client</button>
-      </div>
-      <p class="connect-note" id="statusHintText"></p>
-      <div id="connectTimer" style="font-size: 12px; margin-top: 10px;" class="muted">Connect timer: 0s</div>
-    </section>
-
-    <section class="panel config-panel">
-      <div class="workspace-header"
-        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h2>Workspace Configuration</h2>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <select id="workspaceSelect" style="width: auto;"></select>
-          <input id="workspaceNameInput" type="text" placeholder="New workspace..." style="width: 150px;" />
-          <button id="createWorkspaceBtn" class="btn">Add</button>
+  <main class="layout" style="display: none;">
+    <!-- Overview View -->
+    <div class="view-container active" id="overviewView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Dashboard / Overview</p>
+          <h1>Health & Connectivity</h1>
+          <p class="subtitle" style="margin-top: 8px;">Monitor your WhatsApp client status and quick stats.</p>
         </div>
-      </div>
 
-      <form id="configForm" class="form-grid">
-        <label>
-          Headless Browser
-          <select name="HEADLESS">
-            <option value="true">Enable (Headless)</option>
-            <option value="false">Disable (Visible)</option>
-          </select>
-        </label>
+        <div class="status-grid" style="margin-top: 0;">
+          <div class="status-chip">📅 <span id="schedulerChip">scheduler: off</span></div>
+          <div class="status-chip">👥 <span id="recipientChip">recipients: 0</span></div>
+        </div>
+      </section>
 
-        <label>
-          Schedule Auto-Send
-          <select name="SCHEDULE_ENABLED">
-            <option value="false">Off</option>
-            <option value="true">On</option>
-          </select>
-        </label>
+      <section class="panel qr-panel" style="grid-column: span 5;">
+        <h2>QR Authentication</h2>
+        <p class="muted">Click <strong>Start WhatsApp</strong> to generate a new QR code.</p>
+        <div class="qr-box" id="qrBox" style="margin: 20px 0;">
+          <div class="muted">Client not started</div>
+        </div>
+        <div class="action-row" style="display: flex; gap: 12px;">
+          <button id="startBtn" class="btn primary" style="flex: 1; justify-content: center;">Start Client</button>
+          <button id="stopBtn" class="btn danger" style="flex: 1; justify-content: center;">Stop Client</button>
+        </div>
+        <p class="connect-note" id="statusHintText" style="margin-top: 12px; font-size: 13px;"></p>
+        <div id="connectTimer" style="font-size: 11px; margin-top: 8px;" class="muted">Connect timer: 0s</div>
+      </section>
 
-        <label class="span-2">
-          Recipients (List)
-          <textarea name="RECIPIENTS" rows="3" placeholder="91889..., 91859..."></textarea>
-        </label>
-
-        <div class="span-2 import-box">
-          <h3>Import from Excel/CSV</h3>
-          <div class="import-form" style="display: flex; gap: 10px;">
-            <input id="recipientsFile" type="file" accept=".xlsx,.xls,.csv" />
-            <button type="button" id="importBtn" class="btn accent">Import Numbers</button>
+      <section class="panel quick-stats" style="grid-column: span 7;">
+        <h2>Quick Analytics</h2>
+        <div class="status-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+          <div class="status-chip"
+            style="flex: 1; padding: 24px; flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span class="muted" style="font-size: 12px;">Total Sent</span>
+            <span id="overviewTotal" style="font-size: 24px; font-weight: 700;">0</span>
           </div>
-          <p id="importResult" class="import-result"></p>
-        </div>
-
-        <label class="span-2">
-          Template Content (One per line for rotation)
-          <textarea name="BULK_TEMPLATE_LINES" id="templateInput" rows="4"
-            placeholder="Type your message templates here..."></textarea>
-        </label>
-
-        <div class="span-2">
-          <h3>Message Preview</h3>
-          <div class="preview-container" id="messagePreview">
-            <div class="msg-bubble sent">Your message will appear here...</div>
+          <div class="status-chip"
+            style="flex: 1; padding: 24px; flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span class="muted" style="font-size: 12px;">Success Rate</span>
+            <span id="overviewRate" style="font-size: 24px; font-weight: 700; color: var(--primary);">0%</span>
           </div>
         </div>
 
-        <button class="btn primary span-2" type="submit">Save Workspace Config</button>
-      </form>
-    </section>
+        <div style="margin-top: 32px;">
+          <h3 style="font-size: 14px; margin-bottom: 12px;">Recent Event Log</h3>
+          <pre id="events"
+            style="font-size: 11px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.02); padding: 12px; border-radius: var(--radius-md);"></pre>
+        </div>
+      </section>
+    </div>
 
-    <section class="panel custom-panel">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>Instant Sequential Campaign</h2>
-        <div class="status-chip" style="font-size: 12px; border-color: var(--primary);">Sequence Active</div>
-      </div>
-      <form id="customForm" class="form-grid">
-        <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <span class="eyebrow" style="font-size: 10px;">Message 1 (Intro)</span>
-            <textarea name="message1" id="instantMessage1" rows="4"
-              placeholder="First message to spark interest..."></textarea>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <span class="eyebrow" style="font-size: 10px; color: var(--accent);">Message 2 (Follow-up)</span>
-            <textarea name="message2" id="instantMessage2" rows="4"
-              placeholder="Second message with more details..."></textarea>
+    <!-- Workspace View -->
+    <div class="view-container" id="workspaceView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Settings / Configuration</p>
+          <h1>Workspace Settings</h1>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <select id="workspaceSelect" style="width: auto; height: 44px;"></select>
+          <div
+            style="display: flex; background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: var(--radius-md); padding: 2px;">
+            <input id="workspaceNameInput" type="text" placeholder="New workspace..."
+              style="border: none; background: transparent; width: 150px;" />
+            <button id="createWorkspaceBtn" class="btn primary"
+              style="border-radius: 10px; padding: 8px 16px;">Add</button>
           </div>
         </div>
+      </section>
 
-        <div class="span-2 preview-section">
-          <h3 style="font-size: 14px; margin-bottom: 12px;">Live Conversation Preview</h3>
-          <div class="preview-container" id="multiMessagePreview" style="min-height: 250px;">
-            <div class="msg-bubble received">Preview will appear as you type...</div>
+      <section class="panel config-panel" style="grid-column: span 12;">
+        <form id="configForm" class="form-grid">
+          <label>
+            Headless Browser
+            <select name="HEADLESS">
+              <option value="true">Enable (Headless)</option>
+              <option value="false">Disable (Visible)</option>
+            </select>
+          </label>
+
+          <label>
+            Schedule Auto-Send
+            <select name="SCHEDULE_ENABLED">
+              <option value="false">Off</option>
+              <option value="true">On</option>
+            </select>
+          </label>
+
+          <label class="span-2">
+            Recipients (List)
+            <textarea name="RECIPIENTS" rows="3" placeholder="91889..., 91859..."></textarea>
+          </label>
+
+          <div class="span-2 import-box"
+            style="padding: 20px; background: rgba(0,0,0,0.02); border-radius: var(--radius-md);">
+            <h3 style="font-size: 14px; margin-bottom: 12px;">Import from Excel/CSV</h3>
+            <div class="import-form" style="display: flex; gap: 12px;">
+              <input id="recipientsFile" type="file" accept=".xlsx,.xls,.csv" />
+              <button type="button" id="importBtn" class="btn accent">Import Numbers</button>
+            </div>
+            <p id="importResult" class="import-result" style="margin-top: 8px; font-size: 12px;"></p>
           </div>
+
+          <label class="span-2">
+            Template Content (One per line for rotation)
+            <textarea name="BULK_TEMPLATE_LINES" id="templateInput" rows="4"
+              placeholder="Type your message templates here..."></textarea>
+          </label>
+
+          <div class="span-2">
+            <h3 style="font-size: 14px; margin-bottom: 12px;">Message Preview</h3>
+            <div class="preview-container" id="messagePreview">
+              <div class="msg-bubble sent">Your message will appear here...</div>
+            </div>
+          </div>
+
+          <button class="btn primary span-2" type="submit" style="height: 50px; font-size: 16px;">Save Workspace
+            Configuration</button>
+        </form>
+      </section>
+    </div>
+
+    <!-- Campaigns View -->
+    <div class="view-container" id="campaignsView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Marketing / Outreach</p>
+          <h1>Instant Campaigns</h1>
         </div>
+        <div class="status-chip" style="border-color: var(--primary);">Sequence Active</div>
+      </section>
 
-        <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
-          <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
-            <span>Launching Campaign sequence...</span>
-            <span id="progressText">0/0</span>
+      <section class="panel custom-panel" style="grid-column: span 12;">
+        <form id="customForm" class="form-grid">
+          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span class="eyebrow" style="font-size: 10px;">Message 1 (Intro)</span>
+              <textarea name="message1" id="instantMessage1" rows="6"
+                placeholder="First message to spark interest..."></textarea>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span class="eyebrow" style="font-size: 10px; color: var(--accent);">Message 2 (Follow-up)</span>
+              <textarea name="message2" id="instantMessage2" rows="6"
+                placeholder="Second message with more details..."></textarea>
+            </div>
           </div>
-          <div class="progress-wrapper">
-            <div class="progress-bar" id="progressBar"></div>
+
+          <div class="span-2 preview-section">
+            <h3 style="font-size: 14px; margin-bottom: 12px;">Live Conversation Preview</h3>
+            <div class="preview-container" id="multiMessagePreview" style="min-height: 250px;">
+              <div class="msg-bubble received">Preview will appear as you type...</div>
+            </div>
           </div>
+
+          <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+              <span>Launching Campaign sequence...</span>
+              <span id="progressText">0/0</span>
+            </div>
+            <div class="progress-wrapper">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn accent span-2" style="height: 60px; font-size: 18px; width: 100%;">🚀 Launch
+            Dual-Message Campaign</button>
+        </form>
+      </section>
+    </div>
+
+    <!-- Analytics View -->
+    <div class="view-container" id="analyticsView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Reports / Metrics</p>
+          <h1>Campaign Analytics</h1>
         </div>
-
-        <button type="submit" class="btn accent span-2" style="height: 50px; font-size: 18px; width: 100%;">🚀 Launch
-          Dual-Message
-          Campaign</button>
-      </form>
-    </section>
-
-    <section class="panel reports-panel">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2>Campaign Analytics</h2>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 12px; align-items: center;">
           <input id="reportFrom" type="datetime-local" style="width: auto;" />
           <input id="reportTo" type="datetime-local" style="width: auto;" />
-          <button id="refreshReportsBtn" class="btn">Update</button>
-          <a id="exportCsvLink" class="btn primary" href="#">Export CSV</a>
+          <button id="refreshReportsBtn" class="btn primary">Update</button>
+          <a id="exportCsvLink" class="btn" href="#">Export CSV</a>
         </div>
-      </div>
+      </section>
 
-      <div class="status-grid" style="justify-content: space-around;">
-        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Total: <span
-            id="reportTotal">0</span></div>
-        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">OK: <span
-            id="reportSentOk">0</span></div>
-        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Failed: <span
-            id="reportSentFailed">0</span></div>
-        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Auto: <span
-            id="reportAutoReplies">0</span></div>
-      </div>
-
-      <h3 style="margin-top: 30px;">Event Stream</h3>
-      <pre id="events" style="font-size: 12px;"></pre>
-    </section>
+      <section class="panel reports-panel" style="grid-column: span 12;">
+        <div class="status-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+          <div class="status-chip"
+            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
+            <span class="muted">Total</span>
+            <span id="reportTotal" style="font-size: 32px; font-weight: 700;">0</span>
+          </div>
+          <div class="status-chip"
+            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
+            <span class="muted">Delivered</span>
+            <span id="reportSentOk" style="font-size: 32px; font-weight: 700; color: var(--primary);">0</span>
+          </div>
+          <div class="status-chip"
+            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
+            <span class="muted">Failed</span>
+            <span id="reportSentFailed" style="font-size: 32px; font-weight: 700; color: var(--danger);">0</span>
+          </div>
+          <div class="status-chip"
+            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
+            <span class="muted">Auto-Replies</span>
+            <span id="reportAutoReplies" style="font-size: 32px; font-weight: 700; color: var(--accent);">0</span>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
 
   <script src="app.js"></script>
+  <script>
+    // Initialize Lucide icons on load
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  </script>
 </body>
 
 </html>
