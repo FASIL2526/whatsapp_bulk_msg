@@ -382,11 +382,34 @@ function findChromeUnderCache(cacheRoot) {
   return "";
 }
 
+function resolveSystemChromeExecutablePath() {
+  const candidates = [
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
 function resolveChromeExecutablePath(options = {}) {
   const includeSystem = options.includeSystem !== false;
+  const preferSystem = options.preferSystem !== false;
   const envPath = (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
   if (envPath && fs.existsSync(envPath)) {
     return envPath;
+  }
+
+  if (includeSystem && preferSystem) {
+    const systemChrome = resolveSystemChromeExecutablePath();
+    if (systemChrome) {
+      return systemChrome;
+    }
   }
 
   const cacheCandidates = [
@@ -406,16 +429,9 @@ function resolveChromeExecutablePath(options = {}) {
   }
 
   if (includeSystem) {
-    const candidates = [
-      "/usr/bin/google-chrome",
-      "/usr/bin/google-chrome-stable",
-      "/usr/bin/chromium-browser",
-      "/usr/bin/chromium",
-    ];
-    for (const candidate of candidates) {
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
+    const systemChrome = resolveSystemChromeExecutablePath();
+    if (systemChrome) {
+      return systemChrome;
     }
   }
 
@@ -458,6 +474,9 @@ function statusHint(lastError) {
   if (msg.includes("The browser is already running for")) {
     return "Session profile is locked by another Chromium process. Stop the old process or clear stale session lock files.";
   }
+  if (msg.includes("error while loading shared libraries")) {
+    return "Chrome binary cannot start due to missing OS packages. Install browser runtime libraries (for Debian/Ubuntu: libatk1.0-0 libnss3 libx11-6 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2) or use a Puppeteer-ready container image.";
+  }
   return "";
 }
 
@@ -478,7 +497,7 @@ function clearStaleProfileLocks(workspaceId) {
 }
 
 async function ensureChromeExecutablePath(runtime) {
-  const existing = resolveChromeExecutablePath({ includeSystem: false });
+  const existing = resolveChromeExecutablePath({ includeSystem: true, preferSystem: true });
   if (existing) {
     return existing;
   }
@@ -507,7 +526,7 @@ async function ensureChromeExecutablePath(runtime) {
   if (managed) {
     return managed;
   }
-  return resolveChromeExecutablePath({ includeSystem: true });
+  return resolveChromeExecutablePath({ includeSystem: true, preferSystem: true });
 }
 
 function getRuntime(workspaceId) {
