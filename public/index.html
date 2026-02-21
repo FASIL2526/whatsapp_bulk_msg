@@ -1,317 +1,217 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RestartX WhatsApp Console</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <section class="auth-shell" id="authShell">
-      <div class="auth-card">
-        <h2>RestartX Login</h2>
-        <p>Sign in to access your workspaces.</p>
-        <form id="authForm" class="auth-form">
-          <label>
-            Username
-            <input name="username" type="text" autocomplete="username" required />
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" autocomplete="current-password" required />
-          </label>
-          <div class="auth-actions">
-            <button type="submit" class="btn primary">Login</button>
-            <button type="button" id="registerBtn" class="btn">Register</button>
-          </div>
-          <p id="authMessage" class="auth-message"></p>
-        </form>
-      </div>
-    </section>
-    <main class="layout">
-      <section class="panel hero">
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RestartX WhatsApp Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <section class="auth-shell" id="authShell">
+    <div class="panel auth-card">
+      <h2>RestartX Login</h2>
+      <p>Sign in to access your workspaces.</p>
+      <form id="authForm" class="auth-form">
+        <label>
+          Username
+          <input name="username" type="text" autocomplete="username" required />
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <div class="auth-actions">
+          <button type="submit" class="btn primary">Login</button>
+          <button type="button" id="registerBtn" class="btn">Register</button>
+        </div>
+        <p id="authMessage" class="auth-message"></p>
+      </form>
+    </div>
+  </section>
+
+  <main class="layout" style="display: none;">
+    <section class="panel hero">
+      <div class="brand-section">
         <div class="brand-row">
           <div class="brand-mark">RX</div>
           <div>
             <p class="eyebrow">RestartX</p>
-            <h1>WhatsApp Automation Console</h1>
+            <h1>WhatsApp Automation</h1>
           </div>
         </div>
-        <p class="subtitle">Manage multiple QR sessions, bulk messages, keyword replies, and schedules.</p>
+        <p class="subtitle">Premium Management Console for Bulk Messaging & Automation.</p>
 
-        <div class="workspace-row">
-          <label>
-            User
-            <div class="user-pill" id="userPill">-</div>
-          </label>
-          <label>
-            Workspace
-            <select id="workspaceSelect"></select>
-          </label>
-          <label>
-            New Workspace Name
-            <input id="workspaceNameInput" type="text" placeholder="Sales Team" />
-          </label>
-          <button id="logoutBtn" class="btn">Logout</button>
-          <button id="createWorkspaceBtn" class="btn">Create Workspace</button>
+        <div class="status-grid">
+          <div class="status-chip"><span class="status-dot" id="statusDot"></span> Client: <span
+              id="statusChip">stopped</span></div>
+          <div class="status-chip">📅 <span id="schedulerChip">scheduler: off</span></div>
+          <div class="status-chip">👥 <span id="recipientChip">recipients: 0</span></div>
         </div>
+      </div>
 
-        <div class="status-row">
-          <div class="status-chip" id="statusChip">stopped</div>
-          <div class="status-chip muted" id="schedulerChip">scheduler: off</div>
-          <div class="status-chip muted" id="recipientChip">recipients: 0</div>
+      <div class="controls-section">
+        <label class="theme-switch">
+          <input type="checkbox" id="themeToggle">
+          <span class="slider"></span>
+        </label>
+        <div class="user-info">
+          <span class="muted">Logged in as:</span>
+          <strong id="userPill">-</strong>
         </div>
-        <div class="action-row">
-          <button id="startBtn" class="btn primary">Start WhatsApp</button>
-          <button id="stopBtn" class="btn">Stop</button>
-          <button id="sendStartupBtn" class="btn accent">Send Startup Message</button>
-        </div>
-        <p class="connect-note">
-          After clicking <strong>Start WhatsApp</strong>, wait up to 90 seconds for browser startup and QR load.
-          <span id="connectTimer">Connect timer: 0s</span>
-        </p>
-        <p class="connect-note" id="connectStateText">WA state: -</p>
-        <p class="connect-note" id="statusHintText"></p>
-      </section>
+        <button id="logoutBtn" class="btn">Logout</button>
+      </div>
+    </section>
 
-      <section class="panel qr-panel">
-        <h2>QR Login</h2>
-        <p>Choose workspace, click <strong>Start WhatsApp</strong>, then scan the QR in this panel.</p>
-        <div class="qr-box" id="qrBox">No QR yet</div>
-      </section>
+    <section class="panel qr-panel">
+      <h2>QR Login</h2>
+      <p class="muted">Click <strong>Start WhatsApp</strong> and scan the code.</p>
+      <div class="qr-box" id="qrBox">
+        <div class="muted">Client not started</div>
+      </div>
+      <div class="action-row" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+        <button id="startBtn" class="btn primary" style="width: 100%;">Start WhatsApp</button>
+        <button id="stopBtn" class="btn" style="width: 100%;">Stop Client</button>
+      </div>
+      <p class="connect-note" id="statusHintText"></p>
+      <div id="connectTimer" style="font-size: 12px; margin-top: 10px;" class="muted">Connect timer: 0s</div>
+    </section>
 
-      <section class="panel config-panel">
+    <section class="panel config-panel">
+      <div class="workspace-header"
+        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <h2>Workspace Configuration</h2>
-        <form id="configForm" class="form-grid">
-          <label>
-            Headless Browser
-            <select name="HEADLESS">
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <select id="workspaceSelect" style="width: auto;"></select>
+          <input id="workspaceNameInput" type="text" placeholder="New workspace..." style="width: 150px;" />
+          <button id="createWorkspaceBtn" class="btn">Add</button>
+        </div>
+      </div>
 
-          <label class="span-2">
-            Recipients (comma or new line)
-            <textarea name="RECIPIENTS" rows="4" placeholder="15551234567,447911123456"></textarea>
-          </label>
+      <form id="configForm" class="form-grid">
+        <label>
+          Headless Browser
+          <select name="HEADLESS">
+            <option value="true">Enable (Headless)</option>
+            <option value="false">Disable (Visible)</option>
+          </select>
+        </label>
 
-          <div class="span-2 import-box">
-            <h3>Import Recipients From Excel</h3>
-            <form id="importForm" class="import-form">
-              <label>
-                Excel/CSV File
-                <input id="recipientsFile" name="file" type="file" accept=".xlsx,.xls,.csv" />
-              </label>
-              <label>
-                Import Mode
-                <select name="mode">
-                  <option value="append">append to existing</option>
-                  <option value="replace">replace all recipients</option>
-                </select>
-              </label>
-              <button type="submit" class="btn">Import Numbers</button>
-            </form>
-            <p id="importResult" class="import-result"></p>
+        <label>
+          Schedule Auto-Send
+          <select name="SCHEDULE_ENABLED">
+            <option value="false">Off</option>
+            <option value="true">On</option>
+          </select>
+        </label>
+
+        <label class="span-2">
+          Recipients (List)
+          <textarea name="RECIPIENTS" rows="3" placeholder="91889..., 91859..."></textarea>
+        </label>
+
+        <div class="span-2 import-box">
+          <h3>Import from Excel/CSV</h3>
+          <div class="import-form" style="display: flex; gap: 10px;">
+            <input id="recipientsFile" type="file" accept=".xlsx,.xls,.csv" />
+            <button type="button" id="importBtn" class="btn accent">Import Numbers</button>
           </div>
-
-          <label class="span-2">
-            Startup Message
-            <textarea name="STARTUP_MESSAGE" rows="2"></textarea>
-          </label>
-
-          <label>
-            Bulk Send Mode
-            <select name="BULK_SEND_MODE">
-              <option value="instant">instant</option>
-              <option value="staggered">staggered delay</option>
-              <option value="random">random delay</option>
-            </select>
-          </label>
-
-          <label>
-            Stagger Delay (ms)
-            <input name="BULK_DELAY_MS" type="number" min="100" step="100" />
-          </label>
-
-          <label>
-            Random Min Delay (ms)
-            <input name="BULK_RANDOM_MIN_MS" type="number" min="100" step="100" />
-          </label>
-
-          <label>
-            Random Max Delay (ms)
-            <input name="BULK_RANDOM_MAX_MS" type="number" min="100" step="100" />
-          </label>
-
-          <label>
-            Template Mode
-            <select name="BULK_TEMPLATE_MODE">
-              <option value="single">single message</option>
-              <option value="rotate">rotate list</option>
-              <option value="random">random list</option>
-            </select>
-          </label>
-
-          <label class="span-2">
-            Template Lines (one per line)
-            <textarea
-              name="BULK_TEMPLATE_LINES"
-              rows="3"
-              placeholder="Hey there, quick update...&#10;Hi, just checking in...&#10;Hello from our team..."
-            ></textarea>
-          </label>
-
-          <label>
-            Auto Reply Enabled
-            <select name="AUTO_REPLY_ENABLED">
-              <option value="true">true</option>
-              <option value="false">false</option>
-            </select>
-          </label>
-
-          <label>
-            Auto Reply Mode
-            <select name="AUTO_REPLY_MODE">
-              <option value="exact">exact match</option>
-              <option value="contains">contains keyword</option>
-              <option value="rules">rules list</option>
-            </select>
-          </label>
-
-          <label>
-            Auto Reply Trigger
-            <input name="AUTO_REPLY_TRIGGER" type="text" placeholder="hi" />
-          </label>
-
-          <label class="span-2">
-            Auto Reply Text
-            <textarea name="AUTO_REPLY_TEXT" rows="2"></textarea>
-          </label>
-
-          <label class="span-2">
-            Auto Reply Rules (one per line: trigger => response)
-            <textarea
-              name="AUTO_REPLY_RULES"
-              rows="4"
-              placeholder="price => Our current price list is ...&#10;location => We are in ...&#10;help => Tell me your issue and we will assist."
-            ></textarea>
-          </label>
-
-          <label>
-            Schedule Enabled
-            <select name="SCHEDULE_ENABLED">
-              <option value="false">false</option>
-              <option value="true">true</option>
-            </select>
-          </label>
-
-          <label>
-            Cron Expression
-            <input name="SCHEDULE_CRON" type="text" placeholder="0 9 * * *" />
-          </label>
-
-          <label class="span-2">
-            Scheduled Message
-            <textarea name="SCHEDULE_MESSAGE" rows="2"></textarea>
-          </label>
-
-          <button class="btn primary span-2" type="submit">Save Configuration</button>
-        </form>
-      </section>
-
-      <section class="panel custom-panel">
-        <h2>Send Custom Bulk Message</h2>
-        <form id="customForm" class="form-grid">
-          <textarea
-            class="span-2"
-            name="message"
-            rows="3"
-            placeholder="Type message to send now to all recipients"
-          ></textarea>
-
-          <label>
-            Send Mode Override
-            <select name="mode">
-              <option value="">use workspace default</option>
-              <option value="instant">instant</option>
-              <option value="staggered">staggered delay</option>
-              <option value="random">random delay</option>
-            </select>
-          </label>
-
-          <label>
-            Template Mode Override
-            <select name="templateMode">
-              <option value="">use workspace default</option>
-              <option value="single">single message</option>
-              <option value="rotate">rotate list</option>
-              <option value="random">random list</option>
-            </select>
-          </label>
-
-          <label>
-            Delay (ms)
-            <input name="delayMs" type="number" min="100" step="100" placeholder="1500" />
-          </label>
-
-          <label>
-            Random Min (ms)
-            <input name="randomMinMs" type="number" min="100" step="100" placeholder="700" />
-          </label>
-
-          <label>
-            Random Max (ms)
-            <input name="randomMaxMs" type="number" min="100" step="100" placeholder="2500" />
-          </label>
-
-          <label class="span-2">
-            Template Lines Override (one per line)
-            <textarea name="templateLines" rows="2" placeholder="Template A&#10;Template B"></textarea>
-          </label>
-
-          <button type="submit" class="btn accent span-2">Send Now</button>
-        </form>
-      </section>
-
-      <section class="panel logs-panel">
-        <h2>Events</h2>
-        <pre id="events"></pre>
-      </section>
-
-      <section class="panel reports-panel">
-        <h2>Reports</h2>
-        <div class="report-controls">
-          <label>
-            From
-            <input id="reportFrom" type="datetime-local" />
-          </label>
-          <label>
-            To
-            <input id="reportTo" type="datetime-local" />
-          </label>
-          <button id="refreshReportsBtn" class="btn">Refresh Reports</button>
-          <a id="exportCsvLink" class="btn" href="#" target="_blank" rel="noreferrer">Export CSV</a>
+          <p id="importResult" class="import-result"></p>
         </div>
 
-        <div class="report-grid">
-          <div class="status-chip">Total: <span id="reportTotal">0</span></div>
-          <div class="status-chip">Sent OK: <span id="reportSentOk">0</span></div>
-          <div class="status-chip">Sent Failed: <span id="reportSentFailed">0</span></div>
-          <div class="status-chip">Auto Replies: <span id="reportAutoReplies">0</span></div>
+        <label class="span-2">
+          Template Content (One per line for rotation)
+          <textarea name="BULK_TEMPLATE_LINES" id="templateInput" rows="4"
+            placeholder="Type your message templates here..."></textarea>
+        </label>
+
+        <div class="span-2">
+          <h3>Message Preview</h3>
+          <div class="preview-container" id="messagePreview">
+            <div class="msg-bubble sent">Your message will appear here...</div>
+          </div>
         </div>
 
-        <h3>Recent Logs</h3>
-        <pre id="reportLogs"></pre>
-      </section>
-    </main>
+        <button class="btn primary span-2" type="submit">Save Workspace Config</button>
+      </form>
+    </section>
 
-    <script src="app.js"></script>
-  </body>
+    <section class="panel custom-panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Instant Sequential Campaign</h2>
+        <div class="status-chip" style="font-size: 12px; border-color: var(--primary);">Sequence Active</div>
+      </div>
+      <form id="customForm" class="form-grid">
+        <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span class="eyebrow" style="font-size: 10px;">Message 1 (Intro)</span>
+            <textarea name="message1" id="instantMessage1" rows="4"
+              placeholder="First message to spark interest..."></textarea>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <span class="eyebrow" style="font-size: 10px; color: var(--accent);">Message 2 (Follow-up)</span>
+            <textarea name="message2" id="instantMessage2" rows="4"
+              placeholder="Second message with more details..."></textarea>
+          </div>
+        </div>
+
+        <div class="span-2 preview-section">
+          <h3 style="font-size: 14px; margin-bottom: 12px;">Live Conversation Preview</h3>
+          <div class="preview-container" id="multiMessagePreview" style="min-height: 250px;">
+            <div class="msg-bubble received">Preview will appear as you type...</div>
+          </div>
+        </div>
+
+        <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+            <span>Launching Campaign sequence...</span>
+            <span id="progressText">0/0</span>
+          </div>
+          <div class="progress-wrapper">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn accent span-2" style="height: 50px; font-size: 18px; width: 100%;">🚀 Launch
+          Dual-Message
+          Campaign</button>
+      </form>
+    </section>
+
+    <section class="panel reports-panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>Campaign Analytics</h2>
+        <div style="display: flex; gap: 10px;">
+          <input id="reportFrom" type="datetime-local" style="width: auto;" />
+          <input id="reportTo" type="datetime-local" style="width: auto;" />
+          <button id="refreshReportsBtn" class="btn">Update</button>
+          <a id="exportCsvLink" class="btn primary" href="#">Export CSV</a>
+        </div>
+      </div>
+
+      <div class="status-grid" style="justify-content: space-around;">
+        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Total: <span
+            id="reportTotal">0</span></div>
+        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">OK: <span
+            id="reportSentOk">0</span></div>
+        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Failed: <span
+            id="reportSentFailed">0</span></div>
+        <div class="status-chip" style="flex: 1; padding: 20px; justify-content: center; font-size: 18px;">Auto: <span
+            id="reportAutoReplies">0</span></div>
+      </div>
+
+      <h3 style="margin-top: 30px;">Event Stream</h3>
+      <pre id="events" style="font-size: 12px;"></pre>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+
 </html>

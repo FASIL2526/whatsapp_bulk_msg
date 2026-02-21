@@ -391,6 +391,7 @@ function resolveChromeExecutablePath(options = {}) {
 
   const cacheCandidates = [
     process.env.PUPPETEER_CACHE_DIR,
+    "/workspace/.cache/puppeteer",
     "/opt/render/.cache/puppeteer",
     "/opt/render/project/.cache/puppeteer",
     "/opt/render/project/src/.cache/puppeteer",
@@ -429,6 +430,7 @@ function chromeDebugInfo() {
     "/usr/bin/chromium-browser",
     "/usr/bin/chromium",
     process.env.PUPPETEER_CACHE_DIR || "",
+    "/workspace/.cache/puppeteer",
     "/opt/render/.cache/puppeteer",
     "/opt/render/project/.cache/puppeteer",
     "/opt/render/project/src/.cache/puppeteer",
@@ -485,7 +487,7 @@ async function ensureChromeExecutablePath(runtime) {
     return "";
   }
 
-  const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || (fs.existsSync("/workspace") ? "/workspace/.cache/puppeteer" : "/opt/render/.cache/puppeteer");
   const buildId = process.env.CHROME_BUILD_ID || "145.0.7632.77";
 
   try {
@@ -778,7 +780,7 @@ function startReadyProbe(workspace, runtime) {
   }, 3000);
 }
 
-async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
+async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides = {}) {
   if (!runtime.client || (!runtime.ready && !runtime.authenticated)) {
     throw new Error("WhatsApp client is not connected yet.");
   }
@@ -791,36 +793,46 @@ async function sendBulkMessage(workspace, runtime, message, overrides = {}) {
 
   const options = getBulkOptions(workspace.config, overrides);
   const results = [];
+  const messages = Array.isArray(messageOrMessages) ? messageOrMessages : [messageOrMessages];
+
   for (let index = 0; index < recipients.length; index += 1) {
     const chatId = recipients[index];
-    const outgoingMessage = pickMessage(index, message, options);
-    const interDelayMs = getInterMessageDelay(options);
     const source = sanitizeText(overrides.source, "manual");
-    try {
-      await runtime.client.sendMessage(chatId, outgoingMessage);
-      results.push({ chatId, ok: true, mode: options.mode });
-      appendReport(workspace, {
-        kind: "outgoing",
-        source,
-        ok: true,
-        mode: options.mode,
-        templateMode: options.templateMode,
-        chatId,
-        message: outgoingMessage,
-      });
-    } catch (err) {
-      results.push({ chatId, ok: false, error: err.message });
-      appendReport(workspace, {
-        kind: "outgoing",
-        source,
-        ok: false,
-        mode: options.mode,
-        templateMode: options.templateMode,
-        chatId,
-        message: outgoingMessage,
-        error: err.message,
-      });
+
+    for (const baseMsg of messages) {
+      const outgoingMessage = pickMessage(index, baseMsg, options);
+      try {
+        await runtime.client.sendMessage(chatId, outgoingMessage);
+        results.push({ chatId, ok: true, mode: options.mode });
+        appendReport(workspace, {
+          kind: "outgoing",
+          source,
+          ok: true,
+          mode: options.mode,
+          templateMode: options.templateMode,
+          chatId,
+          message: outgoingMessage,
+        });
+      } catch (err) {
+        results.push({ chatId, ok: false, error: err.message });
+        appendReport(workspace, {
+          kind: "outgoing",
+          source,
+          ok: false,
+          mode: options.mode,
+          templateMode: options.templateMode,
+          chatId,
+          message: outgoingMessage,
+          error: err.message,
+        });
+      }
+      // Small delay between sequence messages if there are multiple
+      if (messages.length > 1) {
+        await sleep(500);
+      }
     }
+
+    const interDelayMs = getInterMessageDelay(options);
     if (interDelayMs > 0 && index < recipients.length - 1) {
       await sleep(interDelayMs);
     }
@@ -1370,13 +1382,20 @@ app.post("/api/workspaces/:workspaceId/send-custom", async (req, res) => {
 
   try {
     const runtime = getRuntime(workspace.id);
-    const message = sanitizeText(req.body?.message, "");
-    if (!message) {
-      res.status(400).json({ ok: false, error: "Message is required." });
+    let messages = [];
+    if (Array.isArray(req.body?.messages)) {
+      messages = req.body.messages.map(m => sanitizeMultilineText(m, "")).filter(Boolean);
+    } else {
+      const single = sanitizeMultilineText(req.body?.message, "");
+      if (single) messages.push(single);
+    }
+
+    if (messages.length === 0) {
+      res.status(400).json({ ok: false, error: "At least one message is required." });
       return;
     }
 
-    const results = await sendBulkMessage(workspace, runtime, message, {
+    const results = await sendBulkMessage(workspace, runtime, messages, {
       source: "custom",
       mode: req.body?.mode,
       delayMs: req.body?.delayMs,
@@ -1385,7 +1404,7 @@ app.post("/api/workspaces/:workspaceId/send-custom", async (req, res) => {
       templateMode: req.body?.templateMode,
       templateLines: req.body?.templateLines,
     });
-    res.json({ ok: true, message, results });
+    res.json({ ok: true, messages, results });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
