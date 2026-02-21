@@ -11,6 +11,18 @@
       "username": "user1",
       "passwordHash": "$2b$10$q7QHzwuj5BHvwswVshN0nOxdC4fNZGzg6vcUPZ7Zx2diWQsc9Seoi",
       "createdAt": "2026-02-20T11:32:08.609Z"
+    },
+    {
+      "id": "u_mlwao2p8_254",
+      "username": "verify",
+      "passwordHash": "$2b$10$bPNJiw7lEGmtJFvivrLi/eMgPrpUXTvJol5WG5J7GqzBTKqIVZoO2",
+      "createdAt": "2026-02-21T12:27:56.399Z"
+    },
+    {
+      "id": "u_mlwavm3k_257",
+      "username": "verifyadmin",
+      "passwordHash": "$2b$10$a4Zv91g.vib//Z3ihaLZvOKhcq6pJh0o1NIj9lQH6iK2gOov7DzP6",
+      "createdAt": "2026-02-21T12:33:48.180Z"
     }
   ],
   "workspaces": [
@@ -37,7 +49,253 @@
         "SCHEDULE_MESSAGE": "Daily reminder"
       },
       "createdAt": "2026-02-20T09:28:06.244Z",
-      "reports": [],
+      "reports": [
+        {
+          "at": "2026-02-21T12:02:43.614Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hrt"
+        },
+        {
+          "at": "2026-02-21T12:02:43.991Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hrt",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:02:44.302Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hrt",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:04:08.212Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hekkio"
+        },
+        {
+          "at": "2026-02-21T12:04:08.524Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hekkio",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:04:08.786Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hekkio",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:04:53.616Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "helloooooo"
+        },
+        {
+          "at": "2026-02-21T12:04:53.918Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "helloooooo",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:04:54.195Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "helloooooo",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:07:30.036Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-21T12:07:44.439Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-21T12:19:14.451Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hello"
+        },
+        {
+          "at": "2026-02-21T12:19:14.829Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:19:15.102Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:19:41.155Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "new"
+        },
+        {
+          "at": "2026-02-21T12:19:41.468Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "new",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:19:41.741Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "new",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:51:33.219Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "ghj"
+        },
+        {
+          "at": "2026-02-21T12:51:33.579Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "ghj",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T12:51:33.983Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "ghj",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T15:52:26.622Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "dfghjkrt",
+          "error": "Attempted to use detached Frame 'BAAC275A9508800C4B8186E520BD6552'."
+        },
+        {
+          "at": "2026-02-21T15:52:26.624Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "dfghjkrt",
+          "error": "Attempted to use detached Frame 'BAAC275A9508800C4B8186E520BD6552'."
+        },
+        {
+          "at": "2026-02-21T15:52:26.626Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "dfghjkrt",
+          "error": "Attempted to use detached Frame 'BAAC275A9508800C4B8186E520BD6552'."
+        }
+      ],
       "members": [
         {
           "userId": "u_mlut8f3y",
