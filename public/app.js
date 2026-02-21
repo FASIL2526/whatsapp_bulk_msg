@@ -38,6 +38,7 @@ const multiMessagePreview = document.getElementById("multiMessagePreview");
 const bulkProgress = document.getElementById("bulkProgress");
 const progressBar = document.getElementById("progressBar");
 const progressText = document.getElementById("progressText");
+const customSubmitBtn = customForm?.querySelector('button[type="submit"]');
 
 let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
@@ -45,6 +46,9 @@ let connectElapsedSec = 0;
 let connectActive = false;
 let workspaceReady = false;
 let workspaceAuthenticated = false;
+let workspaceSendInProgress = false;
+let statusRefreshInFlight = false;
+let customSendInFlight = false;
 let authToken = localStorage.getItem("rx_auth_token") || "";
 let currentUser = null;
 
@@ -111,6 +115,56 @@ function log(message) {
   events.textContent = `[${ts}] ${message}\n${events.textContent}`.slice(0, 9000);
 }
 
+function showToast(message, variant = "info") {
+  const toast = document.createElement("div");
+  const bg = variant === "error" ? "#dc2626" : variant === "success" ? "#059669" : "#334155";
+  toast.textContent = message;
+  toast.style.position = "fixed";
+  toast.style.right = "20px";
+  toast.style.bottom = "20px";
+  toast.style.zIndex = "9999";
+  toast.style.maxWidth = "360px";
+  toast.style.padding = "12px 14px";
+  toast.style.borderRadius = "10px";
+  toast.style.color = "#fff";
+  toast.style.background = bg;
+  toast.style.boxShadow = "0 10px 30px rgba(0,0,0,0.25)";
+  toast.style.fontSize = "13px";
+  toast.style.opacity = "0";
+  toast.style.transform = "translateY(8px)";
+  toast.style.transition = "all 160ms ease";
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = "1";
+    toast.style.transform = "translateY(0)";
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(8px)";
+    setTimeout(() => toast.remove(), 180);
+  }, 3200);
+}
+
+function notifyDesktop(title, body) {
+  if (!("Notification" in window)) {
+    return;
+  }
+  if (Notification.permission === "granted") {
+    // Fire-and-forget user notification for campaign completion.
+    new Notification(title, { body });
+    return;
+  }
+  if (Notification.permission === "default") {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        new Notification(title, { body });
+      }
+    }).catch(() => {});
+  }
+}
+
 function formToObject(formElement) {
   return Object.fromEntries(new FormData(formElement).entries());
 }
@@ -149,6 +203,7 @@ function setAuth(token, user) {
   authShell.style.display = "none";
   document.querySelector("main.layout").style.display = "grid";
   userPill.textContent = user.username;
+  syncCampaignButtonState();
 }
 
 function clearAuth() {
@@ -158,6 +213,7 @@ function clearAuth() {
   authShell.style.display = "flex";
   document.querySelector("main.layout").style.display = "none";
   userPill.textContent = "-";
+  syncCampaignButtonState();
 }
 
 async function checkAuth() {
@@ -180,6 +236,21 @@ function workspacePath(suffix) {
     throw new Error("No workspace selected.");
   }
   return `/api/workspaces/${activeWorkspaceId}${suffix}`;
+}
+
+function syncCampaignButtonState() {
+  if (!customSubmitBtn) return;
+  const disabled = customSendInFlight || workspaceSendInProgress || !(workspaceReady || workspaceAuthenticated);
+  customSubmitBtn.disabled = disabled;
+  if (customSendInFlight || workspaceSendInProgress) {
+    customSubmitBtn.textContent = "Campaign Running...";
+    return;
+  }
+  if (!(workspaceReady || workspaceAuthenticated)) {
+    customSubmitBtn.textContent = "Client Not Ready";
+    return;
+  }
+  customSubmitBtn.textContent = "🚀 Launch Dual-Message Campaign";
 }
 
 function reportParams() {
@@ -245,6 +316,8 @@ async function loadWorkspaces() {
 
 async function refreshStatus() {
   if (!activeWorkspaceId) return;
+  if (statusRefreshInFlight) return;
+  statusRefreshInFlight = true;
 
   try {
     const status = await getJson(workspacePath("/status"));
@@ -256,9 +329,11 @@ async function refreshStatus() {
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
     workspaceReady = Boolean(status.ready);
     workspaceAuthenticated = Boolean(status.authenticated);
+    workspaceSendInProgress = Boolean(status.sendInProgress);
     connectElapsedSec = status.connectElapsedSec || 0;
     connectActive = !status.ready && ["starting", "qr_ready", "authenticated"].includes(status.status);
     connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
+    syncCampaignButtonState();
 
     if (status.qrDataUrl) {
       qrBox.innerHTML = `<img alt="WhatsApp QR" src="${status.qrDataUrl}" />`;
@@ -277,6 +352,8 @@ async function refreshStatus() {
     }
   } catch (err) {
     log(err.message);
+  } finally {
+    statusRefreshInFlight = false;
   }
 }
 
@@ -378,10 +455,16 @@ function updateProgressBar(current, total) {
 
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (customSendInFlight || workspaceSendInProgress) {
+    log(`[${activeWorkspaceId}] campaign is already running.`);
+    return;
+  }
   if (!(workspaceReady || workspaceAuthenticated)) {
     log(`[${activeWorkspaceId}] WhatsApp client is not connected yet.`);
     return;
   }
+  customSendInFlight = true;
+  syncCampaignButtonState();
   try {
     const m1 = instantMessage1.value.trim();
     const m2 = instantMessage2.value.trim();
@@ -409,12 +492,21 @@ customForm.addEventListener("submit", async (event) => {
     }, 100);
 
     const recipientCount = total / messages.length;
-    log(`[${activeWorkspaceId}] campaign finished. Sent ${messages.length} messages to ${recipientCount} recipients.`);
+    const doneText = `[${activeWorkspaceId}] campaign finished. Sent ${messages.length} messages to ${recipientCount} recipients.`;
+    log(doneText);
+    showToast(doneText, "success");
+    notifyDesktop("Campaign Completed", `Workspace ${activeWorkspaceId}: sent ${messages.length} messages to ${recipientCount} recipients.`);
     customForm.reset();
     updateMultiPreview();
     await refreshReports();
   } catch (err) {
     log(err.message);
+    showToast(err.message, "error");
+    notifyDesktop("Campaign Failed", err.message);
+  } finally {
+    customSendInFlight = false;
+    await refreshStatus();
+    syncCampaignButtonState();
   }
 });
 
@@ -495,6 +587,7 @@ if (logoutBtn) {
 }
 
 (async function init() {
+  syncCampaignButtonState();
   setDefaultReportWindow();
   const ok = await checkAuth();
   if (ok) {

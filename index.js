@@ -570,6 +570,8 @@ function getRuntime(workspaceId) {
       lastError: "",
       client: null,
       scheduler: null,
+      sendInProgress: false,
+      sendStartedAt: null,
     });
   }
   return runtimeByWorkspaceId.get(workspaceId);
@@ -846,60 +848,73 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
   if (!runtime.client || (!runtime.ready && !runtime.authenticated)) {
     throw new Error("WhatsApp client is not connected yet.");
   }
-  await ensureSendableConnection(workspace, runtime);
-
-  const recipients = workspaceRecipientsChatIds(workspace);
-  if (recipients.length === 0) {
-    throw new Error("No recipients configured.");
+  if (runtime.sendInProgress) {
+    throw new Error("A campaign is already running for this workspace. Please wait until it finishes.");
   }
 
-  const options = getBulkOptions(workspace.config, overrides);
-  const results = [];
-  const messages = Array.isArray(messageOrMessages) ? messageOrMessages : [messageOrMessages];
+  runtime.sendInProgress = true;
+  runtime.sendStartedAt = Date.now();
 
-  for (let index = 0; index < recipients.length; index += 1) {
-    const chatId = recipients[index];
-    const source = sanitizeText(overrides.source, "manual");
+  try {
+    await ensureSendableConnection(workspace, runtime);
 
-    for (const baseMsg of messages) {
-      const outgoingMessage = pickMessage(index, baseMsg, options);
-      try {
-        await runtime.client.sendMessage(chatId, outgoingMessage);
-        results.push({ chatId, ok: true, mode: options.mode });
-        appendReport(workspace, {
-          kind: "outgoing",
-          source,
-          ok: true,
-          mode: options.mode,
-          templateMode: options.templateMode,
-          chatId,
-          message: outgoingMessage,
-        });
-      } catch (err) {
-        results.push({ chatId, ok: false, error: err.message });
-        appendReport(workspace, {
-          kind: "outgoing",
-          source,
-          ok: false,
-          mode: options.mode,
-          templateMode: options.templateMode,
-          chatId,
-          message: outgoingMessage,
-          error: err.message,
-        });
+    const recipients = workspaceRecipientsChatIds(workspace);
+    if (recipients.length === 0) {
+      throw new Error("No recipients configured.");
+    }
+
+    const options = getBulkOptions(workspace.config, overrides);
+    const results = [];
+    const messages = Array.isArray(messageOrMessages) ? messageOrMessages : [messageOrMessages];
+
+    for (let index = 0; index < recipients.length; index += 1) {
+      const chatId = recipients[index];
+      const source = sanitizeText(overrides.source, "manual");
+
+      for (const baseMsg of messages) {
+        const outgoingMessage = pickMessage(index, baseMsg, options);
+        try {
+          await runtime.client.sendMessage(chatId, outgoingMessage);
+          results.push({ chatId, ok: true, mode: options.mode });
+          appendReport(workspace, {
+            kind: "outgoing",
+            source,
+            ok: true,
+            mode: options.mode,
+            templateMode: options.templateMode,
+            chatId,
+            message: outgoingMessage,
+          });
+        } catch (err) {
+          results.push({ chatId, ok: false, error: err.message });
+          appendReport(workspace, {
+            kind: "outgoing",
+            source,
+            ok: false,
+            mode: options.mode,
+            templateMode: options.templateMode,
+            chatId,
+            message: outgoingMessage,
+            error: err.message,
+          });
+        }
+        // Small delay between sequence messages if there are multiple
+        if (messages.length > 1) {
+          await sleep(500);
+        }
       }
-      // Small delay between sequence messages if there are multiple
-      if (messages.length > 1) {
-        await sleep(500);
+
+      const interDelayMs = getInterMessageDelay(options);
+      if (interDelayMs > 0 && index < recipients.length - 1) {
+        await sleep(interDelayMs);
       }
     }
 
-    const interDelayMs = getInterMessageDelay(options);
-    if (interDelayMs > 0 && index < recipients.length - 1) {
-      await sleep(interDelayMs);
-    }
+    return results;
+  } finally {
+    runtime.sendInProgress = false;
+    runtime.sendStartedAt = null;
   }
-  return results;
 }
 
 function setupScheduler(workspace, runtime) {
@@ -1158,6 +1173,8 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.recoveryAttempted = false;
   runtime.recoveryInProgress = false;
   runtime.lastWaState = "";
+  runtime.sendInProgress = false;
+  runtime.sendStartedAt = null;
   stopReadyProbe(runtime);
   runtime.qrDataUrl = "";
 }
@@ -1357,6 +1374,10 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
     runtime.startRequestedAt && !runtime.ready
       ? Math.max(0, Math.floor((Date.now() - runtime.startRequestedAt) / 1000))
       : 0;
+  const sendElapsedSec =
+    runtime.sendInProgress && runtime.sendStartedAt
+      ? Math.max(0, Math.floor((Date.now() - runtime.sendStartedAt) / 1000))
+      : 0;
   res.json({
     status: runtime.status,
     ready: runtime.ready,
@@ -1366,6 +1387,8 @@ app.get("/api/workspaces/:workspaceId/status", (req, res) => {
     qrDataUrl: runtime.qrDataUrl,
     hasScheduler: Boolean(runtime.scheduler),
     recipientsCount: workspaceRecipientsChatIds(workspace).length,
+    sendInProgress: Boolean(runtime.sendInProgress),
+    sendElapsedSec,
     lastError: runtime.lastError,
     hint: statusHint(runtime.lastError),
   });
