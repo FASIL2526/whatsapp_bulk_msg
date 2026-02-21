@@ -1,0 +1,10 @@
+node_modules
+.cache
+.wwebjs_auth
+.wwebjs_cache
+data
+output.log
+*.md
+.git
+.gitignore
+.env
