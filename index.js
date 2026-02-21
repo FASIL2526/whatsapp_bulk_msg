@@ -15,6 +15,21 @@ const XLSX = require("xlsx");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
+const SYSTEM_CHROME_CANDIDATES = [
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/chromium",
+];
+const detectedSystemChrome = SYSTEM_CHROME_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
+const currentPuppeteerExecutablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+if (
+  detectedSystemChrome &&
+  (!currentPuppeteerExecutablePath || currentPuppeteerExecutablePath.includes("/.cache/puppeteer/"))
+) {
+  process.env.PUPPETEER_EXECUTABLE_PATH = detectedSystemChrome;
+}
+
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -401,16 +416,17 @@ function resolveChromeExecutablePath(options = {}) {
   const includeSystem = options.includeSystem !== false;
   const preferSystem = options.preferSystem !== false;
   const ignoreEnv = options.ignoreEnv === true;
-  const envPath = ignoreEnv ? "" : (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
-  if (envPath && fs.existsSync(envPath)) {
-    return envPath;
-  }
 
   if (includeSystem && preferSystem) {
     const systemChrome = resolveSystemChromeExecutablePath();
     if (systemChrome) {
       return systemChrome;
     }
+  }
+
+  const envPath = ignoreEnv ? "" : (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+  if (envPath && fs.existsSync(envPath)) {
+    return envPath;
   }
 
   const cacheCandidates = [
@@ -477,6 +493,9 @@ function statusHint(lastError) {
   }
   if (msg.includes("error while loading shared libraries")) {
     return "Chrome binary cannot start due to missing OS packages. Install browser runtime libraries (for Debian/Ubuntu: libatk1.0-0 libnss3 libx11-6 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2) or use a Puppeteer-ready container image.";
+  }
+  if (msg.includes("Timed out after waiting 30000ms")) {
+    return "Browser startup timed out. On small VPS instances, increase launch/auth timeouts and keep HEADLESS=true.";
   }
   return "";
 }
@@ -904,7 +923,18 @@ async function createClientForWorkspace(workspace) {
   const headless = workspace.config.HEADLESS !== "false";
   const executablePath = await ensureChromeExecutablePath(runtime);
   const isRender = process.env.RENDER === "true";
-  const launchArgs = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
+  const launchArgs = [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-extensions",
+    "--disable-background-networking",
+    "--no-first-run",
+    "--no-default-browser-check",
+  ];
+  const launchTimeoutMs = Math.max(30000, Number.parseInt(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS || "120000", 10) || 120000);
+  const authTimeoutMs = Math.max(30000, Number.parseInt(process.env.WA_AUTH_TIMEOUT_MS || "120000", 10) || 120000);
 
   console.log(`[DEBUG] Attempting to launch client...`);
   console.log(`[DEBUG] CWD: ${process.cwd()}`);
@@ -916,10 +946,13 @@ async function createClientForWorkspace(workspace) {
   }
   runtime.client = new Client({
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
+    authTimeoutMs,
     puppeteer: {
       headless,
       args: launchArgs,
       executablePath: executablePath || undefined,
+      timeout: launchTimeoutMs,
+      protocolTimeout: launchTimeoutMs,
     },
   });
 
