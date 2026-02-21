@@ -391,6 +391,7 @@ function resolveChromeExecutablePath(options = {}) {
 
   const cacheCandidates = [
     process.env.PUPPETEER_CACHE_DIR,
+    "/workspace/.cache/puppeteer",
     "/opt/render/.cache/puppeteer",
     "/opt/render/project/.cache/puppeteer",
     "/opt/render/project/src/.cache/puppeteer",
@@ -429,6 +430,7 @@ function chromeDebugInfo() {
     "/usr/bin/chromium-browser",
     "/usr/bin/chromium",
     process.env.PUPPETEER_CACHE_DIR || "",
+    "/workspace/.cache/puppeteer",
     "/opt/render/.cache/puppeteer",
     "/opt/render/project/.cache/puppeteer",
     "/opt/render/project/src/.cache/puppeteer",
@@ -485,7 +487,7 @@ async function ensureChromeExecutablePath(runtime) {
     return "";
   }
 
-  const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || (fs.existsSync("/workspace") ? "/workspace/.cache/puppeteer" : "/opt/render/.cache/puppeteer");
   const buildId = process.env.CHROME_BUILD_ID || "145.0.7632.77";
 
   try {
