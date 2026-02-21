@@ -11,7 +11,13 @@ I've configured the application to be ready for **DigitalOcean App Platform**. T
    - Log in to DigitalOcean and go to **Apps**.
    - Click **Create App** and select your GitHub repository.
    - **CRITICAL:** If DigitalOcean asks for the "Resource Type," ensured it is set to **Web Service**.
-   - **FORCE DOCKER:** Go to the "Build" step. If it says "Buildpack," change it manually to **Dockerfile**. Ensure the path is set to `./Dockerfile`.
+   - **VERIFY BUILD TYPE:** Look at the "Build" step. If it says **Buildpack**, click **Edit** next to your service and manually change the **Build Method** to **Dockerfile**.
+   - If you don't see this, click **Back** and ensure you selected **Web Service** as the resource type.
+
+### 🔍 How to know if it's working:
+When the build starts in DigitalOcean, check the logs:
+- **WRONG (Buildpack):** You will see `Installing Node.js...` or `Running render-build...`.
+- **RIGHT (Docker):** You will see `Step 1/12: FROM ghcr.io/puppeteer/puppeteer...`.
 
 3. **Configure Environment Variables:**
    In the **Settings** or **App Spec** section, ensure you add:

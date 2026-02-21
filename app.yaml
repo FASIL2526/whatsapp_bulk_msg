@@ -1,5 +1,4 @@
 # DigitalOcean App Spec
-# You can use this to "Edit Spec" in the App Settings to force Docker usage.
 name: whatsapp-automation-console
 region: nyc
 services:
@@ -16,7 +15,9 @@ services:
   envs:
   - key: AUTH_SECRET
     scope: RUN_AND_BUILD_TIME
-    value: change-me-to-something-secure
+    value: restartx-secure-secret-123
   - key: PORT
     scope: RUN_AND_BUILD_TIME
     value: "3000"
+  # This section helps force DigitalOcean to recognize the Dockerfile
+  build_command: ""
