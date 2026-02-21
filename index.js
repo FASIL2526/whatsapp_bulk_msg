@@ -776,26 +776,39 @@ async function ensureSendableConnection(workspace, runtime) {
     return;
   }
 
-  let connected = await waitForConnected(runtime, 3000);
-  if (connected) {
-    markWorkspaceReady(workspace, runtime);
-    return;
-  }
+  const sendWaitMs = Math.max(15000, Number.parseInt(process.env.WA_SEND_WAIT_MS || "120000", 10) || 120000);
+  const restartLimit = Math.max(0, Number.parseInt(process.env.WA_SEND_RESTART_LIMIT || "2", 10) || 2);
+  const startedAt = Date.now();
+  let restarts = 0;
 
-  if (runtime.authenticated) {
-    await restartClientBridge(
-      workspace,
-      runtime,
-      "Authenticated but not connected for send attempt. Restarting bridge."
-    );
-    connected = await waitForConnected(runtime, 25000);
+  while (Date.now() - startedAt < sendWaitMs) {
+    if (!runtime.client) {
+      break;
+    }
+    if (runtime.ready) {
+      return;
+    }
+
+    const connected = await waitForConnected(runtime, 5000);
     if (connected) {
       markWorkspaceReady(workspace, runtime);
       return;
     }
+
+    if (runtime.authenticated && restarts < restartLimit && !runtime.recoveryInProgress) {
+      restarts += 1;
+      await restartClientBridge(
+        workspace,
+        runtime,
+        `Authenticated but not connected for send attempt. Restarting bridge (${restarts}/${restartLimit}).`
+      );
+      continue;
+    }
+
+    await sleep(1500);
   }
 
-  throw new Error("WhatsApp is not connected yet. Please rescan QR or press Start again.");
+  throw new Error("WhatsApp is authenticated but not connected yet. Keep client running and try send again in a moment.");
 }
 
 function startReadyProbe(workspace, runtime) {
