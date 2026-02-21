@@ -2,13 +2,13 @@ const form = document.getElementById("configForm");
 const customForm = document.getElementById("customForm");
 const qrBox = document.getElementById("qrBox");
 const statusChip = document.getElementById("statusChip");
+const statusDot = document.getElementById("statusDot");
 const schedulerChip = document.getElementById("schedulerChip");
 const recipientChip = document.getElementById("recipientChip");
 const events = document.getElementById("events");
 
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
-const sendStartupBtn = document.getElementById("sendStartupBtn");
 
 const workspaceSelect = document.getElementById("workspaceSelect");
 const workspaceNameInput = document.getElementById("workspaceNameInput");
@@ -21,19 +21,23 @@ const reportTotal = document.getElementById("reportTotal");
 const reportSentOk = document.getElementById("reportSentOk");
 const reportSentFailed = document.getElementById("reportSentFailed");
 const reportAutoReplies = document.getElementById("reportAutoReplies");
-const reportLogs = document.getElementById("reportLogs");
 const connectTimer = document.getElementById("connectTimer");
-const importForm = document.getElementById("importForm");
 const recipientsFileInput = document.getElementById("recipientsFile");
+const importBtn = document.getElementById("importBtn");
 const importResult = document.getElementById("importResult");
-const connectStateText = document.getElementById("connectStateText");
-const statusHintText = document.getElementById("statusHintText");
 const authShell = document.getElementById("authShell");
 const authForm = document.getElementById("authForm");
 const authMessage = document.getElementById("authMessage");
 const registerBtn = document.getElementById("registerBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userPill = document.getElementById("userPill");
+
+const instantMessage1 = document.getElementById("instantMessage1");
+const instantMessage2 = document.getElementById("instantMessage2");
+const multiMessagePreview = document.getElementById("multiMessagePreview");
+const bulkProgress = document.getElementById("bulkProgress");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
 
 let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
@@ -43,6 +47,64 @@ let workspaceReady = false;
 let workspaceAuthenticated = false;
 let authToken = localStorage.getItem("rx_auth_token") || "";
 let currentUser = null;
+
+// --- Theme Logic ---
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("rx_theme", theme);
+  if (themeToggle) themeToggle.checked = theme === "dark";
+}
+
+if (themeToggle) {
+  themeToggle.addEventListener("change", () => {
+    setTheme(themeToggle.checked ? "dark" : "light");
+  });
+}
+
+const savedTheme = localStorage.getItem("rx_theme") || "light";
+setTheme(savedTheme);
+
+// --- Message Preview Logic ---
+function updatePreview(text) {
+  if (!messagePreview) return;
+  const lines = text.split("\n").filter(l => l.trim());
+  if (lines.length === 0) {
+    messagePreview.innerHTML = '<div class="msg-bubble sent">Your message will appear here...</div>';
+    return;
+  }
+  // Show first line as preview
+  messagePreview.innerHTML = `<div class="msg-bubble sent">${lines[0].replace(/\n/g, "<br>")}</div>`;
+  if (lines.length > 1) {
+    messagePreview.innerHTML += `<div class="muted" style="font-size: 11px; margin-top: 4px;">+ ${lines.length - 1} more templates in rotation</div>`;
+  }
+}
+
+// --- Multi-Message Preview Logic ---
+function updateMultiPreview() {
+  if (!multiMessagePreview) return;
+  const m1 = instantMessage1?.value.trim() || "";
+  const m2 = instantMessage2?.value.trim() || "";
+
+  if (!m1 && !m2) {
+    multiMessagePreview.innerHTML = '<div class="msg-bubble received">Preview will appear as you type...</div>';
+    return;
+  }
+
+  let html = "";
+  if (m1) html += `<div class="msg-bubble sent" style="margin-bottom: 12px; border-bottom-left-radius: 0; align-self: flex-start; background: #fff; color: #333; border: 1px solid #ddd;"><b>Msg 1:</b><br>${m1.replace(/\n/g, "<br>")}</div>`;
+  if (m2) html += `<div class="msg-bubble sent" style="margin-top: 4px; align-self: flex-start; background: #dcf8c6; color: #000; border: 1px solid #c9ebae;"><b>Msg 2:</b><br>${m2.replace(/\n/g, "<br>")}</div>`;
+
+  multiMessagePreview.innerHTML = html;
+  multiMessagePreview.scrollTop = multiMessagePreview.scrollHeight;
+}
+
+[instantMessage1, instantMessage2].forEach(el => {
+  el?.addEventListener("input", updateMultiPreview);
+});
+
+if (templateInput) {
+  templateInput.addEventListener("input", (e) => updatePreview(e.target.value));
+}
 
 function log(message) {
   const ts = new Date().toLocaleTimeString();
@@ -58,6 +120,7 @@ function applyConfig(config) {
     const el = form.elements.namedItem(key);
     if (el) {
       el.value = value;
+      if (key === "BULK_TEMPLATE_LINES") updatePreview(value);
     }
   });
 }
@@ -84,7 +147,7 @@ function setAuth(token, user) {
   currentUser = user;
   localStorage.setItem("rx_auth_token", token);
   authShell.style.display = "none";
-  document.querySelector("main.layout").style.display = "";
+  document.querySelector("main.layout").style.display = "grid";
   userPill.textContent = user.username;
 }
 
@@ -92,7 +155,7 @@ function clearAuth() {
   authToken = "";
   currentUser = null;
   localStorage.removeItem("rx_auth_token");
-  authShell.style.display = "";
+  authShell.style.display = "flex";
   document.querySelector("main.layout").style.display = "none";
   userPill.textContent = "-";
 }
@@ -144,23 +207,12 @@ function setDefaultReportWindow() {
 }
 
 async function refreshReports() {
-  if (
-    !activeWorkspaceId ||
-    !reportTotal ||
-    !reportSentOk ||
-    !reportSentFailed ||
-    !reportAutoReplies ||
-    !reportLogs ||
-    !exportCsvLink
-  ) {
-    return;
-  }
+  if (!activeWorkspaceId || !reportTotal) return;
 
   try {
     const params = reportParams();
     const suffix = params ? `?${params}` : "";
     const summaryData = await getJson(workspacePath(`/reports/summary${suffix}`));
-    const logsData = await getJson(workspacePath(`/reports/logs${suffix}`));
 
     reportTotal.textContent = summaryData.summary.total;
     reportSentOk.textContent = summaryData.summary.sentOk;
@@ -168,18 +220,6 @@ async function refreshReports() {
     reportAutoReplies.textContent = summaryData.summary.autoReplies;
 
     exportCsvLink.href = workspacePath(`/reports/csv${suffix}`);
-
-    if (!logsData.logs.length) {
-      reportLogs.textContent = "No report logs in selected range.";
-    } else {
-      reportLogs.textContent = logsData.logs
-        .slice(0, 80)
-        .map((entry) => {
-          const status = entry.ok ? "ok" : "fail";
-          return `${entry.at} | ${entry.kind} | ${entry.source} | ${status} | ${entry.chatId || entry.from || "-"} | ${entry.message || ""}`;
-        })
-        .join("\n");
-    }
   } catch (err) {
     log(err.message);
   }
@@ -193,29 +233,25 @@ async function loadWorkspaces() {
   for (const ws of result.workspaces) {
     const option = document.createElement("option");
     option.value = ws.id;
-    option.textContent = `${ws.name} (${ws.id})`;
+    option.textContent = ws.name;
     workspaceSelect.appendChild(option);
   }
 
   activeWorkspaceId = result.workspaces.find((ws) => ws.id === previous)?.id || result.workspaces[0]?.id || "";
-  if (!activeWorkspaceId) {
-    statusChip.textContent = "no workspace";
-    schedulerChip.textContent = "scheduler: -";
-    recipientChip.textContent = "recipients: 0";
-    qrBox.textContent = "Create a workspace first.";
-  } else {
+  if (activeWorkspaceId) {
     workspaceSelect.value = activeWorkspaceId;
   }
 }
 
 async function refreshStatus() {
-  if (!activeWorkspaceId) {
-    return;
-  }
+  if (!activeWorkspaceId) return;
 
   try {
     const status = await getJson(workspacePath("/status"));
     statusChip.textContent = status.status;
+    if (statusDot) {
+      statusDot.className = "status-dot " + (status.ready ? "active" : "");
+    }
     schedulerChip.textContent = `scheduler: ${status.hasScheduler ? "on" : "off"}`;
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
     workspaceReady = Boolean(status.ready);
@@ -223,20 +259,11 @@ async function refreshStatus() {
     connectElapsedSec = status.connectElapsedSec || 0;
     connectActive = !status.ready && ["starting", "qr_ready", "authenticated"].includes(status.status);
     connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
-    if (connectStateText) {
-      connectStateText.textContent = `WA state: ${status.waState || status.status || "-"}`;
-    }
-    if (statusHintText) {
-      statusHintText.textContent = status.hint ? `Hint: ${status.hint}` : "";
-    }
-    if (sendStartupBtn) {
-      sendStartupBtn.disabled = !(workspaceReady || workspaceAuthenticated);
-    }
 
     if (status.qrDataUrl) {
       qrBox.innerHTML = `<img alt="WhatsApp QR" src="${status.qrDataUrl}" />`;
     } else {
-      qrBox.textContent = status.ready ? "Connected." : "No QR yet";
+      qrBox.innerHTML = `<div class="muted">${status.ready ? "Connected and Ready" : "No QR yet"}</div>`;
     }
 
     if (status.lastError) {
@@ -254,22 +281,17 @@ async function refreshStatus() {
 }
 
 setInterval(() => {
-  if (!connectActive) {
-    return;
-  }
+  if (!connectActive) return;
   connectElapsedSec += 1;
   connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
 }, 1000);
 
 async function loadConfig() {
-  if (!activeWorkspaceId) {
-    return;
-  }
-
+  if (!activeWorkspaceId) return;
   try {
     const config = await getJson(workspacePath("/config"));
     applyConfig(config);
-    log(`[${activeWorkspaceId}] config loaded`);
+    log(`[${activeWorkspaceId}] configuration loaded`);
   } catch (err) {
     log(err.message);
   }
@@ -284,10 +306,7 @@ workspaceSelect.addEventListener("change", async () => {
 
 createWorkspaceBtn.addEventListener("click", async () => {
   const name = workspaceNameInput.value.trim();
-  if (!name) {
-    log("workspace name is required");
-    return;
-  }
+  if (!name) return;
 
   try {
     const result = await getJson("/api/workspaces", {
@@ -301,8 +320,7 @@ createWorkspaceBtn.addEventListener("click", async () => {
     workspaceSelect.value = activeWorkspaceId;
     await loadConfig();
     await refreshStatus();
-    await refreshReports();
-    log(`workspace created: ${result.workspace.name} (${result.workspace.id})`);
+    log(`workspace created: ${result.workspace.name}`);
   } catch (err) {
     log(err.message);
   }
@@ -327,7 +345,7 @@ form.addEventListener("submit", async (event) => {
 startBtn.addEventListener("click", async () => {
   try {
     await getJson(workspacePath("/start"), { method: "POST" });
-    log(`[${activeWorkspaceId}] starting client`);
+    log(`[${activeWorkspaceId}] starting client...`);
     await refreshStatus();
   } catch (err) {
     log(err.message);
@@ -344,19 +362,19 @@ stopBtn.addEventListener("click", async () => {
   }
 });
 
-sendStartupBtn.addEventListener("click", async () => {
-  if (!(workspaceReady || workspaceAuthenticated)) {
-    log(`[${activeWorkspaceId}] WhatsApp client is not connected yet.`);
-    return;
+function updateProgressBar(current, total) {
+  if (!bulkProgress || !progressBar || !progressText) return;
+  bulkProgress.style.display = "block";
+  const percent = total > 0 ? (current / total) * 100 : 0;
+  progressBar.style.width = percent + "%";
+  progressText.textContent = `${current}/${total}`;
+  if (current === total && total > 0) {
+    setTimeout(() => {
+      bulkProgress.style.display = "none";
+      progressBar.style.width = "0%";
+    }, 3000);
   }
-  try {
-    const result = await getJson(workspacePath("/send-startup"), { method: "POST" });
-    log(`[${activeWorkspaceId}] startup message sent to ${result.results.length} recipients`);
-    await refreshReports();
-  } catch (err) {
-    log(err.message);
-  }
-});
+}
 
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -365,14 +383,35 @@ customForm.addEventListener("submit", async (event) => {
     return;
   }
   try {
-    const payload = formToObject(customForm);
+    const m1 = instantMessage1.value.trim();
+    const m2 = instantMessage2.value.trim();
+    const messages = [m1, m2].filter(Boolean);
+
+    if (messages.length === 0) {
+      log("Please enter at least one message.");
+      return;
+    }
+
+    log(`[${activeWorkspaceId}] launching sequential campaign...`);
     const result = await getJson(workspacePath("/send-custom"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ messages }),
     });
-    log(`[${activeWorkspaceId}] custom message sent to ${result.results.length} recipients`);
+
+    // Simulate progress bar based on results
+    const total = result.results.length;
+    let current = 0;
+    const interval = setInterval(() => {
+      current += 1;
+      updateProgressBar(current, total);
+      if (current >= total) clearInterval(interval);
+    }, 100);
+
+    const recipientCount = total / messages.length;
+    log(`[${activeWorkspaceId}] campaign finished. Sent ${messages.length} messages to ${recipientCount} recipients.`);
     customForm.reset();
+    updateMultiPreview();
     await refreshReports();
   } catch (err) {
     log(err.message);
@@ -380,44 +419,39 @@ customForm.addEventListener("submit", async (event) => {
 });
 
 if (refreshReportsBtn) {
-  refreshReportsBtn.addEventListener("click", async () => {
-    await refreshReports();
-  });
+  refreshReportsBtn.addEventListener("click", refreshReports);
 }
 
-if (importForm && recipientsFileInput && importResult) {
-  importForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+if (importBtn && recipientsFileInput && importResult) {
+  importBtn.addEventListener("click", async () => {
     if (!recipientsFileInput.files?.length) {
       importResult.textContent = "Select an Excel/CSV file first.";
       return;
     }
 
     try {
-      const formData = new FormData(importForm);
+      const formData = new FormData();
       formData.set("file", recipientsFileInput.files[0]);
+      formData.set("mode", "append");
       const res = await fetch(workspacePath("/recipients/import"), {
         method: "POST",
+        headers: { "Authorization": `Bearer ${authToken}` },
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok || data.ok === false) {
-        throw new Error(data.error || "Import failed.");
-      }
+      if (!res.ok || data.ok === false) throw new Error(data.error || "Import failed.");
 
-      importResult.textContent = `Imported ${data.importedCount} numbers. Total recipients: ${data.totalRecipients}.`;
+      importResult.textContent = `Imported ${data.importedCount} numbers. Total: ${data.totalRecipients}.`;
       await loadConfig();
-      await refreshStatus();
     } catch (err) {
       importResult.textContent = err.message;
     }
   });
 }
 
-if (authForm && authMessage) {
+if (authForm) {
   authForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    authMessage.textContent = "";
     const payload = formToObject(authForm);
     try {
       const result = await getJson("/api/auth/login", {
@@ -436,9 +470,8 @@ if (authForm && authMessage) {
   });
 }
 
-if (registerBtn && authForm && authMessage) {
+if (registerBtn) {
   registerBtn.addEventListener("click", async () => {
-    authMessage.textContent = "";
     const payload = formToObject(authForm);
     try {
       const result = await getJson("/api/auth/register", {
@@ -458,13 +491,10 @@ if (registerBtn && authForm && authMessage) {
 }
 
 if (logoutBtn) {
-  logoutBtn.addEventListener("click", () => {
-    clearAuth();
-  });
+  logoutBtn.addEventListener("click", clearAuth);
 }
 
 (async function init() {
-  document.querySelector("main.layout").style.display = "none";
   setDefaultReportWindow();
   const ok = await checkAuth();
   if (ok) {
