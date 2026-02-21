@@ -1,0 +1,22 @@
+# DigitalOcean App Spec
+# You can use this to "Edit Spec" in the App Settings to force Docker usage.
+name: whatsapp-automation-console
+region: nyc
+services:
+- dockerfile_path: Dockerfile
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-s-1vcpu-1gb
+  name: whatsapp-web-service
+  source_dir: /
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: FASIL2526/whatsapp_bulk_msg
+  envs:
+  - key: AUTH_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: change-me-to-something-secure
+  - key: PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "3000"

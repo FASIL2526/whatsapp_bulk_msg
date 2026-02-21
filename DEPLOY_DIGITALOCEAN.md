@@ -10,7 +10,8 @@ I've configured the application to be ready for **DigitalOcean App Platform**. T
 2. **Create a New App on DigitalOcean:**
    - Log in to DigitalOcean and go to **Apps**.
    - Click **Create App** and select your GitHub repository.
-   - DigitalOcean will detect the `Dockerfile` automatically.
+   - **CRITICAL:** If DigitalOcean asks for the "Resource Type," ensured it is set to **Web Service**.
+   - **FORCE DOCKER:** Go to the "Build" step. If it says "Buildpack," change it manually to **Dockerfile**. Ensure the path is set to `./Dockerfile`.
 
 3. **Configure Environment Variables:**
    In the **Settings** or **App Spec** section, ensure you add:
