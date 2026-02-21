@@ -5,6 +5,7 @@ if (process.env.RENDER === "true" && !process.env.PUPPETEER_CACHE_DIR) {
 
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const express = require("express");
 const cron = require("node-cron");
 const QRCode = require("qrcode");
@@ -923,6 +924,11 @@ async function createClientForWorkspace(workspace) {
   const headless = workspace.config.HEADLESS !== "false";
   const executablePath = await ensureChromeExecutablePath(runtime);
   const isRender = process.env.RENDER === "true";
+  const totalMemMb = Math.floor(os.totalmem() / (1024 * 1024));
+  const lowMemoryHost = totalMemMb <= 1200;
+  const forceSingleProcess = process.env.CHROME_SINGLE_PROCESS
+    ? process.env.CHROME_SINGLE_PROCESS === "true"
+    : lowMemoryHost;
   const launchArgs = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
@@ -940,9 +946,14 @@ async function createClientForWorkspace(workspace) {
   console.log(`[DEBUG] CWD: ${process.cwd()}`);
   console.log(`[DEBUG] Executable Path: ${executablePath || "default"}`);
   console.log(`[DEBUG] Environment: ${process.env.NODE_ENV || "unknown"}`);
+  console.log(`[DEBUG] Host RAM MB: ${totalMemMb}`);
+  console.log(`[DEBUG] Single-process mode: ${forceSingleProcess ? "on" : "off"}`);
 
-  if (isRender) {
+  if (isRender || forceSingleProcess) {
     launchArgs.push("--no-zygote", "--single-process");
+  }
+  if (process.env.CHROME_DISABLE_SITE_ISOLATION === "true") {
+    launchArgs.push("--disable-features=IsolateOrigins,site-per-process");
   }
   runtime.client = new Client({
     authStrategy: new LocalAuth({ clientId: `workspace-${workspace.id}` }),
