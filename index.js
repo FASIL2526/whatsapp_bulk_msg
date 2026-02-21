@@ -876,6 +876,12 @@ async function createClientForWorkspace(workspace) {
   const executablePath = await ensureChromeExecutablePath(runtime);
   const isRender = process.env.RENDER === "true";
   const launchArgs = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
+
+  console.log(`[DEBUG] Attempting to launch client...`);
+  console.log(`[DEBUG] CWD: ${process.cwd()}`);
+  console.log(`[DEBUG] Executable Path: ${executablePath || "default"}`);
+  console.log(`[DEBUG] Environment: ${process.env.NODE_ENV || "unknown"}`);
+
   if (isRender) {
     launchArgs.push("--no-zygote", "--single-process");
   }
