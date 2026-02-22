@@ -61,6 +61,9 @@
       <button class="nav-item" data-view="analytics">
         <i data-lucide="bar-chart-3"></i> Analytics
       </button>
+      <button class="nav-item" data-view="leads">
+        <i data-lucide="users"></i> Leads
+      </button>
     </div>
 
     <div class="sidebar-footer">
@@ -175,6 +178,87 @@
               <option value="true">On</option>
             </select>
           </label>
+
+          <div class="span-2"
+            style="padding: 24px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%); border: 1px dashed var(--primary); border-radius: var(--radius-md); margin: 12px 0;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+              <div
+                style="background: var(--primary); color: white; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="bot"></i>
+              </div>
+              <div>
+                <h3 style="margin: 0; font-size: 16px;">AI Sales Closer (Beta)</h3>
+                <p class="muted" style="font-size: 12px; margin: 0;">Automate personalized sales conversations using
+                  Gemini AI.</p>
+              </div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+              <label>
+                Enable AI Sales Agent
+                <select name="AI_SALES_ENABLED">
+                  <option value="false">Disabled</option>
+                  <option value="true">Enabled</option>
+                </select>
+              </label>
+              <label>
+                AI Provider
+                <select name="AI_PROVIDER">
+                  <option value="google">Google Gemini</option>
+                  <option value="openrouter">OpenRouter.ai</option>
+                </select>
+              </label>
+              <label>
+                AI Model (ID)
+                <input name="AI_MODEL" list="ai-models" placeholder="e.g. gemini-1.5-flash" />
+                <datalist id="ai-models">
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                  <option value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash Lite</option>
+                  <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini (OpenRouter)</option>
+                  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (OpenRouter)</option>
+                  <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (OpenRouter)</option>
+                </datalist>
+              </label>
+              <label>
+                AI Response Scope
+                <select name="AI_SALES_SCOPE">
+                  <option value="not_matched">Only if keywords don't match</option>
+                  <option value="all">Respond to EVERY message</option>
+                </select>
+              </label>
+              <label>
+                Include Group Chats
+                <select name="AI_SALES_GROUPS">
+                  <option value="false">No (Individual chats only)</option>
+                  <option value="true">Yes (Respond in groups)</option>
+                </select>
+              </label>
+              <label class="span-2">
+                AI API Key
+                <input name="AI_API_KEY" type="password" placeholder="Enter your Google or OpenRouter Key..." />
+              </label>
+              <label>
+                Enable Call Booking
+                <select name="AI_BOOKING_ENABLED">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
+              <label>
+                Booking Link (Calendly, etc.)
+                <input name="AI_BOOKING_LINK" type="text" placeholder="https://calendly.com/your-link" />
+              </label>
+              <label class="span-2">
+                Product Knowledge / Sales Script
+                <p class="muted" style="font-size: 12px; margin-bottom: 8px;">Describe your product, pricing, and common
+                  questions. The AI will use this to close sales.</p>
+                <textarea name="AI_PRODUCT_KNOWLEDGE" rows="5"
+                  placeholder="Example: Product: Eco-Bottle, Price: $25. It's BPA-free and keeps water cold for 24h..."></textarea>
+              </label>
+            </div>
+          </div>
 
           <label class="span-2">
             Recipients (List)
@@ -295,6 +379,42 @@
             <span class="muted">Auto-Replies</span>
             <span id="reportAutoReplies" style="font-size: 32px; font-weight: 700; color: var(--accent);">0</span>
           </div>
+        </div>
+      </section>
+    </div>
+    <!-- Leads View -->
+    <div class="view-container" id="leadsView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">CRM / AI Insights</p>
+          <h1>Leads Dashboard</h1>
+          <p class="subtitle" style="margin-top: 8px;">Automatically tracked and scored by AI.</p>
+        </div>
+        <button id="refreshLeadsBtn" class="btn primary">
+          <i data-lucide="refresh-cw"></i> Refresh Leads
+        </button>
+      </section>
+
+      <section class="panel" style="grid-column: span 12; padding: 0; overflow: hidden;">
+        <div class="table-scroll">
+          <table class="data-table" id="leadsTable">
+            <thead>
+              <tr>
+                <th>Contact</th>
+                <th>Status</th>
+                <th>Reasoning</th>
+                <th>Last Message</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody">
+              <!-- Leads will be injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div id="leadsEmptyState" style="padding: 48px; text-align: center; display: none;">
+          <i data-lucide="users" style="width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.2;"></i>
+          <p class="muted">No leads tracked yet. Start a conversation to see AI insights.</p>
         </div>
       </section>
     </div>

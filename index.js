@@ -15,6 +15,7 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const SYSTEM_CHROME_CANDIDATES = [
   "/usr/bin/google-chrome",
@@ -26,7 +27,7 @@ const detectedSystemChrome = SYSTEM_CHROME_CANDIDATES.find((candidate) => fs.exi
 const currentPuppeteerExecutablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
 if (
   detectedSystemChrome &&
-  (!currentPuppeteerExecutablePath || currentPuppeteerExecutablePath.includes("/.cache/puppeteer/"))
+  !currentPuppeteerExecutablePath
 ) {
   process.env.PUPPETEER_EXECUTABLE_PATH = detectedSystemChrome;
 }
@@ -37,11 +38,17 @@ app.use(express.static(path.join(__dirname, "public")));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST =
+  process.env.HOST ||
+  (process.env.NODE_ENV === "production" || process.env.RENDER === "true" ? "0.0.0.0" : "127.0.0.1");
 const DATA_DIR = path.join(__dirname, "data");
 const STORE_PATH = path.join(DATA_DIR, "workspaces.json");
 const MAX_REPORT_ENTRIES = 5000;
 const AUTH_SECRET = process.env.AUTH_SECRET || "restartx-dev-secret-change-me";
 const TOKEN_TTL = process.env.TOKEN_TTL || "7d";
+
+const SERVER_STARTED_AT = new Date().toLocaleString();
+console.log(`[SYSTEM] Server process starting at: ${SERVER_STARTED_AT}`);
 
 const DEFAULT_CONFIG = {
   HEADLESS: "true",
@@ -61,6 +68,15 @@ const DEFAULT_CONFIG = {
   SCHEDULE_ENABLED: "false",
   SCHEDULE_CRON: "0 9 * * *",
   SCHEDULE_MESSAGE: "Daily reminder",
+  AI_SALES_ENABLED: "false",
+  AI_PROVIDER: "google",
+  AI_MODEL: "gemini-1.5-flash",
+  AI_SALES_SCOPE: "not_matched",
+  AI_SALES_GROUPS: "false",
+  AI_BOOKING_ENABLED: "false",
+  AI_BOOKING_LINK: "",
+  AI_API_KEY: "",
+  AI_PRODUCT_KNOWLEDGE: "Our product is a premium WhatsApp automation tool that helps businesses scale their communication.",
 };
 
 const store = {
@@ -138,6 +154,15 @@ function sanitizeWorkspaceConfig(input) {
     SCHEDULE_ENABLED: input.SCHEDULE_ENABLED === "true" ? "true" : "false",
     SCHEDULE_CRON: sanitizeText(input.SCHEDULE_CRON, DEFAULT_CONFIG.SCHEDULE_CRON),
     SCHEDULE_MESSAGE: sanitizeText(input.SCHEDULE_MESSAGE, DEFAULT_CONFIG.SCHEDULE_MESSAGE),
+    AI_SALES_ENABLED: input.AI_SALES_ENABLED === "true" ? "true" : "false",
+    AI_PROVIDER: input.AI_PROVIDER === "openrouter" ? "openrouter" : "google",
+    AI_MODEL: sanitizeText(input.AI_MODEL, DEFAULT_CONFIG.AI_MODEL),
+    AI_SALES_SCOPE: input.AI_SALES_SCOPE === "all" ? "all" : "not_matched",
+    AI_SALES_GROUPS: input.AI_SALES_GROUPS === "true" ? "true" : "false",
+    AI_BOOKING_ENABLED: input.AI_BOOKING_ENABLED === "true" ? "true" : "false",
+    AI_BOOKING_LINK: sanitizeText(input.AI_BOOKING_LINK, DEFAULT_CONFIG.AI_BOOKING_LINK),
+    AI_API_KEY: sanitizeText(input.AI_API_KEY, DEFAULT_CONFIG.AI_API_KEY),
+    AI_PRODUCT_KNOWLEDGE: sanitizeMultilineText(input.AI_PRODUCT_KNOWLEDGE, DEFAULT_CONFIG.AI_PRODUCT_KNOWLEDGE),
   };
 
   if (Number(clean.BULK_RANDOM_MAX_MS) < Number(clean.BULK_RANDOM_MIN_MS)) {
@@ -398,7 +423,7 @@ function findChromeUnderCache(cacheRoot) {
   return "";
 }
 
-function resolveSystemChromeExecutablePath() {
+function resolveSystemChromeExecutablePath(skipPaths = []) {
   const candidates = [
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
@@ -406,7 +431,7 @@ function resolveSystemChromeExecutablePath() {
     "/usr/bin/chromium",
   ];
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
+    if (fs.existsSync(candidate) && !skipPaths.includes(candidate)) {
       return candidate;
     }
   }
@@ -417,16 +442,17 @@ function resolveChromeExecutablePath(options = {}) {
   const includeSystem = options.includeSystem !== false;
   const preferSystem = options.preferSystem !== false;
   const ignoreEnv = options.ignoreEnv === true;
+  const skipPaths = options.skipPaths || [];
 
   if (includeSystem && preferSystem) {
-    const systemChrome = resolveSystemChromeExecutablePath();
+    const systemChrome = resolveSystemChromeExecutablePath(skipPaths);
     if (systemChrome) {
       return systemChrome;
     }
   }
 
   const envPath = ignoreEnv ? "" : (process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
-  if (envPath && fs.existsSync(envPath)) {
+  if (envPath && fs.existsSync(envPath) && !skipPaths.includes(envPath)) {
     return envPath;
   }
 
@@ -519,16 +545,21 @@ function clearStaleProfileLocks(workspaceId) {
 
 async function ensureChromeExecutablePath(runtime) {
   const forceSystemChrome = runtime && runtime._forceSystemChrome === true;
+  const forceManagedChrome = runtime && runtime._forceManagedChrome === true;
+  const skipPaths = runtime && runtime._failingChromePaths ? runtime._failingChromePaths : [];
+
   const existing = resolveChromeExecutablePath({
-    includeSystem: true,
-    preferSystem: true,
-    ignoreEnv: forceSystemChrome,
+    includeSystem: !forceManagedChrome,
+    preferSystem: !forceManagedChrome,
+    ignoreEnv: forceSystemChrome || forceManagedChrome,
+    skipPaths,
   });
   if (existing) {
     return existing;
   }
 
-  if (process.env.AUTO_INSTALL_CHROME === "false") {
+  const allowInstall = process.env.AUTO_INSTALL_CHROME !== "false" || forceManagedChrome;
+  if (!allowInstall) {
     return "";
   }
 
@@ -548,14 +579,23 @@ async function ensureChromeExecutablePath(runtime) {
     return "";
   }
 
-  const managed = resolveChromeExecutablePath({ includeSystem: false });
+  const managed = resolveChromeExecutablePath({
+    includeSystem: false,
+    preferSystem: false,
+    ignoreEnv: true,
+    skipPaths,
+  });
   if (managed) {
     return managed;
+  }
+  if (forceManagedChrome) {
+    return "";
   }
   return resolveChromeExecutablePath({
     includeSystem: true,
     preferSystem: true,
-    ignoreEnv: forceSystemChrome,
+    ignoreEnv: forceSystemChrome || forceManagedChrome,
+    skipPaths,
   });
 }
 
@@ -957,6 +997,7 @@ async function createClientForWorkspace(workspace) {
   const forceSingleProcess = process.env.CHROME_SINGLE_PROCESS
     ? process.env.CHROME_SINGLE_PROCESS === "true"
     : lowMemoryHost;
+  const disableSingleProcess = runtime._disableSingleProcess === true;
   const launchArgs = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
@@ -966,6 +1007,13 @@ async function createClientForWorkspace(workspace) {
     "--disable-background-networking",
     "--no-first-run",
     "--no-default-browser-check",
+    "--disable-software-rasterizer",
+    "--disable-gpu-sandbox",
+    "--disable-accelerated-2d-canvas",
+    "--disable-gpu-shader-disk-cache",
+    "--disable-crash-reporter",
+    "--disable-features=site-per-process",
+    "--disable-gl-drawing-for-tests",
   ];
   const launchTimeoutMs = Math.max(30000, Number.parseInt(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS || "120000", 10) || 120000);
   const authTimeoutMs = Math.max(30000, Number.parseInt(process.env.WA_AUTH_TIMEOUT_MS || "120000", 10) || 120000);
@@ -975,10 +1023,18 @@ async function createClientForWorkspace(workspace) {
   console.log(`[DEBUG] Executable Path: ${executablePath || "default"}`);
   console.log(`[DEBUG] Environment: ${process.env.NODE_ENV || "unknown"}`);
   console.log(`[DEBUG] Host RAM MB: ${totalMemMb}`);
-  console.log(`[DEBUG] Single-process mode: ${forceSingleProcess ? "on" : "off"}`);
+  const actuallyUsingSingleProcess = !disableSingleProcess && (isRender || forceSingleProcess) && totalMemMb < 2000;
+  console.log(`[DEBUG] Single-process mode: ${actuallyUsingSingleProcess ? "on" : "off"}`);
+  if (runtime._forceManagedChrome) {
+    console.log("[DEBUG] Managed Chrome fallback mode: on");
+  }
 
-  if (isRender || forceSingleProcess) {
+  if (actuallyUsingSingleProcess) {
     launchArgs.push("--no-zygote", "--single-process");
+  } else {
+    console.log(
+      `[DEBUG] Running without --single-process (RAM ${totalMemMb}MB${disableSingleProcess ? ", crash fallback forced" : ""}).`
+    );
   }
   if (process.env.CHROME_DISABLE_SITE_ISOLATION === "true") {
     launchArgs.push("--disable-features=IsolateOrigins,site-per-process");
@@ -994,6 +1050,7 @@ async function createClientForWorkspace(workspace) {
       protocolTimeout: launchTimeoutMs,
     },
   });
+  console.log(`[DEBUG] Executable being used: ${executablePath || "default (puppeteer)"}`);
 
   runtime.client.on("qr", async (qr) => {
     runtime.status = "qr_ready";
@@ -1006,12 +1063,16 @@ async function createClientForWorkspace(workspace) {
   });
 
   runtime.client.on("authenticated", () => {
+    console.log(`[${workspace.id}] WhatsApp Client AUTHENTICATED`);
     runtime.authenticated = true;
     runtime.status = "authenticated";
     runtime.authenticatedAt = Date.now();
     runtime.recoveryAttempted = false;
     runtime._retryAfterSharedLibFallback = false;
     runtime._forceSystemChrome = false;
+    runtime._forceManagedChrome = false;
+    runtime._disableSingleProcess = false;
+    runtime._failingChromePaths = [];
     runtime.qrDataUrl = "";
     startReadyProbe(workspace, runtime);
   });
@@ -1025,15 +1086,22 @@ async function createClientForWorkspace(workspace) {
   });
 
   runtime.client.on("ready", () => {
+    console.log(`[${workspace.id}] WhatsApp Client READY`);
     markWorkspaceReady(workspace, runtime);
     runtime.recoveryAttempted = false;
     runtime._retryAfterSharedLibFallback = false;
     runtime._forceSystemChrome = false;
+    runtime._forceManagedChrome = false;
+    runtime._disableSingleProcess = false;
+    runtime._failingChromePaths = [];
     stopReadyProbe(runtime);
   });
 
   runtime.client.on("message", async (msg) => {
+    console.log(`[SYSTEM] RAW MESSAGE RECEIVED from ${msg.from} in workspace ${workspace.id}`);
+    console.log(`[${workspace.id}] Message content: ${msg.body}`);
     if (workspace.config.AUTO_REPLY_ENABLED !== "true") {
+      console.log(`[${workspace.id}] Auto-reply disabled, ignoring message.`);
       return;
     }
 
@@ -1055,6 +1123,134 @@ async function createClientForWorkspace(workspace) {
       const matched = rules.find((rule) => incomingText.includes(rule.trigger));
       if (matched) {
         replyText = matched.response;
+      }
+    }
+
+    if (!replyText || workspace.config.AI_SALES_SCOPE === "all") {
+      const isGroup = msg.from.endsWith("@g.us");
+      const allowAi = workspace.config.AI_SALES_ENABLED === "true" && workspace.config.AI_API_KEY;
+      const aiGroups = workspace.config.AI_SALES_GROUPS === "true";
+
+      if (allowAi) {
+        if (isGroup && !aiGroups) {
+          // Skip AI for groups if disabled
+        } else {
+          console.log(`[${workspace.id}] AI Sales Closer active. (Server: ${SERVER_STARTED_AT})`);
+          try {
+            const apiKey = workspace.config.AI_API_KEY;
+            const modelName = workspace.config.AI_MODEL || "gemini-1.5-flash";
+            const provider = workspace.config.AI_PROVIDER || "google";
+            console.log(`[${workspace.id}] Using AI Provider: ${provider}, Model: ${modelName}`);
+
+            const knowledge = (workspace.config.AI_PRODUCT_KNOWLEDGE || "").replace(/^["']|["']$/g, '');
+            const bookingEnabled = workspace.config.AI_BOOKING_ENABLED === "true";
+            const bookingLink = workspace.config.AI_BOOKING_LINK || "";
+
+            // Fetch contact name to personalize reply
+            let contactName = "";
+            try {
+              const contact = await msg.getContact();
+              contactName = contact.pushname || contact.name || contact.number || "";
+            } catch (ce) {
+              console.log(`[${workspace.id}] Could not get contact name: ${ce.message}`);
+            }
+
+            const prompt = `
+          Context: You are a sales assistant for this product: ${knowledge}
+          Objective: Answer the lead's question and guide them toward a purchase.
+          ${contactName ? `Lead's Name: ${contactName} — Always greet them by name when starting a reply.` : ""}
+          ${bookingEnabled && bookingLink ? `Call Booking: If the customer is interested or ready to talk, encourage them to book a call here: ${bookingLink}` : ""}
+          
+          TASK:
+          1. Generate a natural, personalized reply (1-3 sentences max). Use the lead's name naturally.
+          2. Evaluate the lead status based on their interest and intent (cold, warm, hot).
+          3. Provide a brief reason for the categorization.
+
+          LEAD MESSAGE: "${msg.body}"
+
+          RESPONSE FORMAT (JSON ONLY):
+          {
+            "reply": "Your response text here",
+            "status": "cold" | "warm" | "hot",
+            "reason": "Brief explanation of status"
+          }
+        `;
+
+            if (provider === "google") {
+              const genAI = new GoogleGenerativeAI(apiKey);
+              const model = genAI.getGenerativeModel({ model: modelName });
+              console.log(`[${workspace.id}] Google AI Request started...`);
+              const result = await model.generateContent(prompt);
+              const textResponse = result.response.text().trim();
+              console.log(`[${workspace.id}] Google AI Raw Response: ${textResponse}`);
+
+              try {
+                // Extract JSON if AI includes markdown or extra text
+                const jsonStr = textResponse.match(/\{[\s\S]*\}/)?.[0] || textResponse;
+                const aiData = JSON.parse(jsonStr);
+                replyText = aiData.reply;
+
+                // Update lead status using pre-fetched contactName
+                updateLeadStatus(workspace, {
+                  from: msg.from,
+                  name: contactName || msg.from,
+                  status: aiData.status,
+                  reason: aiData.reason,
+                  message: msg.body
+                });
+                console.log(`[${workspace.id}] Lead status updated for ${contactName || msg.from}`);
+              } catch (e) {
+                console.error("JSON Parse Error (Google AI):", e.message);
+                replyText = textResponse; // Fallback
+              }
+            } else if (provider === "openrouter") {
+              console.log(`[${workspace.id}] OpenRouter AI Request started...`);
+              const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Authorization": `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  "HTTP-Referer": "https://restartx.io",
+                  "X-Title": "RestartX WhatsApp Console"
+                },
+                body: JSON.stringify({
+                  model: modelName,
+                  messages: [
+                    { role: "system", content: "You are a sales assistant. IMPORTANT: You MUST respond ONLY with a valid JSON object. No extra text, no markdown, no code blocks. Just the raw JSON." },
+                    { role: "user", content: prompt }
+                  ]
+                })
+              });
+              const data = await response.json();
+              console.log(`[${workspace.id}] OpenRouter AI Raw Response Received`);
+              if (data.error) throw new Error(data.error.message || "OpenRouter Error");
+
+              try {
+                const aiData = JSON.parse(data.choices[0].message.content.trim());
+                replyText = aiData.reply;
+
+                // Update lead status using pre-fetched contactName
+                updateLeadStatus(workspace, {
+                  from: msg.from,
+                  name: contactName || msg.from,
+                  status: aiData.status,
+                  reason: aiData.reason,
+                  message: msg.body
+                });
+                console.log(`[${workspace.id}] Lead status updated (OR) for ${contactName || msg.from}`);
+              } catch (e) {
+                console.error("JSON Parse Error (OpenRouter):", e.message);
+                replyText = data.choices[0].message.content.trim();
+              }
+            }
+            console.log(`[${workspace.id}] AI Reply generated: ${replyText}`);
+          } catch (err) {
+            console.error(`[${workspace.id}] AI Error:`, err.message);
+            if (err.message.includes("API_KEY_INVALID")) {
+              // You could potentially append a report error here too
+            }
+          }
+        }
       }
     }
 
@@ -1102,6 +1298,9 @@ async function createClientForWorkspace(workspace) {
     runtime.recoveryInProgress = false;
     runtime._retryAfterSharedLibFallback = false;
     runtime._forceSystemChrome = false;
+    runtime._forceManagedChrome = false;
+    runtime._disableSingleProcess = false;
+    runtime._failingChromePaths = [];
     stopReadyProbe(runtime);
     stopScheduler(runtime);
     runtime.client = null;
@@ -1111,22 +1310,63 @@ async function createClientForWorkspace(workspace) {
     .initialize()
     .catch((err) => {
       const message = String(err?.message || "");
-      if (message.includes("error while loading shared libraries") && !runtime._retryAfterSharedLibFallback) {
+      const isBinaryError = message.includes("error while loading shared libraries") ||
+        message.includes("Target.setAutoAttach") ||
+        message.includes("Target closed") ||
+        message.includes("Protocol error");
+
+      if (isBinaryError && !runtime._retryAfterSharedLibFallback) {
+        console.log(`[DEBUG] Triggering stability fallback for workspace ${workspace.id} (Error: ${message})`);
+
+        // Track the failing path so we don't try it again in the fallback attempt
+        const failedPath = resolveChromeExecutablePath({
+          includeSystem: true,
+          preferSystem: true,
+          ignoreEnv: runtime._forceSystemChrome || runtime._forceManagedChrome,
+        });
+
+        runtime._failingChromePaths = runtime._failingChromePaths || [];
+        if (failedPath) {
+          runtime._failingChromePaths.push(failedPath);
+
+          // If we just failed with google-chrome, let's aggressively skip the stable variant too
+          if (failedPath.includes("google-chrome")) {
+            runtime._failingChromePaths.push("/usr/bin/google-chrome");
+            runtime._failingChromePaths.push("/usr/bin/google-chrome-stable");
+          }
+        }
+        const configuredEnvPath = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
+        if (configuredEnvPath) {
+          runtime._failingChromePaths.push(configuredEnvPath);
+          if (configuredEnvPath.includes("chromium-browser")) {
+            runtime._failingChromePaths.push("/usr/bin/chromium");
+          }
+        }
+
+        console.log(`[DEBUG] Wiping stale locks for fallback attempt...`);
+        clearStaleProfileLocks(workspace.id);
+
         runtime._retryAfterSharedLibFallback = true;
-        runtime._forceSystemChrome = true;
+        runtime._forceSystemChrome = false;
+        runtime._forceManagedChrome = true;
+        runtime._disableSingleProcess = true;
         runtime.client = null;
         createClientForWorkspace(workspace).catch((innerErr) => {
+          console.error(`[DEBUG] Fallback launch FAILED for workspace ${workspace.id}: ${innerErr.message}`);
           runtime.lastError = `Initialize failed: ${innerErr.message}`;
           runtime.status = "error";
           runtime.ready = false;
           runtime.authenticated = false;
           runtime.startRequestedAt = null;
+          runtime.authenticatedAt = null;
           runtime.client = null;
         });
         return;
       }
       runtime._retryAfterSharedLibFallback = false;
       runtime._forceSystemChrome = false;
+      runtime._forceManagedChrome = false;
+      runtime._disableSingleProcess = false;
       if (message.includes("The browser is already running for") && !runtime._retryAfterLockCleanup) {
         runtime._retryAfterLockCleanup = true;
         clearStaleProfileLocks(workspace.id);
@@ -1142,6 +1382,9 @@ async function createClientForWorkspace(workspace) {
         return;
       }
       runtime._retryAfterLockCleanup = false;
+      console.error(`[ERROR] workspace ${workspace.id} initialization failed: ${message}`);
+      if (err.stack) console.error(err.stack);
+
       runtime.lastError = `Initialize failed: ${err.message}`;
       runtime.status = "error";
       runtime.ready = false;
@@ -1175,6 +1418,11 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.lastWaState = "";
   runtime.sendInProgress = false;
   runtime.sendStartedAt = null;
+  runtime._retryAfterSharedLibFallback = false;
+  runtime._forceSystemChrome = false;
+  runtime._forceManagedChrome = false;
+  runtime._disableSingleProcess = false;
+  runtime._failingChromePaths = [];
   stopReadyProbe(runtime);
   runtime.qrDataUrl = "";
 }
@@ -1190,6 +1438,34 @@ function workspaceSummary(workspace) {
     recipientsCount: workspaceRecipientsChatIds(workspace).length,
     hasScheduler: Boolean(runtime.scheduler),
   };
+}
+function updateLeadStatus(workspace, leadData) {
+  try {
+    if (!workspace.leads) workspace.leads = [];
+    const contactId = leadData.from;
+    let lead = workspace.leads.find((l) => l.id === contactId);
+
+    if (!lead) {
+      lead = {
+        id: contactId,
+        name: leadData.name || contactId.split("@")[0],
+        status: "cold",
+        reason: "Initial contact",
+        lastMessage: "",
+        updatedAt: new Date().toISOString()
+      };
+      workspace.leads.push(lead);
+    }
+
+    if (leadData.status) lead.status = leadData.status;
+    if (leadData.reason) lead.reason = leadData.reason;
+    if (leadData.message) lead.lastMessage = leadData.message;
+    lead.updatedAt = new Date().toISOString();
+
+    saveStore();
+  } catch (err) {
+    console.error(`[ERROR] updateLeadStatus: ${err.message}`);
+  }
 }
 
 function authTokenFromReq(req) {
@@ -1316,6 +1592,14 @@ app.post("/api/workspaces", (req, res) => {
       id = `${id}-${Math.floor(Math.random() * 1000)}`;
     }
 
+    store.workspaces.forEach((ws) => {
+      if (!ws.config) ws.config = { ...DEFAULT_CONFIG };
+      if (!ws.reports) ws.reports = [];
+      if (!ws.members) ws.members = [];
+      if (!ws.leads) ws.leads = [];
+    });
+    saveStore();
+
     const workspace = {
       id,
       name,
@@ -1350,8 +1634,6 @@ app.post("/api/workspaces/:workspaceId/config", (req, res) => {
 
   try {
     workspace.config = sanitizeWorkspaceConfig(req.body || {});
-    saveStore();
-
     const runtime = getRuntime(workspace.id);
     if (runtime.ready) {
       setupScheduler(workspace, runtime);
@@ -1359,6 +1641,59 @@ app.post("/api/workspaces/:workspaceId/config", (req, res) => {
 
     res.json({ ok: true, config: workspace.config });
   } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.get("/api/workspaces/:workspaceId/leads", requireAuth, async (req, res) => {
+  try {
+    const workspace = getWorkspace(req.params.workspaceId);
+    if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found" });
+    if (!hasWorkspaceRole(workspace, req.user.id, "member")) {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    }
+    res.json({ ok: true, leads: workspace.leads || [] });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/workspaces/:workspaceId/validate-ai-key", async (req, res) => {
+  try {
+    const { apiKey, model: modelName, provider } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ ok: false, error: "API Key is required" });
+    }
+
+    const selectedModel = modelName || (provider === "openrouter" ? "google/gemini-2.0-flash-001" : "gemini-1.5-flash");
+    const activeProvider = provider || "google";
+    console.log(`[SYSTEM] Validating API Key for provider: ${activeProvider}, model: ${selectedModel}`);
+
+    if (activeProvider === "google") {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: selectedModel });
+      // Attempt a very small generation to validate the key
+      await model.generateContent("hi");
+    } else if (activeProvider === "openrouter") {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: [{ role: "user", content: "hi" }],
+          max_tokens: 5
+        })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message || "OpenRouter Error");
+    }
+
+    res.json({ ok: true, message: "API Key is valid" });
+  } catch (err) {
+    console.error("API Validation Error:", err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
 });
@@ -1652,11 +1987,58 @@ app.post("/api/workspaces/:workspaceId/members", (req, res) => {
   res.json({ ok: true });
 });
 
-app.listen(PORT, () => {
-  ensureStore();
-  console.log(`Web app running at http://localhost:${PORT}`);
-});
+function startHttpServer() {
+  try {
+    ensureStore();
+  } catch (err) {
+    console.error(`[FATAL] Failed to initialize data store: ${err.message}`);
+    process.exit(1);
+  }
+
+  const allowPortFallback = process.env.NODE_ENV !== "production" && process.env.AUTO_PORT_FALLBACK !== "false";
+  const maxPortFallbackAttempts = allowPortFallback ? 10 : 0;
+
+  const listenOn = (port, remainingAttempts) => {
+    const server = app.listen(port, HOST, () => {
+      console.log(`Web app running at http://${HOST}:${port}`);
+      if (port !== PORT) {
+        console.log(`[INFO] Preferred port ${PORT} was busy. Using ${port} instead.`);
+      }
+    });
+
+    server.on("error", (err) => {
+      if (err.code === "EADDRINUSE" && remainingAttempts > 0) {
+        const nextPort = port + 1;
+        console.error(`[WARN] Port ${port} is already in use. Retrying on ${nextPort}...`);
+        listenOn(nextPort, remainingAttempts - 1);
+        return;
+      }
+
+      if (err.code === "EADDRINUSE") {
+        console.error(
+          `[FATAL] ${HOST}:${port} is already in use. Stop the conflicting process or set PORT/HOST to a free endpoint.`
+        );
+      } else if (err.code === "EACCES") {
+        console.error(
+          `[FATAL] Permission denied for ${HOST}:${port}. Use a non-privileged port (for example 3000).`
+        );
+      } else {
+        console.error(`[FATAL] Server failed to start on ${HOST}:${port}: ${err.message}`);
+      }
+
+      process.exit(1);
+    });
+  };
+
+  listenOn(PORT, maxPortFallbackAttempts);
+}
+
+startHttpServer();
 
 process.on("unhandledRejection", (err) => {
   console.error("Unhandled rejection:", err);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
 });

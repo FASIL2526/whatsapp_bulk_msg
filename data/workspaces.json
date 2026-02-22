@@ -46,7 +46,16 @@
         "AUTO_REPLY_RULES": "",
         "SCHEDULE_ENABLED": "false",
         "SCHEDULE_CRON": "0 9 * * *",
-        "SCHEDULE_MESSAGE": "Daily reminder"
+        "SCHEDULE_MESSAGE": "Daily reminder",
+        "AI_SALES_ENABLED": "true",
+        "AI_PROVIDER": "openrouter",
+        "AI_MODEL": "stepfun/step-3.5-flash",
+        "AI_SALES_SCOPE": "all",
+        "AI_SALES_GROUPS": "false",
+        "AI_BOOKING_ENABLED": "true",
+        "AI_BOOKING_LINK": "https://calendly.com/fasilkooliyodan2526",
+        "AI_API_KEY": "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",
+        "AI_PRODUCT_KNOWLEDGE": "1️⃣ Company Overview\n\nCompany Name: RestartX Technologies LLC\nFounded: 2023\nHead Office: Abu Dhabi, UAE\nBranch Office: Dubai, UAE\nWebsite: www.restartx.ae\n\nEmail: info@restartx.ae\n\nPhone: +971 50 123 4567\n\nBusiness Type: IT Solutions & Digital Services Company\n\nRestartX is a UAE-based technology company providing website development, mobile app development, digital marketing, and AI automation solutions for startups and growing businesses.\n\n2️⃣ Vision & Mission\n\nVision:\nTo become the leading digital transformation partner for SMEs in the Middle East.\n\nMission:\nTo deliver affordable, scalable, and innovative digital solutions that help businesses grow faster.\n\n3️⃣ Our Services\n🌐 Website Development\n\nBusiness websites\n\nE-commerce websites\n\nLanding pages\n\nCustom web applications\n\nHosting & domain setup\n\n📱 Mobile App Development\n\nAndroid apps\n\niOS apps\n\nHybrid apps\n\nApp maintenance & updates\n\n📊 Digital Marketing\n\nSocial media marketing\n\nGoogle Ads management\n\nSEO optimization\n\nBranding & logo design\n\n🤖 AI & Automation\n\nAI chatbots\n\nBusiness process automation\n\nCRM integration\n\nCustom AI tools\n\n4️⃣ Target Customers\n\nSmall & Medium Businesses (SMEs)\n\nRetail shops\n\nRestaurants & Cafes\n\nReal estate agencies\n\nEducational institutes\n\nE-commerce startups\n\n5️⃣ Pricing Packages (Sample)\n🔹 Basic Website Package – AED 1,499\n\n5 pages website\n\nMobile responsive\n\nBasic SEO\n\n1 year hosting\n\n🔹 Business Package – AED 2,999\n\n10 pages website\n\nSEO optimized\n\nContact forms\n\nWhatsApp integration\n\n1 year hosting + domain\n\n🔹 E-commerce Package – AED 4,999\n\nOnline store\n\nPayment gateway\n\nProduct management\n\nAdmin dashboard\n\n1 year hosting\n\n6️⃣ Why Choose RestartX?\n\nAffordable pricing\n\nFast delivery (7–14 days)\n\nDedicated support team\n\n100% customer satisfaction focus\n\nCustom development options\n\n7️⃣ Sales Agent Information Sheet (For Internal Use)\n\nSales Commission Structure (Sample):\n\n10% commission on Basic Package\n\n15% commission on Business Package\n\n20% commission on E-commerce Package\n\nMonthly Sales Target: AED 30,000\nBonus: AED 2,000 extra for exceeding target\n\n8️⃣ Sample Client Portfolio (Dummy Data)\nClient Name\tIndustry\tService Provided\tValue\nAl Noor Cafe\tRestaurant\tWebsite + Marketing\tAED 3,200\nDubai Tech Store\tRetail\tE-commerce Website\tAED 5,000\nSmart Real Estate\tReal Estate\tWebsite + CRM\tAED 6,500\nBright Future School\tEducation\tWebsite\tAED 2,800\n9️⃣ Company Registration (Dummy)\n\nTrade License No: CN-4521789\n\nVAT No: 100389472600003\n\nRegistered in: Abu Dhabi Department of Economic Development"
       },
       "createdAt": "2026-02-20T09:28:06.244Z",
       "reports": [
@@ -294,12 +303,612 @@
           "chatId": "447911123456@c.us",
           "message": "dfghjkrt",
           "error": "Attempted to use detached Frame 'BAAC275A9508800C4B8186E520BD6552'."
+        },
+        {
+          "at": "2026-02-21T23:41:00.441Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hello"
+        },
+        {
+          "at": "2026-02-21T23:41:00.932Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-21T23:41:01.333Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T00:20:57.243Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hello"
+        },
+        {
+          "at": "2026-02-22T00:20:57.673Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T00:20:58.024Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T00:45:47.593Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hello"
+        },
+        {
+          "at": "2026-02-22T00:45:48.173Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T00:45:48.957Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T00:46:08.835Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:46:14.050Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "are sale solar panel",
+          "message": "Yes, our solar panels are on sale! For just $2000, you get top-quality panels with a 10-year warranty, installed in only two days. Ready to start saving on your energy bills?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:46:32.650Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "what is the cost",
+          "message": "Our solar panels are an excellent investment at just $2000, backed by a 10-year warranty for your peace of mind. They also install in a quick 2 days, so you can start enjoying the benefits of solar power right away. Are you ready to explore how these panels can benefit your home?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:46:48.380Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "i want that",
+          "message": "That's fantastic to hear! Our solar panels are a smart investment, offering a 10-year warranty and a quick 2-day installation for just $2000. Shall we move forward with scheduling your installation?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:46:59.435Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "yes",
+          "message": "That's great to hear! Our solar panels are a fantastic investment at $2000, come with a 10-year warranty, and are installed in just 2 days. Would you like to discuss how we can get this scheduled for you?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:47:14.466Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "next friday",
+          "message": "Our solar panels, priced at $2000 with a 10-year warranty, can be installed in just two days; would you like to schedule your installation for next Friday?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:47:27.288Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "yes",
+          "message": "Great! With our solar panels priced at $2000, a 10-year warranty, and a quick 2-day installation, you're making a smart investment for your home's future. Would you like to discuss the next steps to get your solar system installed?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:47:44.752Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "no",
+          "message": "\"I understand you may not be ready to commit right now. Our solar panels offer a fantastic long-term investment with a 10-year warranty and quick 2-day installation, potentially saving you money on energy bills. Would you be interested in learning more about how this can benefit you?\"",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:47:46.337Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "bye",
+          "message": "Goodbye! If you change your mind about harnessing solar power, our $2000 panels come with a 10-year warranty and a quick 2-day installation.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:55:37.125Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hello",
+          "message": "Hello! Welcome to RestartX Technologies LLC. How can we help you grow your business with our innovative digital solutions today?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:58:50.422Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hello",
+          "message": "Hello! Welcome to RestartX Technologies. How can we help you elevate your business with our affordable and innovative digital solutions today?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T00:59:09.668Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "i need website",
+          "message": "We can definitely help you with that! RestartX offers affordable and scalable website development solutions for businesses like yours, starting with our Basic Website Package at AED 1,499. Let's discuss your specific needs to ensure we build the perfect website to help your business grow faster.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:00:17.867Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "i need just an business website",
+          "message": "Great! We offer a fantastic Business Package for AED 2,999, which includes a 10-page, SEO-optimized website with contact forms and WhatsApp integration, perfect for growing businesses like yours. We can have your new business website up and running in just 7-14 days! Would you like to learn more about the features included in this package?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:00:43.162Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "schedule meeting with your team",
+          "message": "We'd be delighted to schedule a meeting with you to discuss how RestartX Technologies can help your business grow. To best prepare for our discussion, could you tell us a bit about your specific digital needs so we can tailor the meeting to you?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:01:23.194Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "about business websites",
+          "message": "RestartX Technologies specializes in creating professional and mobile-responsive business websites, starting at just AED 1,499 with our Basic Website Package. We focus on affordability and fast delivery, ensuring your business has a strong online presence quickly. Would you like to learn more about how a custom website can help your business grow?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:15:57.833Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hey",
+          "message": "Hello! Welcome to RestartX Technologies LLC. How can we help you today with your digital transformation journey?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:38:32.751Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hello",
+          "message": "Hello! I’m here to help with your digital needs—whether it’s a website, app, or marketing solution for your business. \n\nCould you share what you’re looking to build or improve? I’d be happy to suggest the best fit and even schedule a quick call to discuss: https://calendly.com/fasilkooliyodan2526.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:39:31.340Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "what is restartx",
+          "message": "RestartX Technologies is a UAE-based IT solutions company that helps small and medium businesses grow through affordable website development, mobile apps, digital marketing, and AI automation. We deliver custom, scalable digital solutions tailored to your business needs. Ready to transform your business? Let’s discuss your project: https://calendly.com/fasilkooliyodan2526.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:40:08.820Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "not send me booking button again",
+          "message": "Understood. I'll focus on providing information directly.\n\nTo best assist you, please share a few details about your project or business needs. I can then suggest the most suitable service and package from RestartX.\n\nWhat are you looking to build or improve? (e.g., a website, mobile app, or marketing campaign)",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T01:40:47.624Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "do you provide digital marketing",
+          "message": "Yes, RestartX provides comprehensive digital marketing, including social media, Google Ads, and SEO, to help your business grow online. We’ve successfully boosted visibility for clients like Al Noor Cafe and Dubai Tech Store. Let’s tailor a strategy for you—book a free consultation here: https://calendly.com/fasilkooliyodan2526.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:03:00.294Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "he"
+        },
+        {
+          "at": "2026-02-22T02:03:00.771Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "he",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:03:01.468Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "he",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:04:43.840Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "hello"
+        },
+        {
+          "at": "2026-02-22T02:04:44.189Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:04:44.503Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "hello",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:05:16.129Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:06:22.462Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:10:32.601Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": true,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "918893620806@c.us",
+          "message": "heelo"
+        },
+        {
+          "at": "2026-02-22T02:10:33.078Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "15551234567@c.us",
+          "message": "heelo",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:10:33.466Z",
+          "kind": "outgoing",
+          "source": "custom",
+          "ok": false,
+          "mode": "instant",
+          "templateMode": "single",
+          "chatId": "447911123456@c.us",
+          "message": "heelo",
+          "error": "No LID for user\nnew Error (<anonymous>:6:31)"
+        },
+        {
+          "at": "2026-02-22T02:13:39.401Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hi",
+          "message": "Hello! This is an auto-reply.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:24:33.378Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "ht",
+          "message": "Hello! Thanks for contacting RestartX. Could you please tell me more about your business needs so I can assist you better?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:24:53.984Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "",
+          "message": "Hello! I'm here to help with your digital needs. Could you share what type of business you have and which services you're interested in?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:25:16.381Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "web",
+          "message": "We offer professional website development services tailored for SMEs. Could you share more about your business needs? Let's book a call to discuss: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:25:48.665Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "no just explain",
+          "message": "RestartX specializes in website development, mobile apps, digital marketing, and AI automation for SMEs, with packages starting from AED 1,499. We ensure fast delivery and dedicated support. Let's explore how we can help your business—book a call here: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:26:39.759Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "hey",
+          "message": "Hello! Thanks for reaching out to RestartX. How can I help you today with your business's digital needs, like websites or AI solutions?",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:27:05.148Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "for ai solutions",
+          "message": "Excited about your interest in AI solutions! We provide AI chatbots, automation, and custom tools tailored for SMEs. Book a call to discuss your needs: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:27:28.293Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "make booking on monday",
+          "message": "Sure, I can help you book a call for Monday. Please schedule your appointment here: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:28:13.657Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "ok but",
+          "message": "I understand you may have concerns. Could you share what specific aspect you're questioning? We can discuss how our solutions fit your business in a quick call: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:28:40.823Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "could provide a number to call",
+          "message": "You can call us directly at +971 50 123 4567. To discuss your project in detail, please book a call here: https://calendly.com/fasilkooliyodan2526.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:28:50.943Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "where is your office located",
+          "message": "Our head office is in Abu Dhabi, UAE, with a branch in Dubai. We provide website development, mobile apps, and digital marketing for SMEs. Ready to accelerate your business? Book a call here: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:29:21.758Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "ineed a wen service",
+          "message": "We specialize in affordable website development for SMEs. Let's schedule a call to discuss your needs and find the right package for you: https://calendly.com/fasilkooliyodan2526.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:29:52.711Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918893620806@c.us",
+          "incoming": "a website i need",
+          "message": "We'd love to help you with a website! To discuss your needs and provide a tailored solution, please book a call here: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:30:49.721Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hey",
+          "message": "Hello! Thanks for reaching out to RestartX Technologies. What can I help you with today? We offer affordable website and app development for businesses like yours.",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:31:56.472Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "ohh yeah",
+          "message": "That's great! To explore how RestartX can boost your business with affordable digital solutions, book a quick call with us: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:32:21.265Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "what is ai are useing make reply",
+          "message": "RestartX employs AI technologies like chatbots and business process automation to enhance efficiency for SMEs. Our solutions are scalable and custom-built. Explore how AI can transform your business—book a call here: https://calendly.com/fasilkooliyodan2526",
+          "mode": "exact"
+        },
+        {
+          "at": "2026-02-22T02:33:37.459Z",
+          "kind": "auto_reply",
+          "source": "auto_reply",
+          "ok": true,
+          "from": "918590629143@c.us",
+          "incoming": "hey",
+          "message": "Hello! At RestartX, we offer web development, mobile apps, and AI solutions for businesses. What are you looking to achieve?",
+          "mode": "exact"
         }
       ],
       "members": [
         {
           "userId": "u_mlut8f3y",
           "role": "owner"
+        }
+      ],
+      "leads": [
+        {
+          "id": "918590629143@c.us",
+          "name": "Fasil Kooliyodan",
+          "status": "cold",
+          "reason": "The lead's message 'Hey' is a generic greeting with no expressed interest in services or purchase intent.",
+          "lastMessage": "Hey",
+          "updatedAt": "2026-02-22T02:33:37.186Z"
+        },
+        {
+          "id": "918893620806@c.us",
+          "name": "restartX",
+          "status": "warm",
+          "reason": "The lead has expressed a clear need for a website, indicating interest, but the message is vague with no specifics about their business or requirements, suggesting they are in the early consideration stage.",
+          "lastMessage": "A website I need",
+          "updatedAt": "2026-02-22T02:29:52.339Z"
         }
       ]
     },
@@ -323,7 +932,16 @@
         "AUTO_REPLY_RULES": "",
         "SCHEDULE_ENABLED": "false",
         "SCHEDULE_CRON": "0 9 * * *",
-        "SCHEDULE_MESSAGE": "Daily reminder"
+        "SCHEDULE_MESSAGE": "Daily reminder",
+        "AI_SALES_ENABLED": "false",
+        "AI_PROVIDER": "google",
+        "AI_MODEL": "gemini-1.5-flash",
+        "AI_SALES_SCOPE": "not_matched",
+        "AI_SALES_GROUPS": "false",
+        "AI_BOOKING_ENABLED": "false",
+        "AI_BOOKING_LINK": "",
+        "AI_API_KEY": "",
+        "AI_PRODUCT_KNOWLEDGE": "Our product is a premium WhatsApp automation tool that helps businesses scale their communication."
       },
       "reports": [
         {

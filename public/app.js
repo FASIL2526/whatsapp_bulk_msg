@@ -32,6 +32,10 @@ const registerBtn = document.getElementById("registerBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userPill = document.getElementById("userPill");
 
+const leadsTableBody = document.getElementById("leadsTableBody");
+const leadsEmptyState = document.getElementById("leadsEmptyState");
+const refreshLeadsBtn = document.getElementById("refreshLeadsBtn");
+
 const overviewTotal = document.getElementById("overviewTotal");
 const overviewRate = document.getElementById("overviewRate");
 const sidebar = document.getElementById("sidebar");
@@ -133,7 +137,6 @@ function showToast(message, variant = "info") {
   toast.style.transform = "translateY(8px)";
   toast.style.transition = "all 160ms ease";
   document.body.appendChild(toast);
-
   requestAnimationFrame(() => {
     toast.style.opacity = "1";
     toast.style.transform = "translateY(0)";
@@ -424,6 +427,30 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     const payload = formToObject(form);
+
+    // API Validation for AI Sales Closer
+    if (payload.AI_SALES_ENABLED === "true" && payload.AI_API_KEY) {
+      const provider = payload.AI_PROVIDER || "google";
+      log(`[${activeWorkspaceId}] Validating AI Key for ${provider} (${payload.AI_MODEL})...`);
+      try {
+        const validation = await getJson(workspacePath("/validate-ai-key"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            apiKey: payload.AI_API_KEY,
+            model: payload.AI_MODEL,
+            provider: provider
+          }),
+        });
+        if (!validation.ok) throw new Error(validation.error);
+        log(`[${activeWorkspaceId}] AI API Key validated successfully.`);
+      } catch (err) {
+        log(`[${activeWorkspaceId}] AI API Key validation failed: ${err.message}`);
+        showToast(`AI Key Error: ${err.message}`, "error");
+        return; // Stop form submission if AI key is invalid
+      }
+    }
+
     await getJson(workspacePath("/config"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -431,8 +458,10 @@ form.addEventListener("submit", async (event) => {
     });
     log(`[${activeWorkspaceId}] configuration saved`);
     await refreshStatus();
+    showToast("Configuration saved successfully", "success");
   } catch (err) {
     log(err.message);
+    showToast(err.message, "error");
   }
 });
 
@@ -606,15 +635,20 @@ if (logoutBtn) {
 // --- View Switching Logic ---
 navItems.forEach(item => {
   item.addEventListener("click", () => {
-    const targetView = item.getAttribute("data-view");
-
+    const target = item.getAttribute("data-view");
+    if (target === "analytics") {
+      refreshReports();
+    }
+    if (target === "leads") {
+      loadLeads();
+    }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
     item.classList.add("active");
 
     // Show target view
     viewContainers.forEach(view => {
-      if (view.id === `${targetView}View`) {
+      if (view.id === `${target}View`) {
         view.classList.add("active");
       } else {
         view.classList.remove("active");
@@ -636,3 +670,52 @@ navItems.forEach(item => {
   }
   setInterval(refreshStatus, 5000);
 })();
+// --- Leads Logic ---
+async function loadLeads() {
+  if (!activeWorkspaceId) return;
+  try {
+    const result = await getJson(workspacePath("/leads"));
+    if (!result.ok) throw new Error(result.error);
+    renderLeads(result.leads || []);
+  } catch (err) {
+    log(`loadLeads error: ${err.message}`);
+  }
+}
+
+function renderLeads(leads) {
+  if (!leadsTableBody) return;
+  leadsTableBody.innerHTML = "";
+
+  if (leads.length === 0) {
+    leadsEmptyState.style.display = "block";
+    return;
+  }
+
+  leadsEmptyState.style.display = "none";
+
+  // Sort leads: Hot first, then Warm, then Cold
+  const statusWeight = { hot: 3, warm: 2, cold: 1 };
+  leads.sort((a, b) => (statusWeight[b.status] || 0) - (statusWeight[a.status] || 0));
+
+  leads.forEach(lead => {
+    const tr = document.createElement("tr");
+    const statusClass = `status-${lead.status || 'cold'}`;
+    const date = new Date(lead.updatedAt).toLocaleString();
+
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight: 600;">${lead.name || lead.id}</div>
+        <div class="muted" style="font-size: 11px;">${lead.id}</div>
+      </td>
+      <td><span class="badge ${statusClass}">${lead.status || 'cold'}</span></td>
+      <td style="max-width: 250px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
+      <td style="max-width: 300px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
+      <td class="muted" style="font-size: 12px;">${date}</td>
+    `;
+    leadsTableBody.appendChild(tr);
+  });
+}
+
+if (refreshLeadsBtn) {
+  refreshLeadsBtn.addEventListener("click", loadLeads);
+}
