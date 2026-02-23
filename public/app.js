@@ -31,6 +31,9 @@ const authMessage = document.getElementById("authMessage");
 const registerBtn = document.getElementById("registerBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userPill = document.getElementById("userPill");
+const themeToggle = document.getElementById("themeToggle");
+const sidebarToggle = document.getElementById("sidebarToggle");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
 
 const leadsTableBody = document.getElementById("leadsTableBody");
 const leadsEmptyState = document.getElementById("leadsEmptyState");
@@ -42,6 +45,37 @@ const sidebar = document.getElementById("sidebar");
 const navItems = document.querySelectorAll(".nav-item");
 const viewContainers = document.querySelectorAll(".view-container");
 const customSubmitBtn = customForm?.querySelector('button[type="submit"]');
+const templateInput = document.getElementById("templateInput");
+const messagePreview = document.getElementById("messagePreview");
+const instantMessage1 = document.getElementById("instantMessage1");
+const instantMessage2 = document.getElementById("instantMessage2");
+const multiMessagePreview = document.getElementById("multiMessagePreview");
+const bulkProgress = document.getElementById("bulkProgress");
+const progressBar = document.getElementById("progressBar");
+const progressText = document.getElementById("progressText");
+
+// --- Mobile Sidebar Logic ---
+function openSidebar() {
+  sidebar.classList.add("open");
+  sidebarOverlay.classList.add("visible");
+  document.body.style.overflow = "hidden";
+}
+
+function closeSidebar() {
+  sidebar.classList.remove("open");
+  sidebarOverlay.classList.remove("visible");
+  document.body.style.overflow = "";
+}
+
+if (sidebarToggle) {
+  sidebarToggle.addEventListener("click", () => {
+    sidebar.classList.contains("open") ? closeSidebar() : openSidebar();
+  });
+}
+
+if (sidebarOverlay) {
+  sidebarOverlay.addEventListener("click", closeSidebar);
+}
 
 let activeWorkspaceId = "";
 const lastErrorByWorkspace = new Map();
@@ -207,7 +241,10 @@ function setAuth(token, user) {
   document.querySelector("main.layout").style.display = "flex";
   userPill.textContent = user.username;
   syncCampaignButtonState();
-  if (window.lucide) window.lucide.createIcons();
+  // Re-init icons since sidebar and main content are now visible
+  requestAnimationFrame(() => {
+    if (window.lucide) window.lucide.createIcons();
+  });
 }
 
 function clearAuth() {
@@ -382,6 +419,16 @@ setInterval(() => {
   connectElapsedSec += 1;
   connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
 }, 1000);
+
+async function loadLeads() {
+  if (!activeWorkspaceId) return;
+  try {
+    // This function body is a placeholder, assuming it will be filled later.
+    // For now, it's empty to avoid duplicating loadConfig's logic.
+  } catch (err) {
+    log(err.message);
+  }
+}
 
 async function loadConfig() {
   if (!activeWorkspaceId) return;
@@ -654,6 +701,11 @@ navItems.forEach(item => {
         view.classList.remove("active");
       }
     });
+
+    // Auto-close sidebar on mobile after nav click
+    if (window.innerWidth <= 768) {
+      closeSidebar();
+    }
   });
 });
 
@@ -671,6 +723,97 @@ navItems.forEach(item => {
   setInterval(refreshStatus, 5000);
 })();
 // --- Leads Logic ---
+const chatModal = document.getElementById("chatModal");
+const chatModalMessages = document.getElementById("chatModalMessages");
+const chatModalTitle = document.getElementById("chatModalTitle");
+const chatModalSubtitle = document.getElementById("chatModalSubtitle");
+const chatModalCount = document.getElementById("chatModalCount");
+const chatModalMemoryDepth = document.getElementById("chatModalMemoryDepth");
+const closeChatModalBtn = document.getElementById("closeChatModal");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+let activeChatContactId = null;
+
+if (closeChatModalBtn) {
+  closeChatModalBtn.addEventListener("click", () => {
+    chatModal.style.display = "none";
+    activeChatContactId = null;
+  });
+}
+
+if (chatModal) {
+  chatModal.addEventListener("click", (e) => {
+    if (e.target === chatModal) {
+      chatModal.style.display = "none";
+      activeChatContactId = null;
+    }
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && chatModal && chatModal.style.display !== "none") {
+    chatModal.style.display = "none";
+    activeChatContactId = null;
+  }
+});
+
+if (clearHistoryBtn) {
+  clearHistoryBtn.addEventListener("click", async () => {
+    if (!activeChatContactId || !activeWorkspaceId) return;
+    if (!confirm("Clear all conversation memory for this contact? The AI will lose context.")) return;
+    try {
+      await fetch(workspacePath(`/leads/${encodeURIComponent(activeChatContactId)}/history`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      chatModalMessages.innerHTML = '<div class="muted" style="text-align:center;font-size:13px;padding:24px;">History cleared. The AI will start fresh on the next message.</div>';
+      chatModalCount.textContent = "0 messages";
+      showToast("Conversation memory cleared", "success");
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+}
+
+async function openChatModal(lead) {
+  if (!chatModal || !activeWorkspaceId) return;
+  activeChatContactId = lead.id;
+  chatModalTitle.textContent = lead.name || lead.id;
+  chatModalSubtitle.textContent = lead.id;
+  chatModalMemoryDepth.textContent = "10";
+  chatModalMessages.innerHTML = '<div class="muted" style="text-align:center;font-size:13px;padding:24px;">Loading history...</div>';
+  chatModal.style.display = "flex";
+
+  if (window.lucide) window.lucide.createIcons();
+
+  try {
+    const result = await getJson(workspacePath(`/leads/${encodeURIComponent(lead.id)}/history`));
+    const history = result.history || [];
+
+    chatModalCount.textContent = `${history.length} message${history.length !== 1 ? "s" : ""}`;
+
+    if (history.length === 0) {
+      chatModalMessages.innerHTML = '<div class="muted" style="text-align:center;font-size:13px;padding:24px;">No conversation history yet. Memory is built as the AI responds to this contact.</div>';
+      return;
+    }
+
+    chatModalMessages.innerHTML = "";
+    history.forEach((msg) => {
+      const isAssistant = msg.role === "assistant";
+      const bubble = document.createElement("div");
+      bubble.className = `msg-bubble ${isAssistant ? "sent" : "received"}`;
+      const ts = msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+      bubble.innerHTML = `
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 4px; opacity: 0.7;">${isAssistant ? "🤖 AI" : "👤 Customer"}</div>
+        <div style="white-space: pre-wrap;">${msg.content}</div>
+        ${ts ? `<div style="font-size: 10px; opacity: 0.5; margin-top: 4px; text-align: right;">${ts}</div>` : ""}
+      `;
+      chatModalMessages.appendChild(bubble);
+    });
+    chatModalMessages.scrollTop = chatModalMessages.scrollHeight;
+  } catch (err) {
+    chatModalMessages.innerHTML = `<div class="muted" style="text-align:center;font-size:13px;padding:24px;">Error: ${err.message}</div>`;
+  }
+}
 async function loadLeads() {
   if (!activeWorkspaceId) return;
   try {
@@ -708,12 +851,29 @@ function renderLeads(leads) {
         <div class="muted" style="font-size: 11px;">${lead.id}</div>
       </td>
       <td><span class="badge ${statusClass}">${lead.status || 'cold'}</span></td>
-      <td style="max-width: 250px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
-      <td style="max-width: 300px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
+      <td style="max-width: 220px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
+      <td style="max-width: 250px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
       <td class="muted" style="font-size: 12px;">${date}</td>
+      <td>
+        <button class="btn view-chat-btn" style="padding: 6px 12px; font-size: 12px; gap: 6px;" data-lead-id="${lead.id}">
+          <i data-lucide="message-square"></i> Chat
+        </button>
+      </td>
     `;
     leadsTableBody.appendChild(tr);
   });
+
+  // Wire up View Chat buttons
+  leadsTableBody.querySelectorAll(".view-chat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const leadId = btn.getAttribute("data-lead-id");
+      const lead = leads.find(l => l.id === leadId);
+      if (lead) openChatModal(lead);
+    });
+  });
+
+  // Re-init icons for the new chat buttons
+  if (window.lucide) window.lucide.createIcons();
 }
 
 if (refreshLeadsBtn) {

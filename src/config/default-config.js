@@ -1,0 +1,33 @@
+const DEFAULT_CONFIG = {
+  HEADLESS: "true",
+  RECIPIENTS: "",
+  STARTUP_MESSAGE: "Automation is live.",
+  BULK_SEND_MODE: "instant",
+  BULK_DELAY_MS: "1500",
+  BULK_RANDOM_MIN_MS: "700",
+  BULK_RANDOM_MAX_MS: "2500",
+  BULK_TEMPLATE_MODE: "single",
+  BULK_TEMPLATE_LINES: "",
+  AUTO_REPLY_ENABLED: "true",
+  AUTO_REPLY_MODE: "exact",
+  AUTO_REPLY_TRIGGER: "hi",
+  AUTO_REPLY_TEXT: "Hello! This is an auto-reply.",
+  AUTO_REPLY_RULES: "",
+  SCHEDULE_ENABLED: "false",
+  SCHEDULE_CRON: "0 9 * * *",
+  SCHEDULE_MESSAGE: "Daily reminder",
+  AI_SALES_ENABLED: "false",
+  AI_PROVIDER: "google",
+  AI_MODEL: "gemini-1.5-flash",
+  AI_SALES_SCOPE: "not_matched",
+  AI_SALES_GROUPS: "false",
+  AI_BOOKING_ENABLED: "false",
+  AI_BOOKING_LINK: "",
+  AI_API_KEY: "",
+  AI_PRODUCT_KNOWLEDGE: "Our product is a premium WhatsApp automation tool that helps businesses scale their communication.",
+  AI_MEMORY_TURNS: "10",
+};
+
+module.exports = {
+  DEFAULT_CONFIG,
+};

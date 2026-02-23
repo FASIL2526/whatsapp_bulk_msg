@@ -1,7 +1,4 @@
 require("dotenv").config();
-if (process.env.RENDER === "true" && !process.env.PUPPETEER_CACHE_DIR) {
-  process.env.PUPPETEER_CACHE_DIR = "/opt/render/.cache/puppeteer";
-}
 
 const fs = require("fs");
 const path = require("path");
@@ -16,28 +13,29 @@ const XLSX = require("xlsx");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { DEFAULT_CONFIG } = require("./src/config/default-config");
+const { configureRuntimeEnv, SYSTEM_CHROME_CANDIDATES } = require("./src/config/runtime-env");
+const {
+  normalizeRecipients,
+  sanitizeText,
+  sanitizeChoice,
+  sanitizeIntegerString,
+  sanitizeWorkspaceConfig,
+} = require("./src/utils/workspace-config");
+const {
+  getConversationHistory,
+  pushToConversationHistory,
+  formatHistoryForPrompt,
+} = require("./src/services/conversation-memory");
 
-const SYSTEM_CHROME_CANDIDATES = [
-  "/usr/bin/google-chrome",
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/chromium-browser",
-  "/usr/bin/chromium",
-];
-const detectedSystemChrome = SYSTEM_CHROME_CANDIDATES.find((candidate) => fs.existsSync(candidate)) || "";
-const currentPuppeteerExecutablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH || "").trim();
-if (
-  detectedSystemChrome &&
-  !currentPuppeteerExecutablePath
-) {
-  process.env.PUPPETEER_EXECUTABLE_PATH = detectedSystemChrome;
-}
+configureRuntimeEnv();
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
-const PORT = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT || 4000);
 const HOST =
   process.env.HOST ||
   (process.env.NODE_ENV === "production" || process.env.RENDER === "true" ? "0.0.0.0" : "127.0.0.1");
@@ -49,35 +47,6 @@ const TOKEN_TTL = process.env.TOKEN_TTL || "7d";
 
 const SERVER_STARTED_AT = new Date().toLocaleString();
 console.log(`[SYSTEM] Server process starting at: ${SERVER_STARTED_AT}`);
-
-const DEFAULT_CONFIG = {
-  HEADLESS: "true",
-  RECIPIENTS: "",
-  STARTUP_MESSAGE: "Automation is live.",
-  BULK_SEND_MODE: "instant",
-  BULK_DELAY_MS: "1500",
-  BULK_RANDOM_MIN_MS: "700",
-  BULK_RANDOM_MAX_MS: "2500",
-  BULK_TEMPLATE_MODE: "single",
-  BULK_TEMPLATE_LINES: "",
-  AUTO_REPLY_ENABLED: "true",
-  AUTO_REPLY_MODE: "exact",
-  AUTO_REPLY_TRIGGER: "hi",
-  AUTO_REPLY_TEXT: "Hello! This is an auto-reply.",
-  AUTO_REPLY_RULES: "",
-  SCHEDULE_ENABLED: "false",
-  SCHEDULE_CRON: "0 9 * * *",
-  SCHEDULE_MESSAGE: "Daily reminder",
-  AI_SALES_ENABLED: "false",
-  AI_PROVIDER: "google",
-  AI_MODEL: "gemini-1.5-flash",
-  AI_SALES_SCOPE: "not_matched",
-  AI_SALES_GROUPS: "false",
-  AI_BOOKING_ENABLED: "false",
-  AI_BOOKING_LINK: "",
-  AI_API_KEY: "",
-  AI_PRODUCT_KNOWLEDGE: "Our product is a premium WhatsApp automation tool that helps businesses scale their communication.",
-};
 
 const store = {
   users: [],
@@ -91,90 +60,6 @@ const ROLE_RANK = {
   admin: 2,
   owner: 3,
 };
-
-function normalizeRecipients(raw) {
-  return String(raw)
-    .split(/[\n,]/)
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => value.replace(/[^0-9]/g, ""))
-    .filter(Boolean);
-}
-
-function sanitizeText(value, fallback) {
-  return String(value ?? fallback)
-    .replace(/\r?\n/g, " ")
-    .trim();
-}
-
-function sanitizeMultilineText(value, fallback) {
-  return String(value ?? fallback).replace(/\r/g, "").trim();
-}
-
-function sanitizeChoice(value, allowed, fallback) {
-  return allowed.includes(value) ? value : fallback;
-}
-
-function sanitizeIntegerString(value, fallback, min, max) {
-  const parsed = Number.parseInt(String(value ?? fallback), 10);
-  if (!Number.isFinite(parsed)) {
-    return String(fallback);
-  }
-  return String(Math.min(max, Math.max(min, parsed)));
-}
-
-function sanitizeWorkspaceConfig(input) {
-  const clean = {
-    HEADLESS: input.HEADLESS === "false" ? "false" : "true",
-    RECIPIENTS: normalizeRecipients(input.RECIPIENTS || "").join(","),
-    STARTUP_MESSAGE: sanitizeText(input.STARTUP_MESSAGE, DEFAULT_CONFIG.STARTUP_MESSAGE),
-    BULK_SEND_MODE: sanitizeChoice(
-      sanitizeText(input.BULK_SEND_MODE, DEFAULT_CONFIG.BULK_SEND_MODE),
-      ["instant", "staggered", "random"],
-      DEFAULT_CONFIG.BULK_SEND_MODE
-    ),
-    BULK_DELAY_MS: sanitizeIntegerString(input.BULK_DELAY_MS, 1500, 100, 60000),
-    BULK_RANDOM_MIN_MS: sanitizeIntegerString(input.BULK_RANDOM_MIN_MS, 700, 100, 60000),
-    BULK_RANDOM_MAX_MS: sanitizeIntegerString(input.BULK_RANDOM_MAX_MS, 2500, 100, 120000),
-    BULK_TEMPLATE_MODE: sanitizeChoice(
-      sanitizeText(input.BULK_TEMPLATE_MODE, DEFAULT_CONFIG.BULK_TEMPLATE_MODE),
-      ["single", "rotate", "random"],
-      DEFAULT_CONFIG.BULK_TEMPLATE_MODE
-    ),
-    BULK_TEMPLATE_LINES: sanitizeMultilineText(input.BULK_TEMPLATE_LINES, DEFAULT_CONFIG.BULK_TEMPLATE_LINES),
-    AUTO_REPLY_ENABLED: input.AUTO_REPLY_ENABLED === "false" ? "false" : "true",
-    AUTO_REPLY_MODE: sanitizeChoice(
-      sanitizeText(input.AUTO_REPLY_MODE, DEFAULT_CONFIG.AUTO_REPLY_MODE),
-      ["exact", "contains", "rules"],
-      DEFAULT_CONFIG.AUTO_REPLY_MODE
-    ),
-    AUTO_REPLY_TRIGGER: sanitizeText(input.AUTO_REPLY_TRIGGER, DEFAULT_CONFIG.AUTO_REPLY_TRIGGER).toLowerCase(),
-    AUTO_REPLY_TEXT: sanitizeText(input.AUTO_REPLY_TEXT, DEFAULT_CONFIG.AUTO_REPLY_TEXT),
-    AUTO_REPLY_RULES: sanitizeMultilineText(input.AUTO_REPLY_RULES, DEFAULT_CONFIG.AUTO_REPLY_RULES),
-    SCHEDULE_ENABLED: input.SCHEDULE_ENABLED === "true" ? "true" : "false",
-    SCHEDULE_CRON: sanitizeText(input.SCHEDULE_CRON, DEFAULT_CONFIG.SCHEDULE_CRON),
-    SCHEDULE_MESSAGE: sanitizeText(input.SCHEDULE_MESSAGE, DEFAULT_CONFIG.SCHEDULE_MESSAGE),
-    AI_SALES_ENABLED: input.AI_SALES_ENABLED === "true" ? "true" : "false",
-    AI_PROVIDER: input.AI_PROVIDER === "openrouter" ? "openrouter" : "google",
-    AI_MODEL: sanitizeText(input.AI_MODEL, DEFAULT_CONFIG.AI_MODEL),
-    AI_SALES_SCOPE: input.AI_SALES_SCOPE === "all" ? "all" : "not_matched",
-    AI_SALES_GROUPS: input.AI_SALES_GROUPS === "true" ? "true" : "false",
-    AI_BOOKING_ENABLED: input.AI_BOOKING_ENABLED === "true" ? "true" : "false",
-    AI_BOOKING_LINK: sanitizeText(input.AI_BOOKING_LINK, DEFAULT_CONFIG.AI_BOOKING_LINK),
-    AI_API_KEY: sanitizeText(input.AI_API_KEY, DEFAULT_CONFIG.AI_API_KEY),
-    AI_PRODUCT_KNOWLEDGE: sanitizeMultilineText(input.AI_PRODUCT_KNOWLEDGE, DEFAULT_CONFIG.AI_PRODUCT_KNOWLEDGE),
-  };
-
-  if (Number(clean.BULK_RANDOM_MAX_MS) < Number(clean.BULK_RANDOM_MIN_MS)) {
-    clean.BULK_RANDOM_MAX_MS = clean.BULK_RANDOM_MIN_MS;
-  }
-
-  if (!cron.validate(clean.SCHEDULE_CRON)) {
-    throw new Error("Invalid cron expression.");
-  }
-
-  return clean;
-}
 
 function normalizeUsername(value) {
   return String(value || "")
@@ -376,6 +261,72 @@ function reportSummary(reports) {
     summary.bySource[source] = (summary.bySource[source] || 0) + 1;
   }
   return summary;
+}
+
+function parseAiJsonResponse(rawText) {
+  const text = String(rawText || "").trim();
+  if (!text) {
+    throw new Error("Empty AI response");
+  }
+  const jsonStr = text.match(/{[\s\S]*}/)?.[0] || text;
+  return JSON.parse(jsonStr);
+}
+
+function normalizeAiDecision(aiData, fallbackReply) {
+  const data = aiData && typeof aiData === "object" ? aiData : {};
+  const reply = String(data.reply || fallbackReply || "").trim();
+  const status = sanitizeChoice(data.status, ["cold", "warm", "hot"], "cold");
+  const reason = sanitizeText(data.reason, "No reason provided.");
+  const detectedLanguage = sanitizeText(data.language, "same_as_customer");
+  const needsClarification = String(data.needs_clarification || "")
+    .trim()
+    .toLowerCase() === "true" || data.needs_clarification === true;
+  const clarificationQuestion = sanitizeText(data.clarification_question, "");
+  const finalReply = needsClarification
+    ? (clarificationQuestion || reply || "Could you clarify what you need so I can help you better?")
+    : reply;
+
+  return {
+    reply: finalReply,
+    status,
+    reason,
+    language: detectedLanguage,
+    needsClarification,
+  };
+}
+
+function messageSerializedId(message) {
+  return String(message?.id?._serialized || "");
+}
+
+async function syncConversationHistoryFromChat(workspace, runtime, msg, maxTurns) {
+  try {
+    if (!runtime.historySyncedContacts) {
+      runtime.historySyncedContacts = new Set();
+    }
+    const contactId = String(msg.from || "");
+    if (!contactId || runtime.historySyncedContacts.has(contactId)) {
+      return;
+    }
+
+    const chat = await msg.getChat();
+    const fetchLimit = Math.max(40, (maxTurns * 2) + 20);
+    const recentMessages = await chat.fetchMessages({ limit: fetchLimit });
+    const currentMessageId = messageSerializedId(msg);
+    const sorted = (recentMessages || [])
+      .filter((item) => item && typeof item.body === "string" && item.body.trim())
+      .filter((item) => messageSerializedId(item) !== currentMessageId)
+      .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+
+    for (const item of sorted) {
+      const role = item.fromMe ? "assistant" : "user";
+      pushToConversationHistory(workspace.id, contactId, role, item.body, maxTurns);
+    }
+
+    runtime.historySyncedContacts.add(contactId);
+  } catch (err) {
+    console.log(`[${workspace.id}] History sync skipped: ${err.message}`);
+  }
 }
 
 function toCsv(rows) {
@@ -612,6 +563,7 @@ function getRuntime(workspaceId) {
       scheduler: null,
       sendInProgress: false,
       sendStartedAt: null,
+      historySyncedContacts: new Set(),
     });
   }
   return runtimeByWorkspaceId.get(workspaceId);
@@ -1145,6 +1097,9 @@ async function createClientForWorkspace(workspace) {
             const knowledge = (workspace.config.AI_PRODUCT_KNOWLEDGE || "").replace(/^["']|["']$/g, '');
             const bookingEnabled = workspace.config.AI_BOOKING_ENABLED === "true";
             const bookingLink = workspace.config.AI_BOOKING_LINK || "";
+            const maxTurns = parseInt(workspace.config.AI_MEMORY_TURNS || "10", 10) || 10;
+
+            await syncConversationHistoryFromChat(workspace, runtime, msg, maxTurns);
 
             // Fetch contact name to personalize reply
             let contactName = "";
@@ -1155,24 +1110,36 @@ async function createClientForWorkspace(workspace) {
               console.log(`[${workspace.id}] Could not get contact name: ${ce.message}`);
             }
 
+            // Load conversation history for this contact
+            const history = getConversationHistory(workspace.id, msg.from);
+            const historyBlock = formatHistoryForPrompt(history);
+
             const prompt = `
           Context: You are a sales assistant for this product: ${knowledge}
           Objective: Answer the lead's question and guide them toward a purchase.
           ${contactName ? `Lead's Name: ${contactName} — Always greet them by name when starting a reply.` : ""}
           ${bookingEnabled && bookingLink ? `Call Booking: If the customer is interested or ready to talk, encourage them to book a call here: ${bookingLink}` : ""}
-          
+          ${historyBlock ? `\n${historyBlock}` : ""}
           TASK:
-          1. Generate a natural, personalized reply (1-3 sentences max). Use the lead's name naturally.
-          2. Evaluate the lead status based on their interest and intent (cold, warm, hot).
-          3. Provide a brief reason for the categorization.
+          1. Detect the customer's language and reply in that same language.
+          2. Generate a natural, personalized reply (1-3 sentences max). Use the lead's name naturally.
+          3. If the message is ambiguous, missing key details, or you're unsure, ask ONE clear clarification question instead of guessing.
+          4. Keep clarification short, human, and in the customer's language.
+          5. Never claim certainty when uncertain.
+          6. Evaluate the lead status based on their interest and intent (cold, warm, hot).
+          7. Provide a brief reason for the categorization.
+          IMPORTANT: If there is conversation history above, DO NOT repeat greetings or information you already shared. Continue the conversation naturally.
 
-          LEAD MESSAGE: "${msg.body}"
+          CURRENT LEAD MESSAGE: "${msg.body}"
 
           RESPONSE FORMAT (JSON ONLY):
           {
             "reply": "Your response text here",
             "status": "cold" | "warm" | "hot",
-            "reason": "Brief explanation of status"
+            "reason": "Brief explanation of status",
+            "language": "detected language name (e.g. English, Hindi, Spanish)",
+            "needs_clarification": true | false,
+            "clarification_question": "Only required when needs_clarification is true"
           }
         `;
 
@@ -1185,17 +1152,20 @@ async function createClientForWorkspace(workspace) {
               console.log(`[${workspace.id}] Google AI Raw Response: ${textResponse}`);
 
               try {
-                // Extract JSON if AI includes markdown or extra text
-                const jsonStr = textResponse.match(/\{[\s\S]*\}/)?.[0] || textResponse;
-                const aiData = JSON.parse(jsonStr);
-                replyText = aiData.reply;
+                const aiData = parseAiJsonResponse(textResponse);
+                const normalized = normalizeAiDecision(aiData, textResponse);
+                replyText = normalized.reply;
+
+                // Save to conversation history (before updating lead, so ordering is clean)
+                pushToConversationHistory(workspace.id, msg.from, "user", msg.body, maxTurns);
+                pushToConversationHistory(workspace.id, msg.from, "assistant", replyText, maxTurns);
 
                 // Update lead status using pre-fetched contactName
                 updateLeadStatus(workspace, {
                   from: msg.from,
                   name: contactName || msg.from,
-                  status: aiData.status,
-                  reason: aiData.reason,
+                  status: normalized.status,
+                  reason: normalized.reason,
                   message: msg.body
                 });
                 console.log(`[${workspace.id}] Lead status updated for ${contactName || msg.from}`);
@@ -1226,15 +1196,21 @@ async function createClientForWorkspace(workspace) {
               if (data.error) throw new Error(data.error.message || "OpenRouter Error");
 
               try {
-                const aiData = JSON.parse(data.choices[0].message.content.trim());
-                replyText = aiData.reply;
+                const rawContent = data?.choices?.[0]?.message?.content || "";
+                const aiData = parseAiJsonResponse(rawContent);
+                const normalized = normalizeAiDecision(aiData, rawContent);
+                replyText = normalized.reply;
+
+                // Save to conversation history
+                pushToConversationHistory(workspace.id, msg.from, "user", msg.body, maxTurns);
+                pushToConversationHistory(workspace.id, msg.from, "assistant", replyText, maxTurns);
 
                 // Update lead status using pre-fetched contactName
                 updateLeadStatus(workspace, {
                   from: msg.from,
                   name: contactName || msg.from,
-                  status: aiData.status,
-                  reason: aiData.reason,
+                  status: normalized.status,
+                  reason: normalized.reason,
                   message: msg.body
                 });
                 console.log(`[${workspace.id}] Lead status updated (OR) for ${contactName || msg.from}`);
@@ -1423,6 +1399,7 @@ async function stopWorkspaceClient(workspaceId) {
   runtime._forceManagedChrome = false;
   runtime._disableSingleProcess = false;
   runtime._failingChromePaths = [];
+  runtime.historySyncedContacts = new Set();
   stopReadyProbe(runtime);
   runtime.qrDataUrl = "";
 }
@@ -1653,6 +1630,40 @@ app.get("/api/workspaces/:workspaceId/leads", requireAuth, async (req, res) => {
       return res.status(403).json({ ok: false, error: "Forbidden" });
     }
     res.json({ ok: true, leads: workspace.leads || [] });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── Conversation History API ─────────────────────────────────────────────────
+app.get("/api/workspaces/:workspaceId/leads/:contactId/history", requireAuth, async (req, res) => {
+  try {
+    const workspace = getWorkspace(req.params.workspaceId);
+    if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found" });
+    if (!hasWorkspaceRole(workspace, req.user.id, "member")) {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    }
+    // contactId comes URL-encoded (@ → %40)
+    const contactId = decodeURIComponent(req.params.contactId);
+    const history = getConversationHistory(req.params.workspaceId, contactId);
+    res.json({ ok: true, contactId, history });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── Clear Conversation History ───────────────────────────────────────────────
+app.delete("/api/workspaces/:workspaceId/leads/:contactId/history", requireAuth, async (req, res) => {
+  try {
+    const workspace = getWorkspace(req.params.workspaceId);
+    if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found" });
+    if (!hasWorkspaceRole(workspace, req.user.id, "member")) {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    }
+    const contactId = decodeURIComponent(req.params.contactId);
+    const wsMap = conversationHistories.get(req.params.workspaceId);
+    if (wsMap) wsMap.delete(contactId);
+    res.json({ ok: true, message: "Conversation history cleared." });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
