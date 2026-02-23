@@ -73,6 +73,61 @@ function sanitizeWorkspaceConfig(input) {
     AI_API_KEY: sanitizeText(input.AI_API_KEY, DEFAULT_CONFIG.AI_API_KEY),
     AI_PRODUCT_KNOWLEDGE: sanitizeMultilineText(input.AI_PRODUCT_KNOWLEDGE, DEFAULT_CONFIG.AI_PRODUCT_KNOWLEDGE),
     AI_MEMORY_TURNS: String(Math.min(20, Math.max(1, parseInt(input.AI_MEMORY_TURNS, 10) || 10))),
+    AI_QUALIFICATION_ENABLED: input.AI_QUALIFICATION_ENABLED === "false" ? "false" : "true",
+    AI_QUALIFICATION_FIELDS: sanitizeText(
+      input.AI_QUALIFICATION_FIELDS,
+      DEFAULT_CONFIG.AI_QUALIFICATION_FIELDS
+    ),
+    AI_CLOSING_FLOW: sanitizeChoice(
+      sanitizeText(input.AI_CLOSING_FLOW, DEFAULT_CONFIG.AI_CLOSING_FLOW),
+      ["balanced", "direct", "consultative"],
+      DEFAULT_CONFIG.AI_CLOSING_FLOW
+    ),
+    AI_CLOSE_QUESTION_MODE: sanitizeChoice(
+      sanitizeText(input.AI_CLOSE_QUESTION_MODE, DEFAULT_CONFIG.AI_CLOSE_QUESTION_MODE),
+      ["off", "hot_only", "warm_hot", "always"],
+      DEFAULT_CONFIG.AI_CLOSE_QUESTION_MODE
+    ),
+    AI_AUTO_STORY_TO_CLOSE: input.AI_AUTO_STORY_TO_CLOSE === "true" ? "true" : "false",
+    AI_CLOSING_STORY: sanitizeText(input.AI_CLOSING_STORY, DEFAULT_CONFIG.AI_CLOSING_STORY),
+    AI_WHATSAPP_STATUS_FEATURES: input.AI_WHATSAPP_STATUS_FEATURES === "true" ? "true" : "false",
+    AI_WHATSAPP_STATUS_FEATURES_TEXT: sanitizeText(
+      input.AI_WHATSAPP_STATUS_FEATURES_TEXT,
+      DEFAULT_CONFIG.AI_WHATSAPP_STATUS_FEATURES_TEXT
+    ),
+    AI_STATUS_AUTOPILOT_ENABLED: input.AI_STATUS_AUTOPILOT_ENABLED === "true" ? "true" : "false",
+    AI_STATUS_AUTOPILOT_CRON: sanitizeText(
+      input.AI_STATUS_AUTOPILOT_CRON,
+      DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_CRON
+    ),
+    AI_STATUS_AUTOPILOT_TONE: sanitizeChoice(
+      sanitizeText(input.AI_STATUS_AUTOPILOT_TONE, DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_TONE),
+      ["direct", "friendly", "consultative"],
+      DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_TONE
+    ),
+    AI_STATUS_AUTOPILOT_CTA: sanitizeText(
+      input.AI_STATUS_AUTOPILOT_CTA,
+      DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_CTA
+    ),
+    AI_STATUS_AUTOPILOT_USE_AI: input.AI_STATUS_AUTOPILOT_USE_AI === "false" ? "false" : "true",
+    AI_OBJECTION_PLAYBOOK: sanitizeMultilineText(
+      input.AI_OBJECTION_PLAYBOOK,
+      DEFAULT_CONFIG.AI_OBJECTION_PLAYBOOK
+    ),
+    AI_FOLLOW_UP_ENABLED: input.AI_FOLLOW_UP_ENABLED === "true" ? "true" : "false",
+    AI_FOLLOW_UP_DELAY_MINUTES: sanitizeIntegerString(
+      input.AI_FOLLOW_UP_DELAY_MINUTES,
+      DEFAULT_CONFIG.AI_FOLLOW_UP_DELAY_MINUTES,
+      5,
+      10080
+    ),
+    AI_FOLLOW_UP_MAX_ATTEMPTS: sanitizeIntegerString(
+      input.AI_FOLLOW_UP_MAX_ATTEMPTS,
+      DEFAULT_CONFIG.AI_FOLLOW_UP_MAX_ATTEMPTS,
+      1,
+      10
+    ),
+    AI_FOLLOW_UP_TEMPLATE: sanitizeText(input.AI_FOLLOW_UP_TEMPLATE, DEFAULT_CONFIG.AI_FOLLOW_UP_TEMPLATE),
   };
 
   if (Number(clean.BULK_RANDOM_MAX_MS) < Number(clean.BULK_RANDOM_MIN_MS)) {
@@ -81,6 +136,9 @@ function sanitizeWorkspaceConfig(input) {
 
   if (!cron.validate(clean.SCHEDULE_CRON)) {
     throw new Error("Invalid cron expression.");
+  }
+  if (!cron.validate(clean.AI_STATUS_AUTOPILOT_CRON)) {
+    throw new Error("Invalid AI status cron expression.");
   }
 
   return clean;

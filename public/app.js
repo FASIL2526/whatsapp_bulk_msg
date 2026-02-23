@@ -53,6 +53,15 @@ const multiMessagePreview = document.getElementById("multiMessagePreview");
 const bulkProgress = document.getElementById("bulkProgress");
 const progressBar = document.getElementById("progressBar");
 const progressText = document.getElementById("progressText");
+const assistBusinessName = document.getElementById("assistBusinessName");
+const assistOffer = document.getElementById("assistOffer");
+const assistAudience = document.getElementById("assistAudience");
+const assistGoal = document.getElementById("assistGoal");
+const assistTone = document.getElementById("assistTone");
+const generateAiAssistBtn = document.getElementById("generateAiAssistBtn");
+const aiAssistResult = document.getElementById("aiAssistResult");
+const postStatusNowBtn = document.getElementById("postStatusNowBtn");
+const statusPostResult = document.getElementById("statusPostResult");
 
 // --- Mobile Sidebar Logic ---
 function openSidebar() {
@@ -512,6 +521,82 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+if (generateAiAssistBtn) {
+  generateAiAssistBtn.addEventListener("click", async () => {
+    if (!activeWorkspaceId) return;
+    const payload = {
+      businessName: assistBusinessName?.value?.trim() || "",
+      offer: assistOffer?.value?.trim() || "",
+      targetAudience: assistAudience?.value?.trim() || "",
+      goal: assistGoal?.value?.trim() || "",
+      tone: assistTone?.value || "balanced",
+      provider: form.elements.namedItem("AI_PROVIDER")?.value || "google",
+      model: form.elements.namedItem("AI_MODEL")?.value || "",
+      apiKey: form.elements.namedItem("AI_API_KEY")?.value || "",
+    };
+    generateAiAssistBtn.disabled = true;
+    if (aiAssistResult) aiAssistResult.textContent = "Generating assist data...";
+    try {
+      const result = await getJson(workspacePath("/ai-data-assist"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const draft = result.draft || {};
+      const setValue = (name, value) => {
+        const el = form.elements.namedItem(name);
+        if (el && value !== undefined && value !== null) {
+          el.value = value;
+        }
+      };
+
+      setValue("AI_PRODUCT_KNOWLEDGE", draft.productKnowledge || "");
+      setValue("AI_CLOSING_STORY", draft.closingStory || "");
+      setValue("AI_OBJECTION_PLAYBOOK", draft.objectionPlaybook || "");
+      setValue("AI_FOLLOW_UP_TEMPLATE", draft.followUpTemplate || "");
+      setValue("AI_WHATSAPP_STATUS_FEATURES_TEXT", draft.statusFeaturesText || "");
+      setValue("AI_QUALIFICATION_FIELDS", draft.qualificationFields || "need,budget,timeline,decision-maker");
+      setValue("AI_CLOSING_FLOW", draft.closingFlow || "balanced");
+      setValue("AI_CLOSE_QUESTION_MODE", draft.closeQuestionMode || "warm_hot");
+      setValue("AI_AUTO_STORY_TO_CLOSE", draft.autoStoryToClose || "true");
+      setValue("AI_WHATSAPP_STATUS_FEATURES", draft.whatsappStatusFeatures || "true");
+      setValue("AI_FOLLOW_UP_ENABLED", draft.followUpEnabled || "true");
+
+      const source = result.source || "unknown";
+      const warning = result.warning ? ` (fallback: ${result.warning})` : "";
+      if (aiAssistResult) aiAssistResult.textContent = `Assist data generated via ${source}${warning}. Review and click Save Workspace Configuration.`;
+      showToast("AI assist data generated", "success");
+    } catch (err) {
+      if (aiAssistResult) aiAssistResult.textContent = err.message;
+      showToast(err.message, "error");
+    } finally {
+      generateAiAssistBtn.disabled = false;
+    }
+  });
+}
+
+if (postStatusNowBtn) {
+  postStatusNowBtn.addEventListener("click", async () => {
+    if (!activeWorkspaceId) return;
+    postStatusNowBtn.disabled = true;
+    if (statusPostResult) statusPostResult.textContent = "Posting status...";
+    try {
+      const result = await getJson(workspacePath("/status-post-now"), {
+        method: "POST",
+      });
+      const preview = result?.posted?.text || "Status posted.";
+      if (statusPostResult) statusPostResult.textContent = `Posted: ${preview.slice(0, 120)}${preview.length > 120 ? "..." : ""}`;
+      showToast("Status posted successfully", "success");
+      await refreshReports();
+    } catch (err) {
+      if (statusPostResult) statusPostResult.textContent = err.message;
+      showToast(err.message, "error");
+    } finally {
+      postStatusNowBtn.disabled = false;
+    }
+  });
+}
+
 startBtn.addEventListener("click", async () => {
   try {
     await getJson(workspacePath("/start"), { method: "POST" });
@@ -817,9 +902,16 @@ async function openChatModal(lead) {
 async function loadLeads() {
   if (!activeWorkspaceId) return;
   try {
-    const result = await getJson(workspacePath("/leads"));
+    const [result, summaryResult] = await Promise.all([
+      getJson(workspacePath("/leads")),
+      getJson(workspacePath("/leads/summary")),
+    ]);
     if (!result.ok) throw new Error(result.error);
     renderLeads(result.leads || []);
+    const s = summaryResult.summary || {};
+    log(
+      `[${activeWorkspaceId}] leads summary: total=${s.total || 0}, hot=${s.byStatus?.hot || 0}, warm=${s.byStatus?.warm || 0}, actionable=${s.actionable || 0}`
+    );
   } catch (err) {
     log(`loadLeads error: ${err.message}`);
   }
@@ -836,13 +928,19 @@ function renderLeads(leads) {
 
   leadsEmptyState.style.display = "none";
 
-  // Sort leads: Hot first, then Warm, then Cold
+  // Sort leads by score first, then by status priority.
   const statusWeight = { hot: 3, warm: 2, cold: 1 };
-  leads.sort((a, b) => (statusWeight[b.status] || 0) - (statusWeight[a.status] || 0));
+  leads.sort((a, b) => {
+    const scoreDelta = (b.score || 0) - (a.score || 0);
+    if (scoreDelta !== 0) return scoreDelta;
+    return (statusWeight[b.status] || 0) - (statusWeight[a.status] || 0);
+  });
 
   leads.forEach(lead => {
     const tr = document.createElement("tr");
     const statusClass = `status-${lead.status || 'cold'}`;
+    const score = Number.isFinite(Number(lead.score)) ? Math.max(0, Math.min(100, Number(lead.score))) : 0;
+    const stage = lead.stage || "new";
     const date = new Date(lead.updatedAt).toLocaleString();
 
     tr.innerHTML = `
@@ -851,6 +949,8 @@ function renderLeads(leads) {
         <div class="muted" style="font-size: 11px;">${lead.id}</div>
       </td>
       <td><span class="badge ${statusClass}">${lead.status || 'cold'}</span></td>
+      <td><span class="badge">${stage}</span></td>
+      <td style="font-weight: 700;">${score}</td>
       <td style="max-width: 220px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
       <td style="max-width: 250px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
       <td class="muted" style="font-size: 12px;">${date}</td>

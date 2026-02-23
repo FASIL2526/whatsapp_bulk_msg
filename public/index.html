@@ -265,6 +265,163 @@
                   <option value="20">20 turns (~40 messages)</option>
                 </select>
               </label>
+              <label>
+                Qualification Gate
+                <select name="AI_QUALIFICATION_ENABLED">
+                  <option value="true">On</option>
+                  <option value="false">Off</option>
+                </select>
+              </label>
+              <label class="span-2">
+                Qualification Fields
+                <input name="AI_QUALIFICATION_FIELDS" type="text"
+                  placeholder="need,budget,timeline,decision-maker" />
+              </label>
+              <label>
+                Closing Flow
+                <select name="AI_CLOSING_FLOW">
+                  <option value="balanced">Balanced</option>
+                  <option value="direct">Direct</option>
+                  <option value="consultative">Consultative</option>
+                </select>
+              </label>
+              <label>
+                Close Question Mode
+                <select name="AI_CLOSE_QUESTION_MODE">
+                  <option value="hot_only">Hot only</option>
+                  <option value="warm_hot">Warm + Hot</option>
+                  <option value="always">Always</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label>
+                Auto Story Before Close
+                <select name="AI_AUTO_STORY_TO_CLOSE">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
+              <label>
+                WhatsApp Status Features
+                <select name="AI_WHATSAPP_STATUS_FEATURES">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
+              <label>
+                Follow-up Automation
+                <select name="AI_FOLLOW_UP_ENABLED">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
+              <label>
+                Follow-up Delay (Minutes)
+                <input name="AI_FOLLOW_UP_DELAY_MINUTES" type="number" min="5" max="10080" />
+              </label>
+              <label>
+                Max Follow-up Attempts
+                <input name="AI_FOLLOW_UP_MAX_ATTEMPTS" type="number" min="1" max="10" />
+              </label>
+              <label class="span-2">
+                Story Snippet (used before close questions)
+                <textarea name="AI_CLOSING_STORY" rows="2"
+                  placeholder="A short proof story the AI can insert before asking closing questions..."></textarea>
+              </label>
+              <label class="span-2">
+                WhatsApp Status Features Text
+                <textarea name="AI_WHATSAPP_STATUS_FEATURES_TEXT" rows="2"
+                  placeholder="Mention how WhatsApp Status features help attract inbound leads..."></textarea>
+              </label>
+              <label class="span-2">
+                Objection Playbook
+                <textarea name="AI_OBJECTION_PLAYBOOK" rows="3"
+                  placeholder="Example: Price objection -> compare ROI in 30 days, then offer a pilot..."></textarea>
+              </label>
+              <label class="span-2">
+                Follow-up Template
+                <input name="AI_FOLLOW_UP_TEMPLATE" type="text"
+                  placeholder="Quick follow-up: still interested in solving this now?" />
+              </label>
+              <div class="span-2"
+                style="padding: 14px; border: 1px dashed var(--panel-border); border-radius: var(--radius-md); background: var(--import-bg);">
+                <h4 style="margin: 0 0 10px 0; font-size: 13px;">Auto AI Status Lead Seeking</h4>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <label>
+                    Enable Auto Status
+                    <select name="AI_STATUS_AUTOPILOT_ENABLED">
+                      <option value="false">Off</option>
+                      <option value="true">On</option>
+                    </select>
+                  </label>
+                  <label>
+                    Use AI Generation
+                    <select name="AI_STATUS_AUTOPILOT_USE_AI">
+                      <option value="true">On</option>
+                      <option value="false">Off (template only)</option>
+                    </select>
+                  </label>
+                  <label>
+                    Status Cron
+                    <input name="AI_STATUS_AUTOPILOT_CRON" type="text" placeholder="0 */6 * * *" />
+                  </label>
+                  <label>
+                    Status Tone
+                    <select name="AI_STATUS_AUTOPILOT_TONE">
+                      <option value="direct">Direct</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="consultative">Consultative</option>
+                    </select>
+                  </label>
+                  <label class="span-2">
+                    Status CTA
+                    <input name="AI_STATUS_AUTOPILOT_CTA" type="text"
+                      placeholder="Reply 'START' to get full details." />
+                  </label>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
+                  <button type="button" id="postStatusNowBtn" class="btn accent">Post Status Now</button>
+                  <span id="statusPostResult" class="muted" style="font-size:12px;"></span>
+                </div>
+              </div>
+              <div class="span-2"
+                style="padding: 14px; border: 1px dashed var(--panel-border); border-radius: var(--radius-md); background: var(--import-bg);">
+                <h4 style="margin: 0 0 10px 0; font-size: 13px;">AI Data Assist</h4>
+                <p class="muted" style="margin: 0 0 12px 0; font-size: 12px;">Auto-create product knowledge, closing
+                  story, objection playbook, and follow-up text.</p>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <label>
+                    Business Name
+                    <input id="assistBusinessName" type="text" placeholder="RestartX" />
+                  </label>
+                  <label>
+                    Offer
+                    <input id="assistOffer" type="text" placeholder="WhatsApp automation for sales teams" />
+                  </label>
+                  <label>
+                    Target Audience
+                    <input id="assistAudience" type="text" placeholder="SMBs and outbound teams" />
+                  </label>
+                  <label>
+                    Goal
+                    <input id="assistGoal" type="text" placeholder="Book qualified demos" />
+                  </label>
+                  <label>
+                    Tone
+                    <select id="assistTone">
+                      <option value="balanced">Balanced</option>
+                      <option value="direct">Direct</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="consultative">Consultative</option>
+                    </select>
+                  </label>
+                  <div style="display:flex;align-items:flex-end;">
+                    <button type="button" id="generateAiAssistBtn" class="btn accent"
+                      style="width:100%;justify-content:center;">Generate AI Assist Data</button>
+                  </div>
+                </div>
+                <p id="aiAssistResult" class="muted" style="margin: 10px 0 0 0; font-size: 12px;"></p>
+              </div>
               <label class="span-2">
                 Product Knowledge / Sales Script
                 <p class="muted" style="font-size: 12px; margin-bottom: 8px;">Describe your product, pricing, and common
@@ -416,9 +573,12 @@
               <tr>
                 <th>Contact</th>
                 <th>Status</th>
+                <th>Stage</th>
+                <th>Score</th>
                 <th>Reasoning</th>
                 <th>Last Message</th>
                 <th>Updated</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="leadsTableBody">

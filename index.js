@@ -54,6 +54,7 @@ const store = {
 };
 
 const runtimeByWorkspaceId = new Map();
+let followUpSweepInProgress = false;
 
 const ROLE_RANK = {
   member: 1,
@@ -149,6 +150,7 @@ function ensureStore() {
       name: "Default Workspace",
       config: sanitizeWorkspaceConfig({ ...DEFAULT_CONFIG, ...process.env }),
       reports: [],
+      leads: [],
       members: [{ userId: adminUser.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     });
@@ -161,6 +163,7 @@ function ensureStore() {
     const normalizedConfig = sanitizeWorkspaceConfig({ ...DEFAULT_CONFIG, ...(workspace.config || {}) });
     const normalizedReports = Array.isArray(workspace.reports) ? workspace.reports : [];
     const normalizedMembers = Array.isArray(workspace.members) ? workspace.members : [];
+    const normalizedLeads = Array.isArray(workspace.leads) ? workspace.leads : [];
     if (JSON.stringify(normalizedConfig) !== JSON.stringify(workspace.config || {})) {
       changed = true;
     }
@@ -168,6 +171,9 @@ function ensureStore() {
       changed = true;
     }
     if (!Array.isArray(workspace.members)) {
+      changed = true;
+    }
+    if (!Array.isArray(workspace.leads)) {
       changed = true;
     }
     if (normalizedMembers.length === 0) {
@@ -179,6 +185,7 @@ function ensureStore() {
       config: normalizedConfig,
       reports: normalizedReports,
       members: normalizedMembers,
+      leads: normalizedLeads,
     };
   });
   if (changed) {
@@ -243,6 +250,8 @@ function reportSummary(reports) {
     sentOk: 0,
     sentFailed: 0,
     autoReplies: 0,
+    followUps: 0,
+    autoStatuses: 0,
     bySource: {},
   };
 
@@ -256,6 +265,12 @@ function reportSummary(reports) {
     }
     if (entry.kind === "auto_reply") {
       summary.autoReplies += 1;
+    }
+    if (entry.kind === "auto_follow_up") {
+      summary.followUps += 1;
+    }
+    if (entry.kind === "auto_status") {
+      summary.autoStatuses += 1;
     }
     const source = entry.source || "unknown";
     summary.bySource[source] = (summary.bySource[source] || 0) + 1;
@@ -278,10 +293,37 @@ function normalizeAiDecision(aiData, fallbackReply) {
   const status = sanitizeChoice(data.status, ["cold", "warm", "hot"], "cold");
   const reason = sanitizeText(data.reason, "No reason provided.");
   const detectedLanguage = sanitizeText(data.language, "same_as_customer");
+  const stage = sanitizeChoice(
+    sanitizeText(data.stage, ""),
+    ["new", "qualified", "proposal", "booking", "closed_won", "closed_lost"],
+    ""
+  );
   const needsClarification = String(data.needs_clarification || "")
     .trim()
     .toLowerCase() === "true" || data.needs_clarification === true;
   const clarificationQuestion = sanitizeText(data.clarification_question, "");
+  const closeQuestion = sanitizeText(data.close_question, "");
+  const primaryObjection = sanitizeText(data.primary_objection, "");
+  const intentScore = Math.min(
+    100,
+    Math.max(0, Number.parseInt(String(data.intent_score ?? ""), 10) || 0)
+  );
+  const qualification = data.qualification && typeof data.qualification === "object"
+    ? {
+      need: sanitizeText(data.qualification.need, ""),
+      budget: sanitizeText(data.qualification.budget, ""),
+      timeline: sanitizeText(data.qualification.timeline, ""),
+      decision_maker: sanitizeText(data.qualification.decision_maker, ""),
+    }
+    : {
+      need: "",
+      budget: "",
+      timeline: "",
+      decision_maker: "",
+    };
+  const missingQualificationFields = Array.isArray(data.missing_fields)
+    ? data.missing_fields.map((field) => sanitizeText(field, "").toLowerCase()).filter(Boolean)
+    : [];
   const finalReply = needsClarification
     ? (clarificationQuestion || reply || "Could you clarify what you need so I can help you better?")
     : reply;
@@ -291,8 +333,452 @@ function normalizeAiDecision(aiData, fallbackReply) {
     status,
     reason,
     language: detectedLanguage,
+    stage,
+    intentScore,
+    closeQuestion,
+    primaryObjection,
+    qualification,
+    missingQualificationFields,
     needsClarification,
   };
+}
+
+function parseList(raw) {
+  return String(raw || "")
+    .split(/[,\n]/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function qualificationCompletion(qualification) {
+  const q = qualification || {};
+  const fields = ["need", "budget", "timeline", "decision_maker"];
+  const complete = fields.filter((field) => String(q[field] || "").trim().length > 0).length;
+  return {
+    complete,
+    total: fields.length,
+    ratio: complete / fields.length,
+  };
+}
+
+function scoreLeadDecision(input) {
+  const status = sanitizeChoice(input.status, ["cold", "warm", "hot"], "cold");
+  const text = String(input.incomingText || "").toLowerCase();
+  const completion = qualificationCompletion(input.qualification);
+  const hasBuySignal = /(price|cost|book|demo|trial|buy|purchase|start|call|meeting|plan)/i.test(text);
+  const hasDelaySignal = /(later|maybe|not now|busy|next month|next week|thinking)/i.test(text);
+  let score = status === "hot" ? 75 : status === "warm" ? 50 : 20;
+  score += Math.round(completion.ratio * 20);
+  score += hasBuySignal ? 10 : 0;
+  score -= hasDelaySignal ? 10 : 0;
+  if (input.needsClarification) {
+    score -= 8;
+  }
+  if (Number.isFinite(input.intentScore) && input.intentScore > 0) {
+    score = Math.round((score * 0.5) + (input.intentScore * 0.5));
+  }
+  return Math.min(100, Math.max(0, score));
+}
+
+function deriveLeadStage(currentStage, score, status, bookingLink) {
+  const explicit = sanitizeChoice(
+    sanitizeText(currentStage, ""),
+    ["new", "qualified", "proposal", "booking", "closed_won", "closed_lost"],
+    ""
+  );
+  if (explicit) {
+    return explicit;
+  }
+  if (status === "hot" && score >= 85) {
+    return bookingLink ? "booking" : "proposal";
+  }
+  if (status === "hot" || score >= 65) {
+    return "proposal";
+  }
+  if (status === "warm" || score >= 45) {
+    return "qualified";
+  }
+  return "new";
+}
+
+function shouldAskCloseQuestion(config, status, score, needsClarification) {
+  if (needsClarification) {
+    return false;
+  }
+  const mode = sanitizeChoice(
+    sanitizeText(config.AI_CLOSE_QUESTION_MODE, DEFAULT_CONFIG.AI_CLOSE_QUESTION_MODE),
+    ["off", "hot_only", "warm_hot", "always"],
+    DEFAULT_CONFIG.AI_CLOSE_QUESTION_MODE
+  );
+  if (mode === "off") {
+    return false;
+  }
+  if (mode === "always") {
+    return true;
+  }
+  if (mode === "hot_only") {
+    return status === "hot" || score >= 75;
+  }
+  return status === "warm" || status === "hot" || score >= 55;
+}
+
+function buildSalesReplyFromDecision(normalized, config, score) {
+  let reply = String(normalized.reply || "").trim();
+  if (!reply) {
+    return "";
+  }
+  const shouldClose = shouldAskCloseQuestion(config, normalized.status, score, normalized.needsClarification);
+  if (!shouldClose) {
+    return reply;
+  }
+  const closeQuestion = sanitizeText(normalized.closeQuestion, "");
+  if (!closeQuestion) {
+    return reply;
+  }
+
+  const shouldAddStory = config.AI_AUTO_STORY_TO_CLOSE === "true";
+  const story = sanitizeText(config.AI_CLOSING_STORY, "");
+  const includeStatusFeatures = config.AI_WHATSAPP_STATUS_FEATURES === "true";
+  const statusFeaturesText = sanitizeText(
+    config.AI_WHATSAPP_STATUS_FEATURES_TEXT,
+    DEFAULT_CONFIG.AI_WHATSAPP_STATUS_FEATURES_TEXT
+  );
+  if (shouldAddStory && story) {
+    reply = `${reply} ${story}`;
+  }
+  if (includeStatusFeatures && statusFeaturesText) {
+    reply = `${reply} ${statusFeaturesText}`;
+  }
+  return `${reply} ${closeQuestion}`.replace(/\s+/g, " ").trim();
+}
+
+function nextFollowUpAt(config, fromDate = new Date()) {
+  if (config.AI_FOLLOW_UP_ENABLED !== "true") {
+    return "";
+  }
+  const delayMinutes = Math.max(5, Number.parseInt(config.AI_FOLLOW_UP_DELAY_MINUTES || "180", 10) || 180);
+  return new Date(fromDate.getTime() + (delayMinutes * 60 * 1000)).toISOString();
+}
+
+function buildFollowUpMessage(workspace, lead) {
+  const template = sanitizeText(
+    workspace.config.AI_FOLLOW_UP_TEMPLATE,
+    DEFAULT_CONFIG.AI_FOLLOW_UP_TEMPLATE
+  );
+  const bookingLink = sanitizeText(workspace.config.AI_BOOKING_LINK, "");
+  const includeStory = workspace.config.AI_AUTO_STORY_TO_CLOSE === "true";
+  const story = sanitizeText(workspace.config.AI_CLOSING_STORY, "");
+  const includeStatusFeatures = workspace.config.AI_WHATSAPP_STATUS_FEATURES === "true";
+  const statusFeaturesText = sanitizeText(
+    workspace.config.AI_WHATSAPP_STATUS_FEATURES_TEXT,
+    DEFAULT_CONFIG.AI_WHATSAPP_STATUS_FEATURES_TEXT
+  );
+  const closeQuestion = bookingLink
+    ? `Would you like to book a quick call here: ${bookingLink}?`
+    : "Would you like me to prepare the next step for you now?";
+
+  const parts = [template];
+  if (includeStory && story) {
+    parts.push(story);
+  }
+  if (includeStatusFeatures && statusFeaturesText) {
+    parts.push(statusFeaturesText);
+  }
+  if (shouldAskCloseQuestion(workspace.config, lead.status, lead.score || 0, false)) {
+    parts.push(closeQuestion);
+  }
+  return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+}
+
+function localLeadSeekingStatusText(workspace) {
+  const cfg = workspace.config || DEFAULT_CONFIG;
+  const tone = sanitizeChoice(
+    sanitizeText(cfg.AI_STATUS_AUTOPILOT_TONE, DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_TONE),
+    ["direct", "friendly", "consultative"],
+    DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_TONE
+  );
+  const cta = sanitizeText(cfg.AI_STATUS_AUTOPILOT_CTA, DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_CTA);
+  const knowledgeRaw = sanitizeText(cfg.AI_PRODUCT_KNOWLEDGE, DEFAULT_CONFIG.AI_PRODUCT_KNOWLEDGE);
+  const knowledgeSentence = knowledgeRaw.split(/[.!?]/).map((s) => s.trim()).filter(Boolean)[0] || knowledgeRaw;
+
+  if (tone === "friendly") {
+    return `Helping businesses grow with smarter WhatsApp outreach. ${knowledgeSentence}. ${cta}`;
+  }
+  if (tone === "consultative") {
+    return `If you're evaluating better WhatsApp lead handling, here's what we solve: ${knowledgeSentence}. ${cta}`;
+  }
+  return `Need more qualified leads from WhatsApp? ${knowledgeSentence}. ${cta}`;
+}
+
+async function generateLeadSeekingStatusContent(workspace) {
+  const cfg = workspace.config || DEFAULT_CONFIG;
+  const useAi = cfg.AI_STATUS_AUTOPILOT_USE_AI !== "false";
+  const apiKey = sanitizeText(cfg.AI_API_KEY, "");
+  const provider = sanitizeChoice(cfg.AI_PROVIDER, ["google", "openrouter"], "google");
+  const modelName = sanitizeText(cfg.AI_MODEL, DEFAULT_CONFIG.AI_MODEL);
+  const fallback = localLeadSeekingStatusText(workspace);
+
+  if (!useAi || !apiKey) {
+    return { text: fallback, source: "status_local" };
+  }
+
+  const prompt = `
+Create one short WhatsApp Status update to attract lead inquiries.
+Constraints:
+- 1-3 sentences max.
+- Sound human, non-spammy, and high-conversion.
+- Include a clear CTA.
+- Use this tone: ${sanitizeText(cfg.AI_STATUS_AUTOPILOT_TONE, DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_TONE)}.
+- Product context: ${sanitizeText(cfg.AI_PRODUCT_KNOWLEDGE, DEFAULT_CONFIG.AI_PRODUCT_KNOWLEDGE)}
+- CTA guidance: ${sanitizeText(cfg.AI_STATUS_AUTOPILOT_CTA, DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_CTA)}
+- If helpful, include this angle: ${sanitizeText(cfg.AI_WHATSAPP_STATUS_FEATURES_TEXT, DEFAULT_CONFIG.AI_WHATSAPP_STATUS_FEATURES_TEXT)}
+
+Return JSON only:
+{
+  "status_text": "final status content"
+}
+`;
+
+  try {
+    if (provider === "google") {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text().trim();
+      const parsed = parseAiJsonResponse(raw);
+      return {
+        text: sanitizeText(parsed.status_text, fallback),
+        source: "status_ai_google",
+      };
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: "system", content: "Return JSON only." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "OpenRouter status generation error");
+    }
+    const raw = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAiJsonResponse(raw);
+    return {
+      text: sanitizeText(parsed.status_text, fallback),
+      source: "status_ai_openrouter",
+    };
+  } catch (err) {
+    return {
+      text: fallback,
+      source: "status_local_fallback",
+      warning: err.message,
+    };
+  }
+}
+
+async function postLeadSeekingStatus(workspace, runtime, triggerSource = "status_autopilot") {
+  if (!runtime.client || (!runtime.ready && !runtime.authenticated)) {
+    throw new Error("WhatsApp client is not connected yet.");
+  }
+  const generated = await generateLeadSeekingStatusContent(workspace);
+  const text = sanitizeText(generated.text, "");
+  if (!text) {
+    throw new Error("Generated status text is empty.");
+  }
+
+  await runtime.client.sendMessage("status@broadcast", text);
+  appendReport(workspace, {
+    kind: "auto_status",
+    source: triggerSource,
+    ok: true,
+    message: text,
+    mode: generated.source,
+    error: generated.warning || "",
+  });
+  return { text, mode: generated.source, warning: generated.warning || "" };
+}
+
+function buildLocalAiAssistDraft(input) {
+  const business = sanitizeText(input.businessName, "Our business");
+  const offer = sanitizeText(input.offer, "a service that improves response speed and conversion");
+  const audience = sanitizeText(input.targetAudience, "qualified leads");
+  const tone = sanitizeChoice(
+    sanitizeText(input.tone, "balanced").toLowerCase(),
+    ["direct", "friendly", "consultative", "balanced"],
+    "balanced"
+  );
+  const goal = sanitizeText(input.goal, "book qualified calls");
+
+  const toneLine =
+    tone === "direct"
+      ? "Use short, confident replies with clear CTAs."
+      : tone === "friendly"
+        ? "Use warm, helpful language with low-pressure CTAs."
+        : tone === "consultative"
+          ? "Lead with discovery questions, then position value."
+          : "Balance value framing, proof, and clear next actions.";
+
+  return {
+    productKnowledge: [
+      `Business: ${business}.`,
+      `Primary offer: ${offer}.`,
+      `Target audience: ${audience}.`,
+      `Primary conversion goal: ${goal}.`,
+      toneLine,
+    ].join(" "),
+    closingStory: `A recent ${audience} client used ${business} and moved from low reply rates to consistent qualified meetings within two weeks by using structured WhatsApp follow-ups.`,
+    objectionPlaybook: [
+      "Price objection: Confirm the concern, compare expected ROI, then offer a small pilot.",
+      "Trust objection: Share a short proof story and define a low-risk next step.",
+      "Timing objection: Offer a phased start and clarify minimal setup effort.",
+      "Need objection: Reframe around current pain and measurable outcomes.",
+    ].join("\n"),
+    followUpTemplate: "Quick follow-up: want me to map the fastest setup path for your use case?",
+    statusFeaturesText: "We also use WhatsApp Status features to publish updates/offers and bring in additional inbound conversations.",
+    qualificationFields: "need,budget,timeline,decision-maker",
+    closingFlow: "balanced",
+    closeQuestionMode: "warm_hot",
+    autoStoryToClose: "true",
+    whatsappStatusFeatures: "true",
+    followUpEnabled: "true",
+  };
+}
+
+async function generateAiAssistDraft(payload, workspaceConfig) {
+  const baseDraft = buildLocalAiAssistDraft(payload);
+  const provider = sanitizeChoice(
+    sanitizeText(payload.provider || workspaceConfig.AI_PROVIDER, "google"),
+    ["google", "openrouter"],
+    "google"
+  );
+  const modelName = sanitizeText(payload.model || workspaceConfig.AI_MODEL, DEFAULT_CONFIG.AI_MODEL);
+  const apiKey = sanitizeText(payload.apiKey || workspaceConfig.AI_API_KEY, "");
+  if (!apiKey) {
+    return { draft: baseDraft, source: "local_fallback_no_key" };
+  }
+
+  const prompt = `
+Create a sales-assistant configuration JSON for WhatsApp closing.
+Business: ${sanitizeText(payload.businessName, "")}
+Offer: ${sanitizeText(payload.offer, "")}
+Target Audience: ${sanitizeText(payload.targetAudience, "")}
+Goal: ${sanitizeText(payload.goal, "")}
+Preferred Tone: ${sanitizeText(payload.tone, "balanced")}
+
+Return JSON only:
+{
+  "productKnowledge": "string",
+  "closingStory": "string",
+  "objectionPlaybook": "multiline string",
+  "followUpTemplate": "string",
+  "statusFeaturesText": "string",
+  "qualificationFields": "need,budget,timeline,decision-maker",
+  "closingFlow": "balanced|direct|consultative",
+  "closeQuestionMode": "off|hot_only|warm_hot|always",
+  "autoStoryToClose": "true|false",
+  "whatsappStatusFeatures": "true|false",
+  "followUpEnabled": "true|false"
+}
+`;
+
+  try {
+    if (provider === "google") {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const textResponse = result.response.text().trim();
+      const parsed = parseAiJsonResponse(textResponse);
+      return {
+        source: "ai_google",
+        draft: {
+          ...baseDraft,
+          productKnowledge: sanitizeMultilineText(parsed.productKnowledge, baseDraft.productKnowledge),
+          closingStory: sanitizeText(parsed.closingStory, baseDraft.closingStory),
+          objectionPlaybook: sanitizeMultilineText(parsed.objectionPlaybook, baseDraft.objectionPlaybook),
+          followUpTemplate: sanitizeText(parsed.followUpTemplate, baseDraft.followUpTemplate),
+          statusFeaturesText: sanitizeText(parsed.statusFeaturesText, baseDraft.statusFeaturesText),
+          qualificationFields: sanitizeText(parsed.qualificationFields, baseDraft.qualificationFields),
+          closingFlow: sanitizeChoice(parsed.closingFlow, ["balanced", "direct", "consultative"], baseDraft.closingFlow),
+          closeQuestionMode: sanitizeChoice(
+            parsed.closeQuestionMode,
+            ["off", "hot_only", "warm_hot", "always"],
+            baseDraft.closeQuestionMode
+          ),
+          autoStoryToClose: sanitizeChoice(parsed.autoStoryToClose, ["true", "false"], baseDraft.autoStoryToClose),
+          whatsappStatusFeatures: sanitizeChoice(
+            parsed.whatsappStatusFeatures,
+            ["true", "false"],
+            baseDraft.whatsappStatusFeatures
+          ),
+          followUpEnabled: sanitizeChoice(parsed.followUpEnabled, ["true", "false"], baseDraft.followUpEnabled),
+        },
+      };
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          {
+            role: "system",
+            content: "You are a sales-ops assistant. Return only JSON.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error.message || "OpenRouter error");
+    }
+    const rawContent = data?.choices?.[0]?.message?.content || "";
+    const parsed = parseAiJsonResponse(rawContent);
+    return {
+      source: "ai_openrouter",
+      draft: {
+        ...baseDraft,
+        productKnowledge: sanitizeMultilineText(parsed.productKnowledge, baseDraft.productKnowledge),
+        closingStory: sanitizeText(parsed.closingStory, baseDraft.closingStory),
+        objectionPlaybook: sanitizeMultilineText(parsed.objectionPlaybook, baseDraft.objectionPlaybook),
+        followUpTemplate: sanitizeText(parsed.followUpTemplate, baseDraft.followUpTemplate),
+        statusFeaturesText: sanitizeText(parsed.statusFeaturesText, baseDraft.statusFeaturesText),
+        qualificationFields: sanitizeText(parsed.qualificationFields, baseDraft.qualificationFields),
+        closingFlow: sanitizeChoice(parsed.closingFlow, ["balanced", "direct", "consultative"], baseDraft.closingFlow),
+        closeQuestionMode: sanitizeChoice(
+          parsed.closeQuestionMode,
+          ["off", "hot_only", "warm_hot", "always"],
+          baseDraft.closeQuestionMode
+        ),
+        autoStoryToClose: sanitizeChoice(parsed.autoStoryToClose, ["true", "false"], baseDraft.autoStoryToClose),
+        whatsappStatusFeatures: sanitizeChoice(
+          parsed.whatsappStatusFeatures,
+          ["true", "false"],
+          baseDraft.whatsappStatusFeatures
+        ),
+        followUpEnabled: sanitizeChoice(parsed.followUpEnabled, ["true", "false"], baseDraft.followUpEnabled),
+      },
+    };
+  } catch (err) {
+    return {
+      source: "local_fallback_error",
+      warning: err.message,
+      draft: baseDraft,
+    };
+  }
 }
 
 function messageSerializedId(message) {
@@ -561,6 +1047,7 @@ function getRuntime(workspaceId) {
       lastError: "",
       client: null,
       scheduler: null,
+      statusScheduler: null,
       sendInProgress: false,
       sendStartedAt: null,
       historySyncedContacts: new Set(),
@@ -696,6 +1183,11 @@ function stopScheduler(runtime) {
     runtime.scheduler.destroy();
     runtime.scheduler = null;
   }
+  if (runtime.statusScheduler) {
+    runtime.statusScheduler.stop();
+    runtime.statusScheduler.destroy();
+    runtime.statusScheduler = null;
+  }
 }
 
 function markWorkspaceReady(workspace, runtime) {
@@ -707,6 +1199,7 @@ function markWorkspaceReady(workspace, runtime) {
   runtime.startRequestedAt = null;
   runtime.qrDataUrl = "";
   setupScheduler(workspace, runtime);
+  setupStatusScheduler(workspace, runtime);
 }
 
 function stopReadyProbe(runtime) {
@@ -910,7 +1403,11 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
 }
 
 function setupScheduler(workspace, runtime) {
-  stopScheduler(runtime);
+  if (runtime.scheduler) {
+    runtime.scheduler.stop();
+    runtime.scheduler.destroy();
+    runtime.scheduler = null;
+  }
 
   if (workspace.config.SCHEDULE_ENABLED !== "true") {
     return;
@@ -929,6 +1426,36 @@ function setupScheduler(workspace, runtime) {
       });
     } catch (err) {
       runtime.lastError = err.message;
+    }
+  });
+}
+
+function setupStatusScheduler(workspace, runtime) {
+  if (runtime.statusScheduler) {
+    runtime.statusScheduler.stop();
+    runtime.statusScheduler.destroy();
+    runtime.statusScheduler = null;
+  }
+  if (workspace.config.AI_STATUS_AUTOPILOT_ENABLED !== "true") {
+    return;
+  }
+  const expression = workspace.config.AI_STATUS_AUTOPILOT_CRON || DEFAULT_CONFIG.AI_STATUS_AUTOPILOT_CRON;
+  if (!cron.validate(expression)) {
+    runtime.lastError = `Invalid AI status cron expression: ${expression}`;
+    return;
+  }
+
+  runtime.statusScheduler = cron.schedule(expression, async () => {
+    try {
+      await postLeadSeekingStatus(workspace, runtime, "status_autopilot");
+    } catch (err) {
+      runtime.lastError = `Auto status failed: ${err.message}`;
+      appendReport(workspace, {
+        kind: "auto_status",
+        source: "status_autopilot",
+        ok: false,
+        error: err.message,
+      });
     }
   });
 }
@@ -1052,6 +1579,20 @@ async function createClientForWorkspace(workspace) {
   runtime.client.on("message", async (msg) => {
     console.log(`[SYSTEM] RAW MESSAGE RECEIVED from ${msg.from} in workspace ${workspace.id}`);
     console.log(`[${workspace.id}] Message content: ${msg.body}`);
+    const fromId = String(msg.from || "");
+    const toId = String(msg.to || "");
+    const isStatusMessage =
+      msg.isStatus === true ||
+      fromId === "status@broadcast" ||
+      toId === "status@broadcast" ||
+      fromId.endsWith("@broadcast");
+    const isChannelMessage = fromId.endsWith("@newsletter");
+
+    if (isStatusMessage || isChannelMessage) {
+      console.log(`[${workspace.id}] Ignoring status/channel message from ${fromId || "unknown"}.`);
+      return;
+    }
+
     if (workspace.config.AUTO_REPLY_ENABLED !== "true") {
       console.log(`[${workspace.id}] Auto-reply disabled, ignoring message.`);
       return;
@@ -1061,6 +1602,12 @@ async function createClientForWorkspace(workspace) {
     const mode = workspace.config.AUTO_REPLY_MODE || DEFAULT_CONFIG.AUTO_REPLY_MODE;
     const trigger = (workspace.config.AUTO_REPLY_TRIGGER || DEFAULT_CONFIG.AUTO_REPLY_TRIGGER).toLowerCase();
     let replyText = "";
+    updateLeadStatus(workspace, {
+      from: msg.from,
+      message: msg.body,
+      lastInboundAt: new Date().toISOString(),
+      nextFollowUpAt: "",
+    });
 
     if (mode === "exact" && incomingText === trigger) {
       replyText = workspace.config.AUTO_REPLY_TEXT || DEFAULT_CONFIG.AUTO_REPLY_TEXT;
@@ -1094,10 +1641,25 @@ async function createClientForWorkspace(workspace) {
             const provider = workspace.config.AI_PROVIDER || "google";
             console.log(`[${workspace.id}] Using AI Provider: ${provider}, Model: ${modelName}`);
 
-            const knowledge = (workspace.config.AI_PRODUCT_KNOWLEDGE || "").replace(/^["']|["']$/g, '');
+            const knowledge = (workspace.config.AI_PRODUCT_KNOWLEDGE || "").replace(/^["']|["']$/g, "");
             const bookingEnabled = workspace.config.AI_BOOKING_ENABLED === "true";
             const bookingLink = workspace.config.AI_BOOKING_LINK || "";
             const maxTurns = parseInt(workspace.config.AI_MEMORY_TURNS || "10", 10) || 10;
+            const qualificationEnabled = workspace.config.AI_QUALIFICATION_ENABLED !== "false";
+            const qualificationFields = parseList(
+              workspace.config.AI_QUALIFICATION_FIELDS || DEFAULT_CONFIG.AI_QUALIFICATION_FIELDS
+            );
+            const closingFlow = sanitizeChoice(
+              workspace.config.AI_CLOSING_FLOW,
+              ["balanced", "direct", "consultative"],
+              DEFAULT_CONFIG.AI_CLOSING_FLOW
+            );
+            const objectionPlaybook = sanitizeText(workspace.config.AI_OBJECTION_PLAYBOOK, "");
+            const includeStatusFeatures = workspace.config.AI_WHATSAPP_STATUS_FEATURES === "true";
+            const statusFeaturesText = sanitizeText(
+              workspace.config.AI_WHATSAPP_STATUS_FEATURES_TEXT,
+              DEFAULT_CONFIG.AI_WHATSAPP_STATUS_FEATURES_TEXT
+            );
 
             await syncConversationHistoryFromChat(workspace, runtime, msg, maxTurns);
 
@@ -1113,21 +1675,32 @@ async function createClientForWorkspace(workspace) {
             // Load conversation history for this contact
             const history = getConversationHistory(workspace.id, msg.from);
             const historyBlock = formatHistoryForPrompt(history);
+            const closingFlowInstruction =
+              closingFlow === "direct"
+                ? "Use a direct close: summarize value quickly, then ask for a concrete next step."
+                : closingFlow === "consultative"
+                  ? "Use a consultative close: verify fit, solve objections, and offer a no-pressure next step."
+                  : "Use a balanced close: discovery first, value summary, then a clear next action.";
 
             const prompt = `
           Context: You are a sales assistant for this product: ${knowledge}
           Objective: Answer the lead's question and guide them toward a purchase.
           ${contactName ? `Lead's Name: ${contactName} — Always greet them by name when starting a reply.` : ""}
           ${bookingEnabled && bookingLink ? `Call Booking: If the customer is interested or ready to talk, encourage them to book a call here: ${bookingLink}` : ""}
+          ${qualificationEnabled ? `Qualification required: capture these fields when possible: ${qualificationFields.join(", ") || "need, budget, timeline, decision-maker"}.` : ""}
+          Closing flow: ${closingFlowInstruction}
+          ${includeStatusFeatures && statusFeaturesText ? `Mention this when relevant in offer positioning: ${statusFeaturesText}` : ""}
+          ${objectionPlaybook ? `Objection playbook to use when relevant:\n${objectionPlaybook}` : ""}
           ${historyBlock ? `\n${historyBlock}` : ""}
           TASK:
           1. Detect the customer's language and reply in that same language.
-          2. Generate a natural, personalized reply (1-3 sentences max). Use the lead's name naturally.
+          2. Generate a natural, personalized reply (1-3 sentences max). Use the lead's name naturally when appropriate.
           3. If the message is ambiguous, missing key details, or you're unsure, ask ONE clear clarification question instead of guessing.
           4. Keep clarification short, human, and in the customer's language.
           5. Never claim certainty when uncertain.
-          6. Evaluate the lead status based on their interest and intent (cold, warm, hot).
-          7. Provide a brief reason for the categorization.
+          6. Evaluate the lead status based on intent (cold, warm, hot) and provide a brief reason.
+          7. Include a close question when there is sufficient buying intent.
+          8. Keep every output practical and conversion-oriented.
           IMPORTANT: If there is conversation history above, DO NOT repeat greetings or information you already shared. Continue the conversation naturally.
 
           CURRENT LEAD MESSAGE: "${msg.body}"
@@ -1139,10 +1712,22 @@ async function createClientForWorkspace(workspace) {
             "reason": "Brief explanation of status",
             "language": "detected language name (e.g. English, Hindi, Spanish)",
             "needs_clarification": true | false,
-            "clarification_question": "Only required when needs_clarification is true"
+            "clarification_question": "Only required when needs_clarification is true",
+            "stage": "new" | "qualified" | "proposal" | "booking" | "closed_won" | "closed_lost",
+            "intent_score": 0-100,
+            "close_question": "One specific closing question",
+            "primary_objection": "Main objection if present, else empty",
+            "qualification": {
+              "need": "short value",
+              "budget": "short value",
+              "timeline": "short value",
+              "decision_maker": "short value"
+            },
+            "missing_fields": ["need", "budget", "timeline", "decision_maker"]
           }
         `;
 
+            let normalized = null;
             if (provider === "google") {
               const genAI = new GoogleGenerativeAI(apiKey);
               const model = genAI.getGenerativeModel({ model: modelName });
@@ -1153,8 +1738,16 @@ async function createClientForWorkspace(workspace) {
 
               try {
                 const aiData = parseAiJsonResponse(textResponse);
-                const normalized = normalizeAiDecision(aiData, textResponse);
-                replyText = normalized.reply;
+                normalized = normalizeAiDecision(aiData, textResponse);
+                const score = scoreLeadDecision({
+                  status: normalized.status,
+                  qualification: normalized.qualification,
+                  needsClarification: normalized.needsClarification,
+                  intentScore: normalized.intentScore,
+                  incomingText: msg.body,
+                });
+                replyText = buildSalesReplyFromDecision(normalized, workspace.config, score) || normalized.reply;
+                const stage = deriveLeadStage(normalized.stage, score, normalized.status, bookingLink);
 
                 // Save to conversation history (before updating lead, so ordering is clean)
                 pushToConversationHistory(workspace.id, msg.from, "user", msg.body, maxTurns);
@@ -1166,7 +1759,16 @@ async function createClientForWorkspace(workspace) {
                   name: contactName || msg.from,
                   status: normalized.status,
                   reason: normalized.reason,
-                  message: msg.body
+                  message: msg.body,
+                  stage,
+                  score,
+                  qualification: normalized.qualification,
+                  missingQualificationFields: normalized.missingQualificationFields,
+                  primaryObjection: normalized.primaryObjection,
+                  lastInboundAt: new Date().toISOString(),
+                  lastOutboundAt: new Date().toISOString(),
+                  followUpCount: 0,
+                  nextFollowUpAt: nextFollowUpAt(workspace.config),
                 });
                 console.log(`[${workspace.id}] Lead status updated for ${contactName || msg.from}`);
               } catch (e) {
@@ -1198,8 +1800,16 @@ async function createClientForWorkspace(workspace) {
               try {
                 const rawContent = data?.choices?.[0]?.message?.content || "";
                 const aiData = parseAiJsonResponse(rawContent);
-                const normalized = normalizeAiDecision(aiData, rawContent);
-                replyText = normalized.reply;
+                normalized = normalizeAiDecision(aiData, rawContent);
+                const score = scoreLeadDecision({
+                  status: normalized.status,
+                  qualification: normalized.qualification,
+                  needsClarification: normalized.needsClarification,
+                  intentScore: normalized.intentScore,
+                  incomingText: msg.body,
+                });
+                replyText = buildSalesReplyFromDecision(normalized, workspace.config, score) || normalized.reply;
+                const stage = deriveLeadStage(normalized.stage, score, normalized.status, bookingLink);
 
                 // Save to conversation history
                 pushToConversationHistory(workspace.id, msg.from, "user", msg.body, maxTurns);
@@ -1211,7 +1821,16 @@ async function createClientForWorkspace(workspace) {
                   name: contactName || msg.from,
                   status: normalized.status,
                   reason: normalized.reason,
-                  message: msg.body
+                  message: msg.body,
+                  stage,
+                  score,
+                  qualification: normalized.qualification,
+                  missingQualificationFields: normalized.missingQualificationFields,
+                  primaryObjection: normalized.primaryObjection,
+                  lastInboundAt: new Date().toISOString(),
+                  lastOutboundAt: new Date().toISOString(),
+                  followUpCount: 0,
+                  nextFollowUpAt: nextFollowUpAt(workspace.config),
                 });
                 console.log(`[${workspace.id}] Lead status updated (OR) for ${contactName || msg.from}`);
               } catch (e) {
@@ -1233,6 +1852,12 @@ async function createClientForWorkspace(workspace) {
     if (replyText) {
       try {
         await msg.reply(replyText);
+        updateLeadStatus(workspace, {
+          from: msg.from,
+          message: msg.body,
+          lastOutboundAt: new Date().toISOString(),
+          nextFollowUpAt: nextFollowUpAt(workspace.config),
+        });
         appendReport(workspace, {
           kind: "auto_reply",
           source: "auto_reply",
@@ -1428,7 +2053,21 @@ function updateLeadStatus(workspace, leadData) {
         name: leadData.name || contactId.split("@")[0],
         status: "cold",
         reason: "Initial contact",
+        stage: "new",
+        score: 0,
         lastMessage: "",
+        qualification: {
+          need: "",
+          budget: "",
+          timeline: "",
+          decision_maker: "",
+        },
+        missingQualificationFields: ["need", "budget", "timeline", "decision_maker"],
+        primaryObjection: "",
+        followUpCount: 0,
+        nextFollowUpAt: "",
+        lastInboundAt: "",
+        lastOutboundAt: "",
         updatedAt: new Date().toISOString()
       };
       workspace.leads.push(lead);
@@ -1436,12 +2075,156 @@ function updateLeadStatus(workspace, leadData) {
 
     if (leadData.status) lead.status = leadData.status;
     if (leadData.reason) lead.reason = leadData.reason;
+    if (leadData.stage) lead.stage = leadData.stage;
+    if (Number.isFinite(leadData.score)) lead.score = Math.min(100, Math.max(0, Math.round(leadData.score)));
     if (leadData.message) lead.lastMessage = leadData.message;
+    if (leadData.qualification && typeof leadData.qualification === "object") {
+      lead.qualification = {
+        need: sanitizeText(leadData.qualification.need, lead.qualification?.need || ""),
+        budget: sanitizeText(leadData.qualification.budget, lead.qualification?.budget || ""),
+        timeline: sanitizeText(leadData.qualification.timeline, lead.qualification?.timeline || ""),
+        decision_maker: sanitizeText(
+          leadData.qualification.decision_maker,
+          lead.qualification?.decision_maker || ""
+        ),
+      };
+    }
+    if (Array.isArray(leadData.missingQualificationFields)) {
+      lead.missingQualificationFields = leadData.missingQualificationFields
+        .map((field) => sanitizeText(field, "").toLowerCase())
+        .filter(Boolean);
+    }
+    if (leadData.primaryObjection !== undefined) {
+      lead.primaryObjection = sanitizeText(leadData.primaryObjection, lead.primaryObjection || "");
+    }
+    if (leadData.lastInboundAt !== undefined) {
+      lead.lastInboundAt = sanitizeText(leadData.lastInboundAt, lead.lastInboundAt || "");
+    }
+    if (leadData.lastOutboundAt !== undefined) {
+      lead.lastOutboundAt = sanitizeText(leadData.lastOutboundAt, lead.lastOutboundAt || "");
+    }
+    if (leadData.nextFollowUpAt !== undefined) {
+      lead.nextFollowUpAt = sanitizeText(leadData.nextFollowUpAt, lead.nextFollowUpAt || "");
+    }
+    if (leadData.followUpCount !== undefined && Number.isFinite(Number(leadData.followUpCount))) {
+      lead.followUpCount = Math.max(0, Number.parseInt(String(leadData.followUpCount), 10) || 0);
+    }
     lead.updatedAt = new Date().toISOString();
 
     saveStore();
   } catch (err) {
     console.error(`[ERROR] updateLeadStatus: ${err.message}`);
+  }
+}
+
+async function processWorkspaceAutoFollowUps(workspace) {
+  const config = workspace.config || DEFAULT_CONFIG;
+  if (config.AI_FOLLOW_UP_ENABLED !== "true") {
+    return false;
+  }
+  const runtime = getRuntime(workspace.id);
+  if (!runtime.client || !runtime.ready) {
+    return false;
+  }
+
+  const leads = Array.isArray(workspace.leads) ? workspace.leads : [];
+  if (leads.length === 0) {
+    return false;
+  }
+
+  const maxAttempts = Math.max(1, Number.parseInt(config.AI_FOLLOW_UP_MAX_ATTEMPTS || "3", 10) || 3);
+  let changed = false;
+  const now = new Date();
+
+  for (const lead of leads) {
+    const leadId = String(lead?.id || "");
+    if (!leadId) {
+      continue;
+    }
+    if (leadId.endsWith("@g.us") && config.AI_SALES_GROUPS !== "true") {
+      continue;
+    }
+    if ((lead.stage === "closed_won") || (lead.stage === "closed_lost")) {
+      continue;
+    }
+    if ((lead.status || "cold") === "cold") {
+      continue;
+    }
+    const dueAt = new Date(lead.nextFollowUpAt || "");
+    if (Number.isNaN(dueAt.getTime()) || dueAt > now) {
+      continue;
+    }
+    const attempts = Number.parseInt(String(lead.followUpCount || 0), 10) || 0;
+    if (attempts >= maxAttempts) {
+      lead.nextFollowUpAt = "";
+      changed = true;
+      continue;
+    }
+    if (lead.lastInboundAt && lead.lastOutboundAt) {
+      const inboundAt = new Date(lead.lastInboundAt);
+      const outboundAt = new Date(lead.lastOutboundAt);
+      if (!Number.isNaN(inboundAt.getTime()) && !Number.isNaN(outboundAt.getTime()) && inboundAt > outboundAt) {
+        lead.nextFollowUpAt = "";
+        changed = true;
+        continue;
+      }
+    }
+
+    const followUpText = buildFollowUpMessage(workspace, lead);
+    if (!followUpText) {
+      continue;
+    }
+
+    try {
+      await runtime.client.sendMessage(leadId, followUpText);
+      lead.followUpCount = attempts + 1;
+      lead.lastOutboundAt = new Date().toISOString();
+      lead.nextFollowUpAt = lead.followUpCount < maxAttempts
+        ? nextFollowUpAt(config)
+        : "";
+      lead.updatedAt = new Date().toISOString();
+      appendReport(workspace, {
+        kind: "auto_follow_up",
+        source: "ai_follow_up",
+        ok: true,
+        from: leadId,
+        message: followUpText,
+      });
+      changed = true;
+    } catch (err) {
+      appendReport(workspace, {
+        kind: "auto_follow_up",
+        source: "ai_follow_up",
+        ok: false,
+        from: leadId,
+        message: followUpText,
+        error: err.message,
+      });
+      runtime.lastError = `Follow-up failed (${leadId}): ${err.message}`;
+    }
+  }
+
+  return changed;
+}
+
+async function processAutoFollowUps() {
+  if (followUpSweepInProgress) {
+    return;
+  }
+  followUpSweepInProgress = true;
+  try {
+    let changed = false;
+    for (const workspace of store.workspaces) {
+      const updated = await processWorkspaceAutoFollowUps(workspace);
+      changed = changed || updated;
+    }
+    if (changed) {
+      saveStore();
+    }
+  } catch (err) {
+    console.error(`[ERROR] processAutoFollowUps: ${err.message}`);
+  } finally {
+    followUpSweepInProgress = false;
   }
 }
 
@@ -1582,6 +2365,7 @@ app.post("/api/workspaces", (req, res) => {
       name,
       config: { ...DEFAULT_CONFIG },
       reports: [],
+      leads: [],
       members: [{ userId: req.user.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     };
@@ -1611,9 +2395,11 @@ app.post("/api/workspaces/:workspaceId/config", (req, res) => {
 
   try {
     workspace.config = sanitizeWorkspaceConfig(req.body || {});
+    saveStore();
     const runtime = getRuntime(workspace.id);
     if (runtime.ready) {
       setupScheduler(workspace, runtime);
+      setupStatusScheduler(workspace, runtime);
     }
 
     res.json({ ok: true, config: workspace.config });
@@ -1630,6 +2416,54 @@ app.get("/api/workspaces/:workspaceId/leads", requireAuth, async (req, res) => {
       return res.status(403).json({ ok: false, error: "Forbidden" });
     }
     res.json({ ok: true, leads: workspace.leads || [] });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.get("/api/workspaces/:workspaceId/leads/summary", requireAuth, async (req, res) => {
+  try {
+    const workspace = getWorkspace(req.params.workspaceId);
+    if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found" });
+    if (!hasWorkspaceRole(workspace, req.user.id, "member")) {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    }
+
+    const leads = Array.isArray(workspace.leads) ? workspace.leads : [];
+    const summary = {
+      total: leads.length,
+      avgScore: 0,
+      byStatus: { cold: 0, warm: 0, hot: 0 },
+      byStage: {
+        new: 0,
+        qualified: 0,
+        proposal: 0,
+        booking: 0,
+        closed_won: 0,
+        closed_lost: 0,
+      },
+      actionable: 0,
+    };
+
+    let scoreTotal = 0;
+    for (const lead of leads) {
+      const status = sanitizeChoice(lead.status, ["cold", "warm", "hot"], "cold");
+      const stage = sanitizeChoice(
+        lead.stage,
+        ["new", "qualified", "proposal", "booking", "closed_won", "closed_lost"],
+        "new"
+      );
+      const score = Math.min(100, Math.max(0, Number.parseInt(String(lead.score || 0), 10) || 0));
+      summary.byStatus[status] += 1;
+      summary.byStage[stage] += 1;
+      scoreTotal += score;
+      if ((status === "warm" || status === "hot") && stage !== "closed_won" && stage !== "closed_lost") {
+        summary.actionable += 1;
+      }
+    }
+    summary.avgScore = leads.length ? Math.round(scoreTotal / leads.length) : 0;
+
+    res.json({ ok: true, summary });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
@@ -1705,6 +2539,29 @@ app.post("/api/workspaces/:workspaceId/validate-ai-key", async (req, res) => {
     res.json({ ok: true, message: "API Key is valid" });
   } catch (err) {
     console.error("API Validation Error:", err.message);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/workspaces/:workspaceId/ai-data-assist", async (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) {
+    return;
+  }
+  try {
+    const payload = {
+      businessName: sanitizeText(req.body?.businessName, ""),
+      offer: sanitizeText(req.body?.offer, ""),
+      targetAudience: sanitizeText(req.body?.targetAudience, ""),
+      goal: sanitizeText(req.body?.goal, ""),
+      tone: sanitizeText(req.body?.tone, "balanced"),
+      provider: sanitizeText(req.body?.provider, workspace.config.AI_PROVIDER || "google"),
+      model: sanitizeText(req.body?.model, workspace.config.AI_MODEL || DEFAULT_CONFIG.AI_MODEL),
+      apiKey: sanitizeText(req.body?.apiKey, workspace.config.AI_API_KEY || ""),
+    };
+    const generated = await generateAiAssistDraft(payload, workspace.config || DEFAULT_CONFIG);
+    res.json({ ok: true, ...generated });
+  } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
 });
@@ -1893,6 +2750,20 @@ app.post("/api/workspaces/:workspaceId/send-custom", async (req, res) => {
   }
 });
 
+app.post("/api/workspaces/:workspaceId/status-post-now", async (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) {
+    return;
+  }
+  try {
+    const runtime = getRuntime(workspace.id);
+    const posted = await postLeadSeekingStatus(workspace, runtime, "status_manual");
+    res.json({ ok: true, posted });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 app.get("/api/workspaces/:workspaceId/reports/summary", (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) {
@@ -2008,6 +2879,9 @@ function startHttpServer() {
 
   const allowPortFallback = process.env.NODE_ENV !== "production" && process.env.AUTO_PORT_FALLBACK !== "false";
   const maxPortFallbackAttempts = allowPortFallback ? 10 : 0;
+  setInterval(() => {
+    processAutoFollowUps();
+  }, 60 * 1000);
 
   const listenOn = (port, remainingAttempts) => {
     const server = app.listen(port, HOST, () => {
