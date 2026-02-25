@@ -79,6 +79,9 @@
       <button class="nav-item" data-view="alerts">
         <i data-lucide="bell-ring"></i> Alerts
       </button>
+      <button class="nav-item" data-view="livechat">
+        <i data-lucide="message-circle"></i> Live Chat
+      </button>
     </div>
 
     <div class="sidebar-footer">
@@ -1057,6 +1060,84 @@
         <h3><i data-lucide="history" style="width:18px;height:18px;vertical-align:middle;"></i> Alert History</h3>
         <p class="muted" style="font-size:13px; margin: 8px 0;">Recent alerts sent to your WhatsApp.</p>
         <div id="alertHistory" style="margin-top:12px;font-size:13px;max-height:400px;overflow-y:auto;"></div>
+      </section>
+    </div>
+
+    <!-- ─── Live Chat / Human Takeover View ────────────────────────────── -->
+    <div class="view-container" id="livechatView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Human Agent</p>
+          <h1>Live Chat</h1>
+          <p class="subtitle muted" style="margin-top: 8px;">Take over conversations from AI and chat directly with leads.</p>
+        </div>
+        <button id="refreshLivechatBtn" class="btn primary">
+          <i data-lucide="refresh-cw"></i> Refresh
+        </button>
+      </section>
+
+      <!-- Takeover a lead -->
+      <section class="panel" style="grid-column: span 4;">
+        <h3><i data-lucide="user-plus" style="width:18px;height:18px;vertical-align:middle;"></i> Take Over Chat</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0 12px;">Select a lead to pause AI and take control of the conversation.</p>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Select Lead</label>
+          <select id="takeoverLeadSelect" style="width:100%;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);">
+            <option value="">Loading…</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Or enter Chat ID</label>
+          <input type="text" id="takeoverManualId" placeholder="e.g. 919876543210@c.us" style="width:100%;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);" />
+        </div>
+        <button id="takeoverStartBtn" class="btn primary" style="width:100%;">
+          <i data-lucide="hand"></i> Take Over
+        </button>
+      </section>
+
+      <!-- Active takeovers list -->
+      <section class="panel" style="grid-column: span 8;">
+        <h3><i data-lucide="users" style="width:18px;height:18px;vertical-align:middle;"></i> Active Takeovers</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Chats currently under human control — AI is paused for these contacts.</p>
+        <div id="activeTakeoversList" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- Live chat area -->
+      <section class="panel" style="grid-column: span 12; display:none;" id="liveChatSection">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 id="liveChatTitle" style="margin:0;"><i data-lucide="message-circle" style="width:18px;height:18px;vertical-align:middle;"></i> Chat</h3>
+          <button id="liveChatReleaseBtn" class="btn" style="font-size:12px;background:var(--danger);color:#fff;border:none;">
+            <i data-lucide="log-out"></i> Release to AI
+          </button>
+        </div>
+        <div id="liveChatMessages" style="
+          height: 350px;
+          overflow-y: auto;
+          padding: 16px;
+          background: var(--input-bg);
+          border: 1px solid var(--panel-border);
+          border-radius: var(--radius-md);
+          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        ">
+          <span class="muted" style="text-align:center;">Select a takeover to start chatting.</span>
+        </div>
+        <form id="liveChatForm" style="display:flex;gap:8px;">
+          <input type="text" id="liveChatInput" placeholder="Type your message…" style="
+            flex:1;
+            padding:10px 14px;
+            border:1px solid var(--panel-border);
+            border-radius:var(--radius-sm);
+            background:var(--input-bg);
+            color:var(--ink);
+            font-size:14px;
+          " />
+          <button type="submit" class="btn primary" style="white-space:nowrap;">
+            <i data-lucide="send"></i> Send
+          </button>
+        </form>
       </section>
     </div>
 

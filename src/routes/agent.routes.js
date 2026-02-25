@@ -1,7 +1,8 @@
 /* ─── Agent Routes ──────────────────────────────────────────────────────────
  *  API endpoints for the 6 agentic features:
  *  outbound prospecting, goal planner, prompt tuning,
- *  revenue attribution, offer authority, self-healing.
+ *  revenue attribution, offer authority, self-healing,
+ *  plus human takeover / live chat.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 const { Router } = require("express");
@@ -47,6 +48,13 @@ const {
   sendTestAlert,
   ALERT_EVENTS,
 } = require("../services/whatsapp-alerts.service");
+const {
+  startHumanTakeover,
+  endHumanTakeover,
+  listHumanTakeovers,
+  getLiveChatMessages,
+  sendHumanMessage,
+} = require("../services/whatsapp.service");
 
 const router = Router();
 
@@ -226,6 +234,79 @@ router.post("/:workspaceId/agent/alerts/test", async (req, res) => {
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HUMAN TAKEOVER / LIVE CHAT
+// ═══════════════════════════════════════════════════════════════════════════
+
+// List all active takeovers
+router.get("/:workspaceId/agent/takeover", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  const takeovers = listHumanTakeovers(workspace);
+  res.json({ ok: true, takeovers });
+});
+
+// Start takeover for a contact
+router.post("/:workspaceId/agent/takeover", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const { contactId, agentName } = req.body || {};
+  if (!contactId) return res.status(400).json({ ok: false, error: "contactId is required" });
+  const entry = startHumanTakeover(workspace, contactId, agentName || "Agent");
+  res.json({ ok: true, entry });
+});
+
+// End takeover (release back to AI)
+router.delete("/:workspaceId/agent/takeover", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const { contactId } = req.body || {};
+  if (!contactId) return res.status(400).json({ ok: false, error: "contactId is required" });
+  const released = endHumanTakeover(workspace, contactId);
+  res.json({ ok: true, released });
+});
+
+// Get live chat messages for a contact
+router.get("/:workspaceId/agent/takeover/chat/:contactId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  const contactId = decodeURIComponent(req.params.contactId);
+  const messages = getLiveChatMessages(workspace, contactId);
+  // Also get lead name
+  const lead = (workspace.leads || []).find(l => l.id === contactId);
+  res.json({ ok: true, contactId, name: lead?.name || contactId.split("@")[0], messages });
+});
+
+// Send a message as human agent
+router.post("/:workspaceId/agent/takeover/send", async (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const { contactId, message } = req.body || {};
+  if (!contactId || !message) return res.status(400).json({ ok: false, error: "contactId and message required" });
+  try {
+    await sendHumanMessage(workspace, contactId, message);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// List leads available for takeover (not already taken over)
+router.get("/:workspaceId/agent/takeover/leads", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  const leads = (workspace.leads || []).filter(l => !l.archived);
+  const active = listHumanTakeovers(workspace).map(t => t.contactId);
+  const available = leads.map(l => ({
+    id: l.id,
+    name: l.name || l.id?.split("@")[0],
+    status: l.status || "cold",
+    stage: l.stage || "new",
+    active: active.includes(l.id),
+  }));
+  res.json({ ok: true, leads: available });
 });
 
 module.exports = router;

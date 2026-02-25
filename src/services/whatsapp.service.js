@@ -862,6 +862,15 @@ async function handleIncomingMessage(workspace, runtime, msg) {
       workspace.config.AI_SALES_ENABLED === "true" && workspace.config.AI_API_KEY;
     const aiGroups = workspace.config.AI_SALES_GROUPS === "true";
 
+    // ── Human takeover check ──
+    const takeover = getHumanTakeover(workspace, msg.from);
+    if (takeover) {
+      // AI is paused for this contact — just log the incoming message for the human agent
+      pushLiveChatMessage(workspace, msg.from, "in", msg.body || "");
+      console.log(`[${workspace.id}] Human takeover active for ${msg.from} — AI skipped.`);
+      return; // Do NOT reply with AI
+    }
+
     if (allowAi && !(isGroup && !aiGroups)) {
       console.log(
         `[${workspace.id}] AI Sales Closer active. (Server: ${SERVER_STARTED_AT})`
@@ -1269,6 +1278,104 @@ async function processScheduledMessages() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// HUMAN TAKEOVER — pause AI for a specific contact, let human agent chat
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _takeovers(workspace) {
+  if (!workspace._humanTakeover) workspace._humanTakeover = {};
+  return workspace._humanTakeover;
+}
+
+function getHumanTakeover(workspace, contactId) {
+  const map = _takeovers(workspace);
+  const entry = map[contactId];
+  if (!entry) return null;
+  // Auto-expire after configured hours (default 2h)
+  const maxMs = (parseInt(workspace.config?.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 10) || 2) * 60 * 60 * 1000;
+  if (Date.now() - new Date(entry.since).getTime() > maxMs) {
+    delete map[contactId];
+    saveStore();
+    console.log(`[${workspace.id}] Human takeover expired for ${contactId}`);
+    return null;
+  }
+  return entry;
+}
+
+function startHumanTakeover(workspace, contactId, agentName) {
+  const map = _takeovers(workspace);
+  map[contactId] = {
+    since: new Date().toISOString(),
+    agent: agentName || "Agent",
+  };
+  // Initialise live chat buffer
+  if (!workspace._liveChat) workspace._liveChat = {};
+  if (!workspace._liveChat[contactId]) workspace._liveChat[contactId] = [];
+  saveStore();
+  console.log(`[${workspace.id}] Human takeover started for ${contactId} by ${agentName}`);
+  return map[contactId];
+}
+
+function endHumanTakeover(workspace, contactId) {
+  const map = _takeovers(workspace);
+  const had = !!map[contactId];
+  delete map[contactId];
+  saveStore();
+  if (had) console.log(`[${workspace.id}] Human takeover ended for ${contactId}`);
+  return had;
+}
+
+function listHumanTakeovers(workspace) {
+  const map = _takeovers(workspace);
+  const result = [];
+  const maxMs = (parseInt(workspace.config?.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 10) || 2) * 60 * 60 * 1000;
+  for (const [contactId, entry] of Object.entries(map)) {
+    if (Date.now() - new Date(entry.since).getTime() > maxMs) {
+      delete map[contactId];
+      continue;
+    }
+    // Find lead name
+    const lead = (workspace.leads || []).find(l => l.id === contactId);
+    result.push({
+      contactId,
+      name: lead?.name || contactId.split("@")[0],
+      agent: entry.agent,
+      since: entry.since,
+    });
+  }
+  return result;
+}
+
+function pushLiveChatMessage(workspace, contactId, direction, text) {
+  if (!workspace._liveChat) workspace._liveChat = {};
+  if (!workspace._liveChat[contactId]) workspace._liveChat[contactId] = [];
+  const buf = workspace._liveChat[contactId];
+  buf.push({ dir: direction, text, at: new Date().toISOString() });
+  // Keep last 100 messages per contact
+  if (buf.length > 100) workspace._liveChat[contactId] = buf.slice(-100);
+  saveStore();
+}
+
+function getLiveChatMessages(workspace, contactId) {
+  if (!workspace._liveChat) return [];
+  return workspace._liveChat[contactId] || [];
+}
+
+async function sendHumanMessage(workspace, contactId, text) {
+  const runtime = getRuntime(workspace.id);
+  if (!runtime.client) throw new Error("WhatsApp client is not running.");
+  await runtime.client.sendMessage(contactId, text);
+  pushLiveChatMessage(workspace, contactId, "out", text);
+  appendReport(workspace, {
+    kind: "outgoing",
+    source: "human_agent",
+    ok: true,
+    chatId: contactId,
+    message: text,
+  });
+  return true;
+}
+
 module.exports = {
   sendBulkMessage,
   createClientForWorkspace,
@@ -1278,4 +1385,11 @@ module.exports = {
   processScheduledMessages,
   setupScheduler,
   setupStatusScheduler,
+  getHumanTakeover,
+  startHumanTakeover,
+  endHumanTakeover,
+  listHumanTakeovers,
+  getLiveChatMessages,
+  sendHumanMessage,
+  pushLiveChatMessage,
 };

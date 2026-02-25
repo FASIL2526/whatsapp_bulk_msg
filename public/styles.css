@@ -1349,3 +1349,87 @@ input[type="checkbox"]:checked + .toggle-slider::after {
     grid-column: span 12 !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIVE CHAT / HUMAN TAKEOVER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Takeover cards */
+.takeover-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--chip-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  transition: box-shadow 0.15s;
+}
+
+.takeover-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.takeover-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.takeover-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Chat bubbles */
+.chat-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  position: relative;
+}
+
+.chat-in {
+  align-self: flex-start;
+  background: var(--chip-bg);
+  border: 1px solid var(--panel-border);
+  border-bottom-left-radius: 4px;
+  color: var(--ink);
+}
+
+.chat-out {
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble-text {
+  white-space: pre-wrap;
+}
+
+.chat-bubble-time {
+  display: block;
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: 0.6;
+  text-align: right;
+}
+
+.chat-in .chat-bubble-time {
+  color: var(--muted);
+}
+
+/* Live chat section responsive */
+@media (max-width: 768px) {
+  #livechatView .panel[style*="span 4"],
+  #livechatView .panel[style*="span 8"] {
+    grid-column: span 12 !important;
+  }
+  .chat-bubble { max-width: 90%; }
+}

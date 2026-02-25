@@ -89,6 +89,9 @@ const DEFAULT_CONFIG = {
   WHATSAPP_ALERTS_OPERATOR: "",
   WHATSAPP_ALERTS_EVENTS: "new_lead,hot_lead,human_requested,booking_confirmed,escalation,closed_won,ai_error,daily_report",
   WHATSAPP_ALERTS_REPORT_INTERVAL_HRS: "1",
+
+  // ─── Human Takeover ──────────────────────────────────────────────────
+  HUMAN_TAKEOVER_TIMEOUT_HRS: "2",
 };
 
 module.exports = {

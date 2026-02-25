@@ -1092,6 +1092,9 @@ navItems.forEach(item => {
     if (target === "alerts") {
       loadAlerts();
     }
+    if (target === "livechat") {
+      loadLiveChat();
+    }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
     item.classList.add("active");
@@ -2211,3 +2214,199 @@ const refreshAgentBtn = document.getElementById("refreshAgentBtn");
 if (refreshAgentBtn) {
   refreshAgentBtn.addEventListener("click", loadAgent);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LIVE CHAT / HUMAN TAKEOVER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let _activeChatContactId = null;
+let _chatPollTimer = null;
+
+async function loadLiveChat() {
+  if (!currentWorkspace) return;
+  await Promise.all([loadTakeoverLeads(), loadActiveTakeovers()]);
+}
+
+async function loadTakeoverLeads() {
+  if (!currentWorkspace) return;
+  const sel = document.getElementById("takeoverLeadSelect");
+  if (!sel) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover/leads`);
+    const data = await resp.json();
+    if (!data.ok) return;
+    sel.innerHTML = '<option value="">(Select a lead)</option>';
+    for (const l of data.leads) {
+      const opt = document.createElement("option");
+      opt.value = l.id;
+      opt.textContent = `${l.name} — ${l.status} / ${l.stage}${l.active ? " ✋ ACTIVE" : ""}`;
+      sel.appendChild(opt);
+    }
+  } catch (e) { console.error(e); }
+}
+
+async function loadActiveTakeovers() {
+  if (!currentWorkspace) return;
+  const container = document.getElementById("activeTakeoversList");
+  if (!container) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover`);
+    const data = await resp.json();
+    if (!data.ok) return;
+    if (data.takeovers.length === 0) {
+      container.innerHTML = '<span class="muted">No active takeovers. AI is handling all chats.</span>';
+      return;
+    }
+    container.innerHTML = data.takeovers.map(t => {
+      const since = new Date(t.since).toLocaleString();
+      return `<div class="takeover-card">
+        <div class="takeover-info">
+          <strong>${t.name}</strong>
+          <span class="muted" style="font-size:11px;display:block;">${t.contactId}</span>
+          <span class="muted" style="font-size:11px;">Taken over by ${t.agent} · since ${since}</span>
+        </div>
+        <div class="takeover-actions">
+          <button class="btn primary" style="font-size:12px;" onclick="openLiveChat('${t.contactId}')"><i data-lucide="message-circle"></i> Chat</button>
+          <button class="btn" style="font-size:12px;background:var(--danger);color:#fff;border:none;" onclick="releaseTakeover('${t.contactId}')"><i data-lucide="log-out"></i> Release</button>
+        </div>
+      </div>`;
+    }).join("");
+    if (window.lucide) window.lucide.createIcons();
+  } catch (e) { console.error(e); }
+}
+
+async function startTakeover() {
+  if (!currentWorkspace) return;
+  const sel = document.getElementById("takeoverLeadSelect");
+  const manual = document.getElementById("takeoverManualId");
+  const contactId = manual?.value?.trim() || sel?.value;
+  if (!contactId) return alert("Select a lead or enter a chat ID.");
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId, agentName: "Dashboard Agent" }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      if (manual) manual.value = "";
+      await loadLiveChat();
+      openLiveChat(contactId);
+    } else {
+      alert(data.error || "Failed to take over.");
+    }
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function releaseTakeover(contactId) {
+  if (!currentWorkspace) return;
+  if (!confirm(`Release ${contactId.split("@")[0]} back to AI?`)) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contactId }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      if (_activeChatContactId === contactId) {
+        closeLiveChat();
+      }
+      await loadLiveChat();
+    }
+  } catch (e) { alert("Error: " + e.message); }
+}
+// Make available globally for onclick handlers
+window.releaseTakeover = releaseTakeover;
+window.openLiveChat = openLiveChat;
+
+function openLiveChat(contactId) {
+  _activeChatContactId = contactId;
+  const section = document.getElementById("liveChatSection");
+  if (section) section.style.display = "block";
+  refreshChatMessages();
+  // Start polling every 3 seconds
+  if (_chatPollTimer) clearInterval(_chatPollTimer);
+  _chatPollTimer = setInterval(refreshChatMessages, 3000);
+}
+
+function closeLiveChat() {
+  _activeChatContactId = null;
+  const section = document.getElementById("liveChatSection");
+  if (section) section.style.display = "none";
+  if (_chatPollTimer) { clearInterval(_chatPollTimer); _chatPollTimer = null; }
+}
+
+async function refreshChatMessages() {
+  if (!currentWorkspace || !_activeChatContactId) return;
+  const container = document.getElementById("liveChatMessages");
+  const titleEl = document.getElementById("liveChatTitle");
+  try {
+    const cid = encodeURIComponent(_activeChatContactId);
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover/chat/${cid}`);
+    const data = await resp.json();
+    if (!data.ok) return;
+    if (titleEl) titleEl.innerHTML = `<i data-lucide="message-circle" style="width:18px;height:18px;vertical-align:middle;"></i> Chat with ${data.name}`;
+    if (container) {
+      if (data.messages.length === 0) {
+        container.innerHTML = '<span class="muted" style="text-align:center;align-self:center;">No messages yet. Send the first message below.</span>';
+      } else {
+        container.innerHTML = data.messages.map(m => {
+          const time = new Date(m.at).toLocaleTimeString();
+          const isOut = m.dir === "out";
+          return `<div class="chat-bubble ${isOut ? 'chat-out' : 'chat-in'}">
+            <div class="chat-bubble-text">${escapeHtml(m.text)}</div>
+            <span class="chat-bubble-time">${time}</span>
+          </div>`;
+        }).join("");
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  } catch (e) { console.error(e); }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// Live chat form submit
+const liveChatForm = document.getElementById("liveChatForm");
+if (liveChatForm) {
+  liveChatForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace || !_activeChatContactId) return;
+    const input = document.getElementById("liveChatInput");
+    const message = input?.value?.trim();
+    if (!message) return;
+    input.value = "";
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/takeover/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contactId: _activeChatContactId, message }),
+      });
+      const data = await resp.json();
+      if (!data.ok) alert(data.error || "Send failed");
+      refreshChatMessages();
+    } catch (e) { alert("Error: " + e.message); }
+  });
+}
+
+// Takeover button
+const takeoverStartBtn = document.getElementById("takeoverStartBtn");
+if (takeoverStartBtn) takeoverStartBtn.addEventListener("click", startTakeover);
+
+// Release from chat panel
+const liveChatReleaseBtn = document.getElementById("liveChatReleaseBtn");
+if (liveChatReleaseBtn) {
+  liveChatReleaseBtn.addEventListener("click", () => {
+    if (_activeChatContactId) releaseTakeover(_activeChatContactId);
+  });
+}
+
+// Refresh live chat button
+const refreshLivechatBtn = document.getElementById("refreshLivechatBtn");
+if (refreshLivechatBtn) refreshLivechatBtn.addEventListener("click", loadLiveChat);
