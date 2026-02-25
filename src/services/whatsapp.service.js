@@ -866,6 +866,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
       console.log(
         `[${workspace.id}] AI Sales Closer active. (Server: ${SERVER_STARTED_AT})`
       );
+      let contactName = "";
       try {
         const apiKey = workspace.config.AI_API_KEY;
         const modelName = workspace.config.AI_MODEL || "gemini-1.5-flash";
@@ -899,7 +900,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
 
         await syncConversationHistoryFromChat(workspace, runtime, msg, maxTurns);
 
-        let contactName = "";
+        contactName = "";
         try {
           const contact = await msg.getContact();
           contactName = contact.pushname || contact.name || contact.number || "";
