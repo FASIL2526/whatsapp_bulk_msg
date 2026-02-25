@@ -615,28 +615,157 @@
         </div>
       </section>
 
-      <section class="panel reports-panel" style="grid-column: span 12;">
-        <div class="status-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-          <div class="status-chip"
-            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
-            <span class="muted">Total</span>
-            <span id="reportTotal" style="font-size: 32px; font-weight: 700;">0</span>
+      <!-- ── Message Stats ───────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="bar-chart-3" style="width:18px;height:18px;vertical-align:middle;"></i> Message Statistics</h3>
+        <div class="analytics-grid analytics-grid-6">
+          <div class="analytics-card">
+            <span class="analytics-card-label">Total</span>
+            <span id="reportTotal" class="analytics-card-value">0</span>
           </div>
-          <div class="status-chip"
-            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
-            <span class="muted">Delivered</span>
-            <span id="reportSentOk" style="font-size: 32px; font-weight: 700; color: var(--primary);">0</span>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Delivered</span>
+            <span id="reportSentOk" class="analytics-card-value" style="color:var(--primary);">0</span>
           </div>
-          <div class="status-chip"
-            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
-            <span class="muted">Failed</span>
-            <span id="reportSentFailed" style="font-size: 32px; font-weight: 700; color: var(--danger);">0</span>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Failed</span>
+            <span id="reportSentFailed" class="analytics-card-value" style="color:var(--danger);">0</span>
           </div>
-          <div class="status-chip"
-            style="flex: 1; padding: 32px; flex-direction: column; align-items: center; gap: 8px;">
-            <span class="muted">Auto-Replies</span>
-            <span id="reportAutoReplies" style="font-size: 32px; font-weight: 700; color: var(--accent);">0</span>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Auto-Replies</span>
+            <span id="reportAutoReplies" class="analytics-card-value" style="color:var(--accent);">0</span>
           </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Follow-Ups</span>
+            <span id="reportFollowUps" class="analytics-card-value" style="color:var(--primary);">0</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Auto-Statuses</span>
+            <span id="reportAutoStatuses" class="analytics-card-value" style="color:var(--accent);">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Daily Volume Chart ──────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="trending-up" style="width:18px;height:18px;vertical-align:middle;"></i> Daily Message Volume</h3>
+        <div id="dailyVolumeChart" class="daily-volume-chart">
+          <span class="muted">Loading chart data…</span>
+        </div>
+        <div id="dailyVolumeLegend" class="daily-volume-legend" style="display:none;">
+          <span><span class="legend-dot" style="background:var(--primary);"></span> Sent</span>
+          <span><span class="legend-dot" style="background:var(--accent);"></span> Received</span>
+          <span><span class="legend-dot" style="background:var(--danger);"></span> Failed</span>
+        </div>
+      </section>
+
+      <!-- ── Revenue Overview ────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="dollar-sign" style="width:18px;height:18px;vertical-align:middle;"></i> Revenue Overview</h3>
+        <div class="analytics-grid analytics-grid-5">
+          <div class="analytics-card">
+            <span class="analytics-card-label">Total Revenue</span>
+            <span id="anTotalRevenue" class="analytics-card-value" style="color:var(--primary);">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">This Week</span>
+            <span id="anWeeklyRevenue" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">This Month</span>
+            <span id="anMonthlyRevenue" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Avg Deal Size</span>
+            <span id="anAvgDeal" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">ROI</span>
+            <span id="anROI" class="analytics-card-value">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Lead Funnel ─────────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 7;">
+        <h3 class="analytics-section-title"><i data-lucide="filter" style="width:18px;height:18px;vertical-align:middle;"></i> Lead Funnel</h3>
+        <div id="leadFunnelBars" class="funnel-container">
+          <span class="muted">Loading…</span>
+        </div>
+        <div class="analytics-grid analytics-grid-3" style="margin-top:16px;">
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Conversion Rate</span>
+            <span id="anConvRate" class="analytics-card-value" style="font-size:22px;">—</span>
+          </div>
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Avg Days to Close</span>
+            <span id="anDaysClose" class="analytics-card-value" style="font-size:22px;">—</span>
+          </div>
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Rev / Lead</span>
+            <span id="anRevPerLead" class="analytics-card-value" style="font-size:22px;">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Lead Temperature & Win/Loss ────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 5;">
+        <h3 class="analytics-section-title"><i data-lucide="thermometer" style="width:18px;height:18px;vertical-align:middle;"></i> Lead Temperature</h3>
+        <div id="leadTempBars" class="temp-container" style="margin-bottom:20px;">
+          <span class="muted">Loading…</span>
+        </div>
+        <h3 class="analytics-section-title" style="margin-top:8px;"><i data-lucide="target" style="width:18px;height:18px;vertical-align:middle;"></i> Win / Loss</h3>
+        <div class="analytics-grid analytics-grid-3">
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Win Rate</span>
+            <span id="anWinRate" class="analytics-card-value" style="font-size:22px;color:var(--primary);">—</span>
+          </div>
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Won</span>
+            <span id="anWonCount" class="analytics-card-value" style="font-size:22px;">—</span>
+          </div>
+          <div class="analytics-card analytics-card-sm">
+            <span class="analytics-card-label">Lost</span>
+            <span id="anLostCount" class="analytics-card-value" style="font-size:22px;">—</span>
+          </div>
+        </div>
+        <div id="anScoringInsight" class="analytics-insight" style="margin-top:12px;display:none;"></div>
+      </section>
+
+      <!-- ── Activity by Source ──────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 6;">
+        <h3 class="analytics-section-title"><i data-lucide="pie-chart" style="width:18px;height:18px;vertical-align:middle;"></i> Activity by Source</h3>
+        <div id="sourceBreakdown" class="source-breakdown">
+          <span class="muted">Loading…</span>
+        </div>
+      </section>
+
+      <!-- ── Top Converting Tags ─────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 6;">
+        <h3 class="analytics-section-title"><i data-lucide="tags" style="width:18px;height:18px;vertical-align:middle;"></i> Top Converting Tags</h3>
+        <div id="topTagsList" class="top-tags-list">
+          <span class="muted">Need closed-won leads for tag analysis.</span>
+        </div>
+      </section>
+
+      <!-- ── Recent Activity Log ─────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="list" style="width:18px;height:18px;vertical-align:middle;"></i> Recent Activity</h3>
+        <div class="table-scroll">
+          <table class="data-table" id="recentActivityTable">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Kind</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Preview</th>
+              </tr>
+            </thead>
+            <tbody id="recentActivityBody">
+              <tr><td colspan="5" class="muted" style="text-align:center;">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </div>

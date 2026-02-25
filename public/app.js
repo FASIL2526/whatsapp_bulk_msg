@@ -346,29 +346,192 @@ async function refreshReports() {
   try {
     const params = reportParams();
     const suffix = params ? `?${params}` : "";
-    const summaryData = await getJson(workspacePath(`/reports/summary${suffix}`));
 
-    const setStats = (total, ok, failed, auto) => {
-      if (reportTotal) reportTotal.textContent = total;
-      if (reportSentOk) reportSentOk.textContent = ok;
-      if (reportSentFailed) reportSentFailed.textContent = failed;
-      if (reportAutoReplies) reportAutoReplies.textContent = auto;
+    // Fetch the full analytics endpoint
+    const data = await getJson(workspacePath(`/reports/analytics${suffix}`));
+    const s = data.summary || {};
 
-      if (overviewTotal) overviewTotal.textContent = total;
-      if (overviewRate) {
-        const rate = total > 0 ? Math.round((ok / total) * 100) : 0;
-        overviewRate.textContent = `${rate}%`;
-      }
-    };
+    // ── Message stats cards ──────────────────────────────────
+    if (reportTotal) reportTotal.textContent = s.total || 0;
+    if (reportSentOk) reportSentOk.textContent = s.sentOk || 0;
+    if (reportSentFailed) reportSentFailed.textContent = s.sentFailed || 0;
+    if (reportAutoReplies) reportAutoReplies.textContent = s.autoReplies || 0;
+    const followUpsEl = document.getElementById("reportFollowUps");
+    const autoStatusesEl = document.getElementById("reportAutoStatuses");
+    if (followUpsEl) followUpsEl.textContent = s.followUps || 0;
+    if (autoStatusesEl) autoStatusesEl.textContent = s.autoStatuses || 0;
 
-    setStats(
-      summaryData.summary.total,
-      summaryData.summary.sentOk,
-      summaryData.summary.sentFailed,
-      summaryData.summary.autoReplies
-    );
+    // Overview tab
+    if (overviewTotal) overviewTotal.textContent = s.total || 0;
+    if (overviewRate) {
+      const rate = s.total > 0 ? Math.round((s.sentOk / s.total) * 100) : 0;
+      overviewRate.textContent = `${rate}%`;
+    }
 
     exportCsvLink.href = workspacePath(`/reports/csv${suffix}`);
+
+    // ── Revenue overview ────────────────────────────────────
+    const a = data.attribution || {};
+    const cur = a.currency || "USD";
+    const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setTxt("anTotalRevenue", `${cur} ${(a.totalRevenue || 0).toLocaleString()}`);
+    setTxt("anWeeklyRevenue", `${cur} ${(data.weeklyRevenue || 0).toLocaleString()}`);
+    setTxt("anMonthlyRevenue", `${cur} ${(data.monthlyRevenue || 0).toLocaleString()}`);
+    setTxt("anAvgDeal", `${cur} ${(a.avgDealSize || 0).toLocaleString()}`);
+    setTxt("anROI", a.roi || "N/A");
+
+    // ── Lead funnel ─────────────────────────────────────────
+    const p = data.pipeline || {};
+    const funnelEl = document.getElementById("leadFunnelBars");
+    if (funnelEl) {
+      const stages = [
+        { label: "New", value: p.new || 0, color: "#94a3b8" },
+        { label: "Qualified", value: p.qualified || 0, color: "#3b82f6" },
+        { label: "Proposal", value: p.proposal || 0, color: "#8b5cf6" },
+        { label: "Booking", value: p.booking || 0, color: "#f59e0b" },
+        { label: "Won", value: p.closedWon || 0, color: "#22c55e" },
+        { label: "Lost", value: p.closedLost || 0, color: "#ef4444" },
+      ];
+      const maxVal = Math.max(1, ...stages.map(x => x.value));
+      funnelEl.innerHTML = stages.map(st => {
+        const pct = Math.max(2, Math.round((st.value / maxVal) * 100));
+        return `<div class="funnel-row">
+          <span class="funnel-label">${st.label}</span>
+          <div class="funnel-bar-bg">
+            <div class="funnel-bar-fill" style="width:${pct}%;background:${st.color};"><span>${st.value}</span></div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+    setTxt("anConvRate", `${a.conversionRate || 0}%`);
+    setTxt("anDaysClose", `${a.avgDaysToClose || 0}d`);
+    setTxt("anRevPerLead", `${cur} ${(a.revenuePerLead || 0).toLocaleString()}`);
+
+    // ── Lead temperature ────────────────────────────────────
+    const tempEl = document.getElementById("leadTempBars");
+    if (tempEl) {
+      const temps = [
+        { icon: "🔥", label: "Hot", value: p.hot || 0, color: "#ef4444" },
+        { icon: "🌡️", label: "Warm", value: p.warm || 0, color: "#f59e0b" },
+        { icon: "❄️", label: "Cold", value: p.cold || 0, color: "#3b82f6" },
+      ];
+      const maxT = Math.max(1, ...temps.map(x => x.value));
+      tempEl.innerHTML = temps.map(t => {
+        const pct = Math.max(2, Math.round((t.value / maxT) * 100));
+        return `<div class="temp-row">
+          <span class="temp-icon">${t.icon}</span>
+          <div class="temp-bar-bg">
+            <div class="temp-bar-fill" style="width:${pct}%;background:${t.color};"><span>${t.label}</span></div>
+          </div>
+          <span class="temp-count">${t.value}</span>
+        </div>`;
+      }).join("");
+    }
+
+    // ── Win / Loss ──────────────────────────────────────────
+    const f = data.feedback;
+    if (f) {
+      setTxt("anWinRate", `${f.winRate || 0}%`);
+      setTxt("anWonCount", f.wonCount || 0);
+      setTxt("anLostCount", f.lostCount || 0);
+      const insightEl = document.getElementById("anScoringInsight");
+      if (insightEl && f.insight) {
+        insightEl.style.display = "block";
+        insightEl.innerHTML = `<strong>💡 Insight:</strong> ${f.insight}`;
+      }
+    } else {
+      setTxt("anWinRate", "—");
+      setTxt("anWonCount", "0");
+      setTxt("anLostCount", "0");
+    }
+
+    // ── Activity by source ──────────────────────────────────
+    const srcEl = document.getElementById("sourceBreakdown");
+    if (srcEl && s.bySource) {
+      const entries = Object.entries(s.bySource).sort((a, b) => b[1] - a[1]);
+      if (entries.length === 0) {
+        srcEl.innerHTML = '<span class="muted">No activity data yet.</span>';
+      } else {
+        const maxS = Math.max(1, ...entries.map(e => e[1]));
+        srcEl.innerHTML = entries.map(([source, count]) => {
+          const pct = Math.max(2, Math.round((count / maxS) * 100));
+          return `<div class="source-row">
+            <span class="source-label">${source}</span>
+            <div class="source-bar-bg">
+              <div class="source-bar-fill" style="width:${pct}%;"><span>${count}</span></div>
+            </div>
+          </div>`;
+        }).join("");
+      }
+    }
+
+    // ── Top converting tags ─────────────────────────────────
+    const tagsEl = document.getElementById("topTagsList");
+    if (tagsEl && f && f.topConvertingTags && f.topConvertingTags.length > 0) {
+      tagsEl.innerHTML = f.topConvertingTags.map(t => {
+        return `<div class="tag-row">
+          <span class="tag-badge">${t.tag}</span>
+          <div class="tag-bar-bg"><div class="tag-bar-fill" style="width:${t.pct}%;"></div></div>
+          <span class="tag-pct">${t.pct}%</span>
+        </div>`;
+      }).join("");
+    } else if (tagsEl) {
+      tagsEl.innerHTML = '<span class="muted">Need closed-won leads for tag analysis.</span>';
+    }
+
+    // ── Daily volume chart ──────────────────────────────────
+    const chartEl = document.getElementById("dailyVolumeChart");
+    const legendEl = document.getElementById("dailyVolumeLegend");
+    if (chartEl && data.dailyVolume) {
+      const days = Object.entries(data.dailyVolume).sort((a, b) => a[0].localeCompare(b[0]));
+      if (days.length === 0) {
+        chartEl.innerHTML = '<span class="muted">No daily data in this range.</span>';
+        if (legendEl) legendEl.style.display = "none";
+      } else {
+        const maxD = Math.max(1, ...days.map(([, d]) => d.sent + d.received + d.failed));
+        const chartHeight = 100; // px
+        chartEl.innerHTML = days.map(([day, d]) => {
+          const total = d.sent + d.received + d.failed;
+          const hSent = Math.round((d.sent / maxD) * chartHeight);
+          const hRecv = Math.round((d.received / maxD) * chartHeight);
+          const hFail = Math.round((d.failed / maxD) * chartHeight);
+          const label = day.slice(5); // MM-DD
+          return `<div class="daily-volume-bar-group" title="${day}: ${d.sent} sent, ${d.received} recv, ${d.failed} fail">
+            <div class="daily-volume-bar-stack" style="height:${Math.max(4, Math.round((total / maxD) * chartHeight))}px;">
+              ${hSent > 0 ? `<div class="bar-segment" style="height:${hSent}px;background:var(--primary);"></div>` : ""}
+              ${hRecv > 0 ? `<div class="bar-segment" style="height:${hRecv}px;background:var(--accent);"></div>` : ""}
+              ${hFail > 0 ? `<div class="bar-segment" style="height:${hFail}px;background:var(--danger);"></div>` : ""}
+            </div>
+            <span class="bar-label">${label}</span>
+          </div>`;
+        }).join("");
+        if (legendEl) legendEl.style.display = "flex";
+      }
+    }
+
+    // ── Recent activity table ───────────────────────────────
+    const actBody = document.getElementById("recentActivityBody");
+    if (actBody && data.recentLogs) {
+      if (data.recentLogs.length === 0) {
+        actBody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;">No recent activity.</td></tr>';
+      } else {
+        actBody.innerHTML = data.recentLogs.map(r => {
+          const time = new Date(r.at).toLocaleString();
+          const kindLabel = (r.kind || "").replace(/_/g, " ");
+          const statusDot = r.ok
+            ? '<span style="color:var(--primary);font-weight:700;">✓</span>'
+            : '<span style="color:var(--danger);font-weight:700;">✗</span>';
+          return `<tr>
+            <td style="font-size:12px;white-space:nowrap;">${time}</td>
+            <td><span style="font-size:12px;font-family:var(--font-mono);">${kindLabel}</span></td>
+            <td style="font-size:12px;">${r.source}</td>
+            <td>${statusDot}</td>
+            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.message || "—"}</td>
+          </tr>`;
+        }).join("");
+      }
+    }
+
   } catch (err) {
     log(err.message);
   }
