@@ -1101,14 +1101,22 @@ async function handleIncomingMessage(workspace, runtime, msg) {
         });
       }
 
-      // Detect human request in incoming message
+      // Detect human request in incoming message → auto-takeover + notify
       const humanKeywords = ["speak to a person", "talk to someone", "human", "real person", "agent", "manager", "supervisor", "speak to human", "real agent"];
       if (humanKeywords.some(kw => incomingText.includes(kw))) {
+        // Auto-start human takeover for this contact
+        const existing = getHumanTakeover(workspace, msg.from);
+        if (!existing) {
+          startHumanTakeover(workspace, msg.from, "Auto (lead requested)");
+          pushLiveChatMessage(workspace, msg.from, "in", msg.body || "");
+        }
+        // Override AI reply with human-connecting message
+        replyText = "🙋 You've been connected to a human agent. Someone from our team will respond shortly. Please hold on!";
         queueAlert(workspace.id, "human_requested", {
           leadName: contactName || msg.from?.split("@")[0],
           leadId: msg.from,
           message: msg.body?.slice(0, 200),
-          reason: "Lead explicitly asked to speak with a human",
+          reason: "Lead asked for a human — auto-takeover activated",
         });
       }
     }
@@ -1313,6 +1321,17 @@ function startHumanTakeover(workspace, contactId, agentName) {
   if (!workspace._liveChat[contactId]) workspace._liveChat[contactId] = [];
   saveStore();
   console.log(`[${workspace.id}] Human takeover started for ${contactId} by ${agentName}`);
+
+  // Send notification message to the lead
+  const runtime = getRuntime(workspace.id);
+  if (runtime.client) {
+    const greeting = "👋 Hi! A human agent has joined the conversation. We'll take it from here. How can we help you?";
+    runtime.client.sendMessage(contactId, greeting).then(() => {
+      pushLiveChatMessage(workspace, contactId, "out", greeting);
+      appendReport(workspace, { kind: "outgoing", source: "human_agent", ok: true, chatId: contactId, message: greeting });
+    }).catch(err => console.error(`[${workspace.id}] Failed to send takeover greeting: ${err.message}`));
+  }
+
   return map[contactId];
 }
 
@@ -1321,7 +1340,18 @@ function endHumanTakeover(workspace, contactId) {
   const had = !!map[contactId];
   delete map[contactId];
   saveStore();
-  if (had) console.log(`[${workspace.id}] Human takeover ended for ${contactId}`);
+  if (had) {
+    console.log(`[${workspace.id}] Human takeover ended for ${contactId}`);
+    // Notify the lead that AI is resuming
+    const runtime = getRuntime(workspace.id);
+    if (runtime.client) {
+      const goodbye = "✅ Thank you for chatting with our team! Our AI assistant is back and ready to help you with anything else. Feel free to ask!";
+      runtime.client.sendMessage(contactId, goodbye).then(() => {
+        pushLiveChatMessage(workspace, contactId, "out", goodbye);
+        appendReport(workspace, { kind: "outgoing", source: "human_agent", ok: true, chatId: contactId, message: goodbye });
+      }).catch(err => console.error(`[${workspace.id}] Failed to send takeover goodbye: ${err.message}`));
+    }
+  }
   return had;
 }
 
