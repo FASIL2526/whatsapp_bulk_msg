@@ -31,8 +31,14 @@ ${lines.join("\n")}
 `;
 }
 
+function clearConversationHistory(workspaceId, contactId) {
+  const wsMap = conversationHistories.get(workspaceId);
+  if (wsMap) wsMap.delete(contactId);
+}
+
 module.exports = {
   getConversationHistory,
   pushToConversationHistory,
   formatHistoryForPrompt,
+  clearConversationHistory,
 };

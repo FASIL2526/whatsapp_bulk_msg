@@ -62,6 +62,17 @@ const generateAiAssistBtn = document.getElementById("generateAiAssistBtn");
 const aiAssistResult = document.getElementById("aiAssistResult");
 const postStatusNowBtn = document.getElementById("postStatusNowBtn");
 const statusPostResult = document.getElementById("statusPostResult");
+const mediaFileInput = document.getElementById("mediaFileInput");
+const uploadMediaBtn = document.getElementById("uploadMediaBtn");
+const uploadResult = document.getElementById("uploadResult");
+const mediaListSelect = document.getElementById("mediaListSelect");
+const sendAtInput = document.getElementById("sendAtInput");
+const schedulesTableBody = document.getElementById("schedulesTableBody");
+const schedulesEmpty = document.getElementById("schedulesEmpty");
+const mediaTableBody = document.getElementById("mediaTableBody");
+const mediaEmpty = document.getElementById("mediaEmpty");
+const refreshSchedulesBtn = document.getElementById("refreshSchedulesBtn");
+const refreshMediaBtn = document.getElementById("refreshMediaBtn");
 
 // --- Mobile Sidebar Logic ---
 function openSidebar() {
@@ -87,6 +98,7 @@ if (sidebarOverlay) {
 }
 
 let activeWorkspaceId = "";
+let currentWorkspace = null;
 const lastErrorByWorkspace = new Map();
 let connectElapsedSec = 0;
 let connectActive = false;
@@ -375,8 +387,99 @@ async function loadWorkspaces() {
   }
 
   activeWorkspaceId = result.workspaces.find((ws) => ws.id === previous)?.id || result.workspaces[0]?.id || "";
+  currentWorkspace = result.workspaces.find((ws) => ws.id === activeWorkspaceId) || null;
   if (activeWorkspaceId) {
     workspaceSelect.value = activeWorkspaceId;
+  }
+}
+
+async function loadMediaList() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/media"));
+    const list = data.media || [];
+
+    // Populate the <select> dropdown
+    mediaListSelect.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = "(none)";
+    mediaListSelect.appendChild(none);
+    for (const m of list) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = `${m.filename} (${m.mimeType})`;
+      mediaListSelect.appendChild(opt);
+    }
+
+    // Render the media library table
+    if (mediaTableBody) {
+      mediaTableBody.innerHTML = "";
+      if (list.length === 0) {
+        if (mediaEmpty) mediaEmpty.style.display = "block";
+      } else {
+        if (mediaEmpty) mediaEmpty.style.display = "none";
+        for (const m of list) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td style="font-weight:600;">${m.filename}</td>
+            <td class="muted">${m.mimeType}</td>
+            <td class="muted" style="font-size:12px;">${new Date(m.uploadedAt).toLocaleString()}</td>
+            <td><code style="font-size:11px;">${m.id}</code></td>
+          `;
+          mediaTableBody.appendChild(tr);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load media list:", err.message);
+  }
+}
+
+async function loadSchedules() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/schedules"));
+    const list = (data.scheduled || []).slice().reverse();
+
+    if (!schedulesTableBody) return;
+    schedulesTableBody.innerHTML = "";
+
+    if (list.length === 0) {
+      if (schedulesEmpty) schedulesEmpty.style.display = "block";
+      return;
+    }
+    if (schedulesEmpty) schedulesEmpty.style.display = "none";
+
+    for (const s of list) {
+      const tr = document.createElement("tr");
+      const statusColor = s.status === "sent" ? "var(--primary)" : s.status === "failed" ? "var(--danger)" : s.status === "cancelled" ? "var(--muted)" : "var(--accent)";
+      tr.innerHTML = `
+        <td><code style="font-size:11px;">${s.id}</code></td>
+        <td style="max-width:220px;"><div class="reason-cell">${s.message || "(media only)"}</div></td>
+        <td class="muted">${s.mediaId || "-"}</td>
+        <td class="muted" style="font-size:12px;">${new Date(s.sendAt).toLocaleString()}</td>
+        <td><span class="badge" style="color:${statusColor};border-color:${statusColor};">${s.status}</span></td>
+        <td>${s.status === "pending" ? `<button class="btn cancel-sched-btn" data-id="${s.id}" style="padding:4px 10px;font-size:11px;color:var(--danger);border-color:var(--danger);">Cancel</button>` : "-"}</td>
+      `;
+      schedulesTableBody.appendChild(tr);
+    }
+
+    // Wire cancel buttons
+    schedulesTableBody.querySelectorAll(".cancel-sched-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-id");
+        try {
+          await getJson(workspacePath(`/schedules/${id}`), { method: "DELETE" });
+          showToast("Scheduled message cancelled", "success");
+          await loadSchedules();
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+    });
+  } catch (err) {
+    console.warn("Failed to load schedules:", err.message);
   }
 }
 
@@ -429,16 +532,6 @@ setInterval(() => {
   connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
 }, 1000);
 
-async function loadLeads() {
-  if (!activeWorkspaceId) return;
-  try {
-    // This function body is a placeholder, assuming it will be filled later.
-    // For now, it's empty to avoid duplicating loadConfig's logic.
-  } catch (err) {
-    log(err.message);
-  }
-}
-
 async function loadConfig() {
   if (!activeWorkspaceId) return;
   try {
@@ -452,9 +545,12 @@ async function loadConfig() {
 
 workspaceSelect.addEventListener("change", async () => {
   activeWorkspaceId = workspaceSelect.value;
+  currentWorkspace = { id: activeWorkspaceId };
   await loadConfig();
   await refreshStatus();
   await refreshReports();
+  await loadMediaList();
+  await loadSchedules();
 });
 
 createWorkspaceBtn.addEventListener("click", async () => {
@@ -470,6 +566,7 @@ createWorkspaceBtn.addEventListener("click", async () => {
     workspaceNameInput.value = "";
     await loadWorkspaces();
     activeWorkspaceId = result.workspace.id;
+    currentWorkspace = result.workspace;
     workspaceSelect.value = activeWorkspaceId;
     await loadConfig();
     await refreshStatus();
@@ -647,36 +744,54 @@ customForm.addEventListener("submit", async (event) => {
     const m1 = instantMessage1.value.trim();
     const m2 = instantMessage2.value.trim();
     const messages = [m1, m2].filter(Boolean);
+    const mediaId = mediaListSelect?.value || "";
+    const sendAtVal = sendAtInput?.value || "";
 
-    if (messages.length === 0) {
-      log("Please enter at least one message.");
+    if (messages.length === 0 && !mediaId) {
+      log("Please enter at least one message or attach media.");
+      showToast("Add a message or attach media first.", "error");
       return;
     }
 
-    log(`[${activeWorkspaceId}] launching sequential campaign...`);
+    log(`[${activeWorkspaceId}] launching campaign...`);
+    const payload = { messages };
+    if (mediaId) payload.mediaId = mediaId;
+    if (sendAtVal) payload.sendAt = new Date(sendAtVal).toISOString();
+
     const result = await getJson(workspacePath("/send-custom"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify(payload),
     });
 
-    // Simulate progress bar based on results
-    const total = result.results.length;
-    let current = 0;
-    const interval = setInterval(() => {
-      current += 1;
-      updateProgressBar(current, total);
-      if (current >= total) clearInterval(interval);
-    }, 100);
-
-    const recipientCount = total / messages.length;
-    const doneText = `[${activeWorkspaceId}] campaign finished. Sent ${messages.length} messages to ${recipientCount} recipients.`;
-    log(doneText);
-    showToast(doneText, "success");
-    notifyDesktop("Campaign Completed", `Workspace ${activeWorkspaceId}: sent ${messages.length} messages to ${recipientCount} recipients.`);
+    // Scheduled for later
+    if (result.scheduled) {
+      const when = new Date(result.scheduled.sendAt).toLocaleString();
+      const schedText = `[${activeWorkspaceId}] campaign scheduled for ${when}`;
+      log(schedText);
+      showToast(schedText, "success");
+      notifyDesktop("Campaign Scheduled", schedText);
+    } else {
+      // Sent immediately — show progress
+      const total = (result.results || []).length;
+      let current = 0;
+      const interval = setInterval(() => {
+        current += 1;
+        updateProgressBar(current, total);
+        if (current >= total) clearInterval(interval);
+      }, 100);
+      const recipientCount = messages.length > 0 ? Math.ceil(total / messages.length) : total;
+      const doneText = `[${activeWorkspaceId}] campaign finished. Sent ${messages.length || 1} message(s) to ${recipientCount} recipient(s).`;
+      log(doneText);
+      showToast(doneText, "success");
+      notifyDesktop("Campaign Completed", doneText);
+    }
     customForm.reset();
     updateMultiPreview();
+    if (mediaListSelect) mediaListSelect.value = "";
+    if (sendAtInput) sendAtInput.value = "";
     await refreshReports();
+    await loadSchedules();
   } catch (err) {
     log(err.message);
     showToast(err.message, "error");
@@ -718,6 +833,33 @@ if (importBtn && recipientsFileInput && importResult) {
     }
   });
 }
+
+  // Media upload handler
+  if (uploadMediaBtn && mediaFileInput) {
+    uploadMediaBtn.addEventListener("click", async () => {
+      if (!mediaFileInput.files?.length) {
+        if (uploadResult) uploadResult.textContent = "Select a file first.";
+        return;
+      }
+      try {
+        if (uploadResult) uploadResult.textContent = "Uploading...";
+        const formData = new FormData();
+        formData.set("file", mediaFileInput.files[0]);
+        const res = await fetch(workspacePath("/media"), {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${authToken}` },
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || data.ok === false) throw new Error(data.error || "Upload failed");
+        if (uploadResult) uploadResult.textContent = "Uploaded";
+        await loadMediaList();
+        setTimeout(() => { if (uploadResult) uploadResult.textContent = ""; }, 2500);
+      } catch (err) {
+        if (uploadResult) uploadResult.textContent = err.message;
+      }
+    });
+  }
 
 if (authForm) {
   authForm.addEventListener("submit", async (event) => {
@@ -774,6 +916,19 @@ navItems.forEach(item => {
     if (target === "leads") {
       loadLeads();
     }
+    if (target === "campaigns") {
+      loadMediaList();
+      loadSchedules();
+    }
+    if (target === "automation") {
+      loadAutomation();
+    }
+    if (target === "agent") {
+      loadAgent();
+    }
+    if (target === "alerts") {
+      loadAlerts();
+    }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
     item.classList.add("active");
@@ -803,6 +958,8 @@ navItems.forEach(item => {
     await loadConfig();
     await refreshStatus();
     await refreshReports();
+    await loadMediaList();
+    await loadSchedules();
     if (window.lucide) window.lucide.createIcons();
   }
   setInterval(refreshStatus, 5000);
@@ -978,4 +1135,916 @@ function renderLeads(leads) {
 
 if (refreshLeadsBtn) {
   refreshLeadsBtn.addEventListener("click", loadLeads);
+}
+
+if (refreshSchedulesBtn) {
+  refreshSchedulesBtn.addEventListener("click", loadSchedules);
+}
+
+if (refreshMediaBtn) {
+  refreshMediaBtn.addEventListener("click", loadMediaList);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Automation Hub Logic ──────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Wrapper around fetch that auto-injects the auth header
+function apiFetch(url, options) {
+  const opts = { ...(options || {}) };
+  opts.headers = { ...(opts.headers || {}) };
+  if (authToken) opts.headers.Authorization = `Bearer ${authToken}`;
+  return fetch(url, opts);
+}
+
+const AUTOMATION_FEATURES = [
+  { key: "NURTURE_DRIP_ENABLED",       label: "Nurture Drip",        icon: "droplets",        desc: "Multi-day lead sequences" },
+  { key: "AUTO_REENGAGE_ENABLED",      label: "Re-engagement",       icon: "rotate-ccw",      desc: "Win back stale leads" },
+  { key: "AUTO_ESCALATION_ENABLED",    label: "Auto Escalation",     icon: "alert-triangle",  desc: "Alert human operators" },
+  { key: "AUTO_LEAD_ROUTING_ENABLED",  label: "Lead Routing",        icon: "git-branch",      desc: "Auto-assign strategies" },
+  { key: "AB_TEST_ENABLED",            label: "A/B Testing",         icon: "split",           desc: "Test message variants" },
+  { key: "AUTO_DAILY_DIGEST_ENABLED",  label: "Daily Digest",        icon: "newspaper",       desc: "Morning pipeline summary" },
+  { key: "AUTO_OBJECTION_ENABLED",     label: "Objection Recovery",  icon: "shield",          desc: "Auto-counter objections" },
+  { key: "AUTO_CLEANUP_ENABLED",       label: "Conversation Cleanup",icon: "trash",           desc: "Archive dead conversations" },
+  { key: "AUTO_TIMEZONE_ENABLED",      label: "Timezone Send",       icon: "clock",           desc: "Send at optimal hours" },
+  { key: "AUTO_TAGGING_ENABLED",       label: "Auto Tag & Segment",  icon: "tags",            desc: "AI labels on leads" },
+];
+
+async function loadAutomation() {
+  if (!currentWorkspace || !authToken) return;
+  const wsId = currentWorkspace.id;
+
+  // Load automation config
+  try {
+    const resp = await apiFetch(`/api/workspaces/${wsId}/automation/config`);
+    const data = await resp.json();
+    if (data.ok) {
+      renderAutomationToggles(data.automation);
+      renderDripSteps(data.automation?.nurtureDrip);
+    }
+  } catch (e) { console.error("Automation config load error:", e); }
+
+  // Load A/B tests
+  loadAbTests();
+  // Load routing
+  loadRouting();
+  // Load tags
+  loadTags();
+}
+
+// ─── Drip Step Preview ─────────────────────────────────────────────────────
+function renderDripSteps(drip) {
+  const container = document.getElementById("dripSteps");
+  if (!container) return;
+  const steps = drip?.steps || [];
+  if (steps.length === 0) {
+    container.innerHTML = '<span class="muted">Default 5-step sequence (Day 0, 1, 3, 5, 7). Enable drip to customize.</span>';
+    return;
+  }
+  container.innerHTML = steps.map((s, i) =>
+    `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);font-size:13px;">
+      <strong>Step ${i + 1}</strong> — Day ${s.delayDays}: <span class="muted">${s.message.slice(0, 80)}${s.message.length > 80 ? "…" : ""}</span>
+    </div>`
+  ).join("");
+}
+
+function renderAutomationToggles(automation) {
+  const container = document.getElementById("automationToggles");
+  if (!container) return;
+
+  // Get current workspace config to read toggle states
+  const wsId = currentWorkspace?.id;
+  container.innerHTML = AUTOMATION_FEATURES.map(f => {
+    const isEnabled = currentWorkspace?.config?.[f.key] === "true" ||
+      (automation && getNestedEnabled(automation, f.key));
+    return `
+      <div class="automation-card ${isEnabled ? "enabled" : ""}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <i data-lucide="${f.icon}" style="width:20px;height:20px;flex-shrink:0;"></i>
+          <strong style="font-size:14px;">${f.label}</strong>
+        </div>
+        <p class="muted" style="font-size:12px;margin-bottom:12px;">${f.desc}</p>
+        <label class="toggle-switch" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;">
+          <input type="checkbox" ${isEnabled ? "checked" : ""} data-config-key="${f.key}" class="automation-toggle" />
+          <span>${isEnabled ? "On" : "Off"}</span>
+        </label>
+      </div>
+    `;
+  }).join("");
+
+  // Bind toggle events
+  container.querySelectorAll(".automation-toggle").forEach(cb => {
+    cb.addEventListener("change", async () => {
+      const key = cb.dataset.configKey;
+      const val = cb.checked ? "true" : "false";
+      const label = cb.closest(".automation-card")?.querySelector("span");
+      if (label) label.textContent = cb.checked ? "On" : "Off";
+      cb.closest(".automation-card")?.classList.toggle("enabled", cb.checked);
+      // Save to workspace config
+      try {
+        const current = await (await apiFetch(`/api/workspaces/${wsId}/config`)).json();
+        current[key] = val;
+        await apiFetch(`/api/workspaces/${wsId}/config`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(current),
+        });
+      } catch (e) { console.error("Toggle save error:", e); }
+    });
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function getNestedEnabled(automation, key) {
+  const map = {
+    NURTURE_DRIP_ENABLED: automation.nurtureDrip?.enabled,
+    AUTO_REENGAGE_ENABLED: automation.reengage?.enabled,
+    AUTO_ESCALATION_ENABLED: automation.escalation?.enabled,
+    AUTO_LEAD_ROUTING_ENABLED: automation.leadRouting?.enabled,
+    AB_TEST_ENABLED: automation.abTesting?.enabled,
+    AUTO_DAILY_DIGEST_ENABLED: automation.dailyDigest?.enabled,
+    AUTO_OBJECTION_ENABLED: automation.objection?.enabled,
+    AUTO_CLEANUP_ENABLED: automation.cleanup?.enabled,
+    AUTO_TIMEZONE_ENABLED: automation.timezone?.enabled,
+    AUTO_TAGGING_ENABLED: automation.tagging?.enabled,
+  };
+  return map[key] || false;
+}
+
+// ─── Enroll All in Drip ────────────────────────────────────────────────────
+const enrollAllDripBtn = document.getElementById("enrollAllDripBtn");
+if (enrollAllDripBtn) {
+  enrollAllDripBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/drip/enroll-all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await resp.json();
+      alert(data.ok ? `Enrolled ${data.enrolled} leads into drip sequence.` : (data.error || "Failed"));
+    } catch (e) { alert("Error: " + e.message); }
+  });
+}
+
+// ─── A/B Test form ─────────────────────────────────────────────────────────
+const abTestForm = document.getElementById("abTestForm");
+if (abTestForm) {
+  abTestForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace) return;
+    const name = document.getElementById("abTestName")?.value?.trim() || "A/B Test";
+    const raw = document.getElementById("abTestVariants")?.value || "";
+    const messages = raw.split("\n").map(s => s.trim()).filter(Boolean);
+    if (messages.length < 2) return alert("Enter at least 2 message variants (one per line).");
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/ab-test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, messages }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert("A/B test created!");
+        loadAbTests();
+        document.getElementById("abTestName").value = "";
+        document.getElementById("abTestVariants").value = "";
+      } else {
+        alert(data.error || "Failed");
+      }
+    } catch (e) { alert("Error: " + e.message); }
+  });
+}
+
+async function loadAbTests() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/ab-test`);
+    const data = await resp.json();
+    const container = document.getElementById("abTestResults");
+    if (!container || !data.ok) return;
+    const tests = data.tests || [];
+    if (tests.length === 0) {
+      container.innerHTML = '<span class="muted">No tests yet.</span>';
+      return;
+    }
+    container.innerHTML = tests.map(t => {
+      const variants = (t.variants || []).map(v => {
+        const rate = v.sent > 0 ? Math.round((v.replied / v.sent) * 100) : 0;
+        const isWinner = t.winnerId === v.id;
+        return `<div style="padding:4px 0;${isWinner ? "font-weight:700;color:var(--success);" : ""}">
+          ${v.id}: "${v.message.slice(0,50)}${v.message.length > 50 ? "..." : ""}" — sent: ${v.sent}, replied: ${v.replied} (${rate}%)${isWinner ? " ✅ WINNER" : ""}
+        </div>`;
+      }).join("");
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--panel-border);">
+        <strong>${t.name}</strong> <span class="muted">[${t.status}]</span>
+        ${variants}
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+// ─── Digest Preview ────────────────────────────────────────────────────────
+const previewDigestBtn = document.getElementById("previewDigestBtn");
+if (previewDigestBtn) {
+  previewDigestBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/digest/preview`);
+      const data = await resp.json();
+      const pre = document.getElementById("digestPreview");
+      if (pre && data.ok) {
+        pre.textContent = data.digest;
+        pre.style.display = "block";
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+// ─── Escalation Check ─────────────────────────────────────────────────────
+const checkEscalationBtn = document.getElementById("checkEscalationBtn");
+if (checkEscalationBtn) {
+  checkEscalationBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/escalation/check`);
+      const data = await resp.json();
+      const container = document.getElementById("escalationList");
+      if (!container || !data.ok) return;
+      if (data.leads.length === 0) {
+        container.innerHTML = '<span class="muted">✅ No escalations needed right now.</span>';
+        return;
+      }
+      container.innerHTML = data.leads.map(l =>
+        `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);">
+          <strong>${l.name || l.id}</strong>
+          <span class="muted" style="font-size:12px;"> — ${l.reasons.join(", ")}</span>
+        </div>`
+      ).join("");
+    } catch (e) { console.error(e); }
+  });
+}
+
+// ─── Routing ───────────────────────────────────────────────────────────────
+async function loadRouting() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/routing`);
+    const data = await resp.json();
+    const container = document.getElementById("routingTable");
+    if (!container || !data.ok) return;
+    if (data.leads.length === 0) {
+      container.innerHTML = '<span class="muted">No leads to route.</span>';
+      return;
+    }
+    const routeColors = { nurture: "#6b7280", engage: "#f59e0b", close: "#10b981", support: "#3b82f6", retain: "#8b5cf6", archive: "#9ca3af", completed: "#22c55e" };
+    container.innerHTML = data.leads.map(l => {
+      const color = routeColors[l.route] || "#6b7280";
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
+        <span>${l.name || l.id?.split("@")[0] || "?"}</span>
+        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">${l.route}</span>
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+// ─── Tags ──────────────────────────────────────────────────────────────────
+async function loadTags() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/tags`);
+    const data = await resp.json();
+    const container = document.getElementById("tagsTable");
+    if (!container || !data.ok) return;
+    if (data.leads.length === 0) {
+      container.innerHTML = '<span class="muted">No tagged leads.</span>';
+      return;
+    }
+    container.innerHTML = data.leads.map(l => {
+      const tags = (l.tags || []).map(t =>
+        `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;">${t}</span>`
+      ).join(" ");
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);">
+        <strong style="font-size:13px;">${l.name || l.id?.split("@")[0] || "?"}</strong>
+        <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tags || '<span class="muted">no tags</span>'}</div>
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+// ─── Objection Tester ──────────────────────────────────────────────────────
+const objectionTestForm = document.getElementById("objectionTestForm");
+if (objectionTestForm) {
+  objectionTestForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace) return;
+    const message = document.getElementById("objectionInput")?.value?.trim();
+    if (!message) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/automation/objection/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      const data = await resp.json();
+      const container = document.getElementById("objectionResult");
+      if (!container) return;
+      if (data.rebuttal) {
+        container.innerHTML = `<div style="padding:8px;background:var(--success-bg,#dcfce7);border-radius:var(--radius-sm);">
+          <strong>Objection detected:</strong> ${data.objection}<br/>
+          <strong>Rebuttal:</strong> ${data.rebuttal}
+        </div>`;
+      } else {
+        container.innerHTML = `<span class="muted">No objection detected in that message.</span>`;
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+// ─── Refresh button ────────────────────────────────────────────────────────
+const refreshAutomationBtn = document.getElementById("refreshAutomationBtn");
+if (refreshAutomationBtn) {
+  refreshAutomationBtn.addEventListener("click", loadAutomation);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Sales Agent Brain Logic ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+const AGENT_FEATURES = [
+  { key: "OUTBOUND_PROSPECTING_ENABLED", label: "Outbound Prospecting", icon: "send",          desc: "Auto-message highest-opportunity leads" },
+  { key: "GOAL_PLANNER_ENABLED",         label: "Goal Planner",          icon: "target",        desc: "Self-adjusting weekly targets" },
+  { key: "PROMPT_TUNING_ENABLED",        label: "Prompt Self-Tuning",    icon: "sliders",       desc: "Auto-optimise AI persona" },
+  { key: "OFFER_AUTHORITY_ENABLED",      label: "Offer Authority",       icon: "badge-percent", desc: "Autonomous discount decisions" },
+  { key: "SELF_HEALING_ENABLED",         label: "Self-Healing",          icon: "heart-pulse",   desc: "Auto-fix underperforming flows" },
+];
+
+async function loadAgent() {
+  if (!currentWorkspace || !authToken) return;
+  const wsId = currentWorkspace.id;
+
+  // Load agent config for toggles
+  try {
+    const resp = await apiFetch(`/api/workspaces/${wsId}/agent/config`);
+    const data = await resp.json();
+    if (data.ok) renderAgentToggles(data.agent);
+  } catch (e) { console.error("Agent config load error:", e); }
+
+  loadGoal();
+  loadOutbound();
+  loadTuning();
+  loadRevenue();
+  loadOffers();
+  loadHealth();
+}
+
+// ─── Agent Feature Toggles ───────────────────────────────────────────────────
+function renderAgentToggles(agent) {
+  const container = document.getElementById("agentToggles");
+  if (!container) return;
+  const wsId = currentWorkspace?.id;
+  const enabledMap = {
+    OUTBOUND_PROSPECTING_ENABLED: agent?.outbound?.enabled,
+    GOAL_PLANNER_ENABLED: agent?.goalPlanner?.enabled,
+    PROMPT_TUNING_ENABLED: agent?.promptTuning?.enabled,
+    OFFER_AUTHORITY_ENABLED: agent?.offerAuth?.enabled,
+    SELF_HEALING_ENABLED: agent?.selfHealing?.enabled,
+  };
+  container.innerHTML = AGENT_FEATURES.map(f => {
+    const isEnabled = enabledMap[f.key] || false;
+    return `
+      <div class="automation-card ${isEnabled ? "enabled" : ""}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <i data-lucide="${f.icon}" style="width:20px;height:20px;flex-shrink:0;"></i>
+          <strong style="font-size:14px;">${f.label}</strong>
+        </div>
+        <p class="muted" style="font-size:12px;margin-bottom:12px;">${f.desc}</p>
+        <label class="toggle-switch">
+          <input type="checkbox" ${isEnabled ? "checked" : ""} data-config-key="${f.key}" class="agent-toggle" />
+          <span class="toggle-slider"></span>
+          <span class="toggle-status-label ${isEnabled ? "on" : "off"}">${isEnabled ? "ON" : "OFF"}</span>
+        </label>
+      </div>
+    `;
+  }).join("");
+
+  // Single toggle handler
+  container.querySelectorAll(".agent-toggle").forEach(cb => {
+    cb.addEventListener("change", () => saveAgentToggle(cb));
+  });
+
+  // Master On / Off buttons
+  const allOnBtn  = document.getElementById("agentAllOnBtn");
+  const allOffBtn = document.getElementById("agentAllOffBtn");
+  if (allOnBtn)  allOnBtn.onclick = () => setAllAgentToggles(true);
+  if (allOffBtn) allOffBtn.onclick = () => setAllAgentToggles(false);
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+async function saveAgentToggle(cb) {
+  const wsId = currentWorkspace?.id;
+  if (!wsId) return;
+  const key = cb.dataset.configKey;
+  const val = cb.checked ? "true" : "false";
+  const card = cb.closest(".automation-card");
+  const statusLabel = card?.querySelector(".toggle-status-label");
+  if (statusLabel) {
+    statusLabel.textContent = cb.checked ? "ON" : "OFF";
+    statusLabel.classList.toggle("on", cb.checked);
+    statusLabel.classList.toggle("off", !cb.checked);
+  }
+  card?.classList.toggle("enabled", cb.checked);
+  try {
+    const current = await (await apiFetch(`/api/workspaces/${wsId}/config`)).json();
+    current[key] = val;
+    await apiFetch(`/api/workspaces/${wsId}/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(current),
+    });
+  } catch (e) { console.error("Agent toggle save error:", e); }
+}
+
+async function setAllAgentToggles(state) {
+  const wsId = currentWorkspace?.id;
+  if (!wsId) return;
+  // Update all checkboxes in UI
+  document.querySelectorAll("#agentToggles .agent-toggle").forEach(cb => {
+    cb.checked = state;
+    const card = cb.closest(".automation-card");
+    const statusLabel = card?.querySelector(".toggle-status-label");
+    if (statusLabel) {
+      statusLabel.textContent = state ? "ON" : "OFF";
+      statusLabel.classList.toggle("on", state);
+      statusLabel.classList.toggle("off", !state);
+    }
+    card?.classList.toggle("enabled", state);
+  });
+  // Save all to config in one request
+  try {
+    const current = await (await apiFetch(`/api/workspaces/${wsId}/config`)).json();
+    AGENT_FEATURES.forEach(f => { current[f.key] = state ? "true" : "false"; });
+    await apiFetch(`/api/workspaces/${wsId}/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(current),
+    });
+  } catch (e) { console.error("Agent master toggle error:", e); }
+}
+
+// ─── Goal Planner ─────────────────────────────────────────────────────────────
+const goalForm = document.getElementById("goalForm");
+if (goalForm) {
+  goalForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace) return;
+    const type = document.getElementById("goalType")?.value || "bookings";
+    const target = Number(document.getElementById("goalTarget")?.value || 5);
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/goal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, weeklyTarget: target }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert("Goal set!");
+        loadGoal();
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+async function loadGoal() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/goal`);
+    const data = await resp.json();
+    const progressEl = document.getElementById("goalProgress");
+    const adjEl = document.getElementById("goalAdjustments");
+    if (!progressEl || !data.ok) return;
+    if (!data.goal) {
+      progressEl.innerHTML = '<span class="muted">No goal set. Use the form above to set a weekly target.</span>';
+      if (adjEl) adjEl.innerHTML = "";
+      return;
+    }
+    const p = data.progress || data.plan;
+    if (!p) return;
+    const barColor = p.onTrack ? "var(--primary)" : "var(--danger)";
+    progressEl.innerHTML = `
+      <div style="margin-bottom:8px;"><strong>${p.emoji || ""} ${p.goalLabel}</strong>: ${p.current} / ${p.weeklyTarget}</div>
+      <div style="background:var(--progress-track);border-radius:8px;height:16px;overflow:hidden;">
+        <div style="background:${barColor};height:100%;width:${Math.min(100, p.progressPct)}%;border-radius:8px;transition:width 0.3s;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <span class="muted">${p.progressPct}% complete</span>
+        <span class="muted">${p.remaining} to go • ${p.daysLeft} days left</span>
+      </div>
+    `;
+    if (adjEl && p.adjustments && p.adjustments.length > 0) {
+      adjEl.innerHTML = '<strong style="font-size:12px;">Auto-adjustments:</strong>' +
+        p.adjustments.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="zap" style="width:12px;height:12px;vertical-align:middle;"></i> ${a.detail}</div>`).join("");
+      if (window.lucide) window.lucide.createIcons();
+    } else if (adjEl) {
+      adjEl.innerHTML = "";
+    }
+  } catch (e) { console.error(e); }
+}
+
+// ─── Outbound Prospecting ────────────────────────────────────────────────────
+async function loadOutbound() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/outbound/queue`);
+    const data = await resp.json();
+    const statsEl = document.getElementById("outboundStats");
+    const queueEl = document.getElementById("outboundQueue");
+    if (!data.ok) return;
+    if (statsEl && data.stats) {
+      const s = data.stats;
+      statsEl.innerHTML = `
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--primary);">${s.todaySent}</div><div class="muted" style="font-size:11px;">Sent Today</div></div>
+          <div style="text-align:center;"><div style="font-size:22px;font-weight:700;">${s.remaining}</div><div class="muted" style="font-size:11px;">Remaining</div></div>
+          <div style="text-align:center;"><div style="font-size:22px;font-weight:700;">${s.weekSent}</div><div class="muted" style="font-size:11px;">This Week</div></div>
+        </div>`;
+    }
+    if (queueEl) {
+      if (data.queue.length === 0) {
+        queueEl.innerHTML = '<span class="muted">No outbound candidates right now.</span>';
+      } else {
+        queueEl.innerHTML = '<strong style="font-size:12px;">Next up:</strong>' +
+          data.queue.slice(0, 10).map(l => `
+            <div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
+              <span>${l.name}</span>
+              <span style="display:flex;gap:6px;align-items:center;">
+                <span class="muted" style="font-size:11px;">opp: ${l.oppScore}</span>
+                <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;">${l.status}</span>
+              </span>
+            </div>
+          `).join("");
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+// ─── Prompt Tuning ───────────────────────────────────────────────────────────
+async function loadTuning() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/tuning`);
+    const data = await resp.json();
+    const metricsEl = document.getElementById("tuningMetrics");
+    const recsEl = document.getElementById("tuningRecommendations");
+    if (!data.ok) return;
+    const m = data.metrics;
+    if (metricsEl && m) {
+      metricsEl.innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${(m.replyRate * 100).toFixed(1)}%</div><div class="muted" style="font-size:11px;">Reply Rate</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${m.recentBookings}</div><div class="muted" style="font-size:11px;">Bookings (7d)</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${m.recentHotLeads}</div><div class="muted" style="font-size:11px;">Hot Leads (7d)</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${m.avgScore}</div><div class="muted" style="font-size:11px;">Avg Score</div></div>
+        </div>`;
+    }
+    if (recsEl && data.recommendations) {
+      if (data.recommendations.length === 0) {
+        recsEl.innerHTML = '<span class="muted">✅ Performance looks good — no tuning needed.</span>';
+      } else {
+        recsEl.innerHTML = '<strong style="font-size:12px;">Recommendations:</strong>' +
+          data.recommendations.map(r => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="lightbulb" style="width:12px;height:12px;vertical-align:middle;"></i> ${r.reason}</div>`).join("");
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+const applyTuningBtn = document.getElementById("applyTuningBtn");
+if (applyTuningBtn) {
+  applyTuningBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/tuning/apply`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        const count = (data.applied || []).length;
+        alert(count > 0 ? `Applied ${count} tuning adjustments.` : "No changes needed right now.");
+        loadTuning();
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+// ─── Revenue Attribution ─────────────────────────────────────────────────────
+const revenueForm = document.getElementById("revenueForm");
+if (revenueForm) {
+  revenueForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace) return;
+    const leadId = document.getElementById("revLeadId")?.value;
+    const amount = Number(document.getElementById("revAmount")?.value || 0);
+    if (!leadId || amount <= 0) return alert("Select a lead and enter a positive amount.");
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/revenue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, amount }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert("Revenue recorded!");
+        document.getElementById("revAmount").value = "";
+        loadRevenue();
+      } else {
+        alert(data.error || "Failed");
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+async function loadRevenue() {
+  if (!currentWorkspace) return;
+  // Populate lead select
+  const leadSelect = document.getElementById("revLeadId");
+  if (leadSelect) {
+    const leads = currentWorkspace.leads || [];
+    leadSelect.innerHTML = leads
+      .filter(l => !l.archived)
+      .map(l => `<option value="${l.id}">${l.name || l.id?.split("@")[0]}</option>`)
+      .join("");
+  }
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/revenue`);
+    const data = await resp.json();
+    const attrEl = document.getElementById("revenueAttribution");
+    const fbEl = document.getElementById("scoringFeedback");
+    if (!data.ok) return;
+    const a = data.attribution;
+    if (attrEl && a) {
+      attrEl.innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+          <div style="text-align:center;"><div style="font-size:22px;font-weight:700;color:var(--primary);">${a.currency} ${a.totalRevenue.toLocaleString()}</div><div class="muted" style="font-size:11px;">Total Revenue</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${a.conversionRate}%</div><div class="muted" style="font-size:11px;">Conv. Rate</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${a.avgDaysToClose}d</div><div class="muted" style="font-size:11px;">Avg Close Time</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${a.currency} ${a.avgDealSize.toLocaleString()}</div><div class="muted" style="font-size:11px;">Avg Deal</div></div>
+        </div>
+        <div class="muted" style="font-size:12px;">ROI: ${a.roi} • ${a.closedWon} closed won / ${a.totalLeads} total leads</div>`;
+    }
+    const f = data.feedback;
+    if (fbEl && f) {
+      fbEl.innerHTML = `<div style="padding:8px;background:var(--import-bg);border-radius:var(--radius-sm);margin-top:8px;">
+        <strong>Scoring insight:</strong> ${f.insight}<br/>
+        <span class="muted">Win rate: ${f.winRate}% • Won avg score: ${f.wonAvgScore} • Booking rate among wins: ${f.wonBookingRate}%</span>
+        ${f.topConvertingTags.length > 0 ? '<br/><span class="muted">Top converting tags: ' + f.topConvertingTags.map(t => t.tag).join(", ") + '</span>' : ''}
+      </div>`;
+    } else if (fbEl) {
+      fbEl.innerHTML = '<span class="muted">Need at least 2 closed-won leads for scoring feedback.</span>';
+    }
+  } catch (e) { console.error(e); }
+}
+
+// ─── Offer Authority ────────────────────────────────────────────────────────
+async function loadOffers() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/offers`);
+    const data = await resp.json();
+    const statsEl = document.getElementById("offerStats");
+    const guardEl = document.getElementById("offerGuardrails");
+    if (!data.ok) return;
+    const s = data.stats;
+    if (statsEl && s) {
+      statsEl.innerHTML = `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${s.total}</div><div class="muted" style="font-size:11px;">Offers Made</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:var(--primary);">${s.acceptRate}%</div><div class="muted" style="font-size:11px;">Accept Rate</div></div>
+          <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${s.currency} ${s.totalRevenue.toLocaleString()}</div><div class="muted" style="font-size:11px;">Revenue from Offers</div></div>
+        </div>
+        ${s.bestStrategy ? '<div class="muted" style="font-size:12px;margin-top:8px;">Best strategy: <strong>' + s.bestStrategy.strategy.replace(/_/g, ' ') + '</strong> (' + s.bestStrategy.rate + '% accept)</div>' : ''}`;
+    }
+    const g = data.guardrails;
+    if (guardEl && g) {
+      guardEl.innerHTML = `<div class="muted" style="margin-top:8px;">Guardrails: max ${g.maxDiscountPct}% off • min score ${g.minLeadScore} • base ${g.currency} ${g.basePrice} • max ${g.maxOffersPerLead} per lead${g.allowPaymentPlan ? ' • payment plans allowed' : ''}</div>`;
+    }
+  } catch (e) { console.error(e); }
+}
+
+// ─── Self-Healing ────────────────────────────────────────────────────────────
+async function loadHealth() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/health`);
+    const data = await resp.json();
+    const checksEl = document.getElementById("healthChecks");
+    const actionsEl = document.getElementById("healingActions");
+    if (!data.ok) return;
+    if (checksEl) {
+      if (data.checks.length === 0) {
+        checksEl.innerHTML = '<span class="muted">Not enough data yet. Features need at least 5-10 messages to generate health metrics.</span>';
+      } else {
+        checksEl.innerHTML = data.checks.map(c => {
+          const icon = c.healthy ? '✅' : '⚠️';
+          const color = c.healthy ? 'var(--primary)' : 'var(--danger)';
+          return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
+            <span>${icon} ${c.feature.replace(/_/g, ' ')}</span>
+            <span style="color:${color};font-weight:600;">${(c.rate * 100).toFixed(1)}% response (${c.conversions}/${c.sent})</span>
+          </div>`;
+        }).join("");
+      }
+    }
+    if (actionsEl && data.suggestedActions) {
+      if (data.suggestedActions.length === 0) {
+        actionsEl.innerHTML = "";
+      } else {
+        actionsEl.innerHTML = '<strong style="font-size:12px;">Suggested fixes:</strong>' +
+          data.suggestedActions.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="wrench" style="width:12px;height:12px;vertical-align:middle;"></i> ${a.detail}</div>`).join("");
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+  } catch (e) { console.error(e); }
+}
+
+const healNowBtn = document.getElementById("healNowBtn");
+if (healNowBtn) {
+  healNowBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/health/heal`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        alert(data.applied > 0 ? `Applied ${data.applied} healing fixes.` : "All workflows are healthy!");
+        loadHealth();
+      }
+    } catch (e) { console.error(e); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── WhatsApp Alerts & Reports Logic ────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadAlerts() {
+  if (!currentWorkspace || !authToken) return;
+  const wsId = currentWorkspace.id;
+
+  // Load alert config
+  try {
+    const resp = await apiFetch(`/api/workspaces/${wsId}/agent/alerts/config`);
+    const data = await resp.json();
+    if (data.ok) {
+      renderAlertConfig(data);
+      renderAlertEvents(data.allEvents || [], data.events || []);
+    }
+  } catch (e) { console.error("Alert config load error:", e); }
+
+  loadAlertHistory();
+}
+
+function renderAlertConfig(cfg) {
+  const operatorInput   = document.getElementById("alertOperator");
+  const intervalInput   = document.getElementById("alertReportInterval");
+  const toggle          = document.getElementById("alertEnabledToggle");
+  const label           = document.getElementById("alertEnabledLabel");
+
+  if (operatorInput)  operatorInput.value  = cfg.operator || "";
+  if (intervalInput)  intervalInput.value  = cfg.reportInterval || 1;
+  if (toggle) {
+    toggle.checked = cfg.enabled;
+    if (label) {
+      label.textContent = cfg.enabled ? "ON" : "OFF";
+      label.className   = `toggle-status-label ${cfg.enabled ? "on" : "off"}`;
+    }
+  }
+}
+
+function renderAlertEvents(allEvents, enabledEvents) {
+  const container = document.getElementById("alertEventsList");
+  if (!container) return;
+  if (!allEvents || allEvents.length === 0) {
+    container.innerHTML = '<span class="muted">No event types available.</span>';
+    return;
+  }
+  container.innerHTML = allEvents.map(ev => {
+    const isOn = enabledEvents.includes(ev.key);
+    return `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--panel-border);">
+        <div style="flex:1;">
+          <span style="font-size:16px;margin-right:6px;">${ev.emoji}</span>
+          <strong style="font-size:13px;">${ev.label}</strong>
+          <p class="muted" style="font-size:11px;margin:2px 0 0 26px;">${ev.description}</p>
+        </div>
+        <label class="toggle-switch" style="flex-shrink:0;">
+          <input type="checkbox" ${isOn ? "checked" : ""} data-event-key="${ev.key}" class="alert-event-toggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    `;
+  }).join("");
+}
+
+async function loadAlertHistory() {
+  if (!currentWorkspace) return;
+  try {
+    const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/alerts/history`);
+    const data = await resp.json();
+    const container = document.getElementById("alertHistory");
+    if (!container || !data.ok) return;
+    if (!data.history || data.history.length === 0) {
+      container.innerHTML = '<span class="muted">No alerts sent yet. Configure your operator number and enable alerts to start receiving notifications.</span>';
+      return;
+    }
+    container.innerHTML = data.history.map(h => {
+      const time = new Date(h.at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      const icon = h.ok ? "✅" : "❌";
+      const msg = h.message || h.error || "";
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
+        <span>${icon} <span class="muted">${time}</span> — ${msg}</span>
+        <span style="font-size:11px;color:var(--muted);">${h.kind || ""}</span>
+      </div>`;
+    }).join("");
+  } catch (e) { console.error(e); }
+}
+
+// Alert config form submit
+const alertConfigForm = document.getElementById("alertConfigForm");
+if (alertConfigForm) {
+  alertConfigForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!currentWorkspace) return;
+    const operator   = document.getElementById("alertOperator")?.value?.trim() || "";
+    const reportInterval = Number(document.getElementById("alertReportInterval")?.value || 1);
+    const enabled    = document.getElementById("alertEnabledToggle")?.checked || false;
+
+    // Collect enabled events
+    const events = [];
+    document.querySelectorAll(".alert-event-toggle").forEach(cb => {
+      if (cb.checked) events.push(cb.dataset.eventKey);
+    });
+
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/alerts/config`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, operator, events, reportInterval }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        renderAlertConfig(data);
+        renderAlertEvents(data.allEvents, data.events);
+        alert("Alert settings saved!");
+      } else {
+        alert(data.error || "Failed to save");
+      }
+    } catch (e) { console.error(e); alert("Error saving alert config"); }
+  });
+}
+
+// Alert master toggle instant feedback
+const alertEnabledToggle = document.getElementById("alertEnabledToggle");
+if (alertEnabledToggle) {
+  alertEnabledToggle.addEventListener("change", () => {
+    const label = document.getElementById("alertEnabledLabel");
+    if (label) {
+      label.textContent = alertEnabledToggle.checked ? "ON" : "OFF";
+      label.className   = `toggle-status-label ${alertEnabledToggle.checked ? "on" : "off"}`;
+    }
+  });
+}
+
+// Send test alert
+const sendTestAlertBtn = document.getElementById("sendTestAlertBtn");
+if (sendTestAlertBtn) {
+  sendTestAlertBtn.addEventListener("click", async () => {
+    if (!currentWorkspace) return;
+    sendTestAlertBtn.disabled = true;
+    sendTestAlertBtn.textContent = "Sending...";
+    try {
+      const resp = await apiFetch(`/api/workspaces/${currentWorkspace.id}/agent/alerts/test`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const data = await resp.json();
+      alert(data.ok ? "Test alert sent to your WhatsApp!" : (data.error || "Failed"));
+    } catch (e) { alert("Error: " + e.message); }
+    sendTestAlertBtn.disabled = false;
+    sendTestAlertBtn.innerHTML = '<i data-lucide="bell-ring"></i> Send Test Alert';
+    if (window.lucide) window.lucide.createIcons();
+  });
+}
+
+const refreshAlertsBtn = document.getElementById("refreshAlertsBtn");
+if (refreshAlertsBtn) {
+  refreshAlertsBtn.addEventListener("click", loadAlerts);
+}
+
+// ─── Refresh Agent ───────────────────────────────────────────────────────────
+const refreshAgentBtn = document.getElementById("refreshAgentBtn");
+if (refreshAgentBtn) {
+  refreshAgentBtn.addEventListener("click", loadAgent);
 }

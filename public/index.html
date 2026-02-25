@@ -70,6 +70,15 @@
       <button class="nav-item" data-view="leads">
         <i data-lucide="users"></i> Leads
       </button>
+      <button class="nav-item" data-view="automation">
+        <i data-lucide="bot"></i> Automation
+      </button>
+      <button class="nav-item" data-view="agent">
+        <i data-lucide="brain"></i> Agent
+      </button>
+      <button class="nav-item" data-view="alerts">
+        <i data-lucide="bell-ring"></i> Alerts
+      </button>
     </div>
 
     <div class="sidebar-footer">
@@ -497,6 +506,26 @@
             </div>
           </div>
 
+          <div class="span-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label class="eyebrow" style="font-size:11px;">Upload Media (images, audio, docs)</label>
+              <input type="file" id="mediaFileInput" />
+              <div style="display:flex;gap:8px;">
+                <button id="uploadMediaBtn" class="btn">Upload</button>
+                <span id="uploadResult" class="muted" style="font-size:12px;align-self:center;"></span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <label class="eyebrow" style="font-size:11px;">Select Uploaded Media</label>
+              <select id="mediaListSelect">
+                <option value="">(none)</option>
+              </select>
+              <label style="font-size:11px;margin-top:6px;">Schedule send</label>
+              <input type="datetime-local" id="sendAtInput" />
+            </div>
+          </div>
+
           <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
               <span>Launching Campaign sequence...</span>
@@ -510,6 +539,64 @@
           <button type="submit" class="btn accent span-2" style="height: 60px; font-size: 18px; width: 100%;">🚀 Launch
             Dual-Message Campaign</button>
         </form>
+      </section>
+
+      <!-- Scheduled Messages Queue -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">📋 Scheduled Queue</h2>
+          <button id="refreshSchedulesBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Message</th>
+                <th>Media</th>
+                <th>Send At</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="schedulesTableBody">
+              <!-- Scheduled items injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div id="schedulesEmpty" class="muted" style="text-align: center; padding: 24px; display: none;">
+          No scheduled messages yet. Use <strong>Schedule send</strong> above to queue one.
+        </div>
+      </section>
+
+      <!-- Media Library -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">📁 Media Library</h2>
+          <button id="refreshMediaBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Filename</th>
+                <th>Type</th>
+                <th>Uploaded</th>
+                <th>ID</th>
+              </tr>
+            </thead>
+            <tbody id="mediaTableBody">
+              <!-- Media items injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div id="mediaEmpty" class="muted" style="text-align: center; padding: 24px; display: none;">
+          No media uploaded yet. Use <strong>Upload Media</strong> above to add files.
+        </div>
       </section>
     </div>
 
@@ -592,6 +679,258 @@
         </div>
       </section>
     </div>
+
+    <!-- ─── Automation View ────────────────────────────────────── -->
+    <div class="view-container" id="automationView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Autonomous Engine</p>
+          <h1>Automation Hub</h1>
+          <p class="subtitle muted" style="margin-top: 8px;">10 autonomous features that run on autopilot.</p>
+        </div>
+        <button id="refreshAutomationBtn" class="btn primary">
+          <i data-lucide="refresh-cw"></i> Refresh
+        </button>
+      </section>
+
+      <!-- Feature toggles -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin-bottom: 16px;"><i data-lucide="toggle-right" style="width:18px;height:18px;vertical-align:middle;"></i> Feature Toggles</h3>
+        <p class="muted" style="margin-bottom: 16px; font-size: 13px;">Toggle autonomous features on/off. Changes are saved instantly to workspace config.</p>
+        <div id="automationToggles" class="automation-grid">
+          <!-- Injected by JS -->
+        </div>
+      </section>
+
+      <!-- Nurture Drip -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="droplets" style="width:18px;height:18px;vertical-align:middle;"></i> Nurture Drip</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Multi-day automated sequences. Enroll leads to start dripping.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+          <button id="enrollAllDripBtn" class="btn primary" style="font-size:13px;"><i data-lucide="users"></i> Enroll All Leads</button>
+        </div>
+        <div id="dripSteps" style="margin-top:12px;font-size:13px;" class="muted"></div>
+      </section>
+
+      <!-- A/B Testing -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="split" style="width:18px;height:18px;vertical-align:middle;"></i> A/B Testing</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Test message variants and auto-pick the winner.</p>
+        <form id="abTestForm" style="margin-top:12px;">
+          <input type="text" id="abTestName" placeholder="Test name" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--panel-bg);color:var(--text-primary);" />
+          <textarea id="abTestVariants" rows="4" placeholder="Enter variants, one per line (min 2)" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--panel-bg);color:var(--text-primary);resize:vertical;font-family:inherit;"></textarea>
+          <button type="submit" class="btn primary" style="font-size:13px;"><i data-lucide="play"></i> Start Test</button>
+        </form>
+        <div id="abTestResults" style="margin-top:12px;font-size:13px;"></div>
+      </section>
+
+      <!-- Daily Digest Preview -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="newspaper" style="width:18px;height:18px;vertical-align:middle;"></i> Daily Digest</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Preview what the daily summary looks like.</p>
+        <button id="previewDigestBtn" class="btn" style="font-size:13px;margin-top:8px;"><i data-lucide="eye"></i> Preview Digest</button>
+        <pre id="digestPreview" style="margin-top:12px;font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;padding:12px;background:var(--preview-bg);border-radius:var(--radius-sm);display:none;"></pre>
+      </section>
+
+      <!-- Lead Routing -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="git-branch" style="width:18px;height:18px;vertical-align:middle;"></i> Lead Routing</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Auto-assigned routes based on score/stage.</p>
+        <div id="routingTable" style="margin-top:12px;font-size:13px;max-height:300px;overflow-y:auto;"></div>
+      </section>
+
+      <!-- Escalation -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="alert-triangle" style="width:18px;height:18px;vertical-align:middle;"></i> Escalations</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Leads needing human intervention.</p>
+        <button id="checkEscalationBtn" class="btn" style="font-size:13px;margin-top:8px;"><i data-lucide="scan"></i> Check Now</button>
+        <div id="escalationList" style="margin-top:12px;font-size:13px;"></div>
+      </section>
+
+      <!-- Tags -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="tags" style="width:18px;height:18px;vertical-align:middle;"></i> Auto Tags & Segments</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">AI-assigned tags based on conversations.</p>
+        <div id="tagsTable" style="margin-top:12px;font-size:13px;max-height:300px;overflow-y:auto;"></div>
+      </section>
+
+      <!-- Objection Tester -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="shield" style="width:18px;height:18px;vertical-align:middle;"></i> Objection Recovery</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Test how the system handles objections.</p>
+        <form id="objectionTestForm" style="margin-top:12px;">
+          <input type="text" id="objectionInput" placeholder="Type an objection, e.g. 'too expensive'" style="width:100%;margin-bottom:8px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--panel-bg);color:var(--text-primary);" />
+          <button type="submit" class="btn" style="font-size:13px;"><i data-lucide="zap"></i> Test Rebuttal</button>
+        </form>
+        <div id="objectionResult" style="margin-top:12px;font-size:13px;"></div>
+      </section>
+
+      <!-- Timezone -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="clock" style="width:18px;height:18px;vertical-align:middle;"></i> Timezone Intelligence</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Messages are sent during optimal hours per lead's timezone.</p>
+        <div id="timezoneInfo" style="margin-top:12px;font-size:13px;" class="muted">Enable this feature and the system will auto-detect timezones from phone prefixes.</div>
+      </section>
+    </div>
+
+    <!-- ─── Agent View ─────────────────────────────────────────── -->
+    <div class="view-container" id="agentView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Autonomous Agent</p>
+          <h1>Sales Agent Brain</h1>
+          <p class="subtitle muted" style="margin-top: 8px;">Self-driving sales engine — outbound, goals, tuning, offers, revenue & self-healing.</p>
+        </div>
+        <button id="refreshAgentBtn" class="btn primary">
+          <i data-lucide="refresh-cw"></i> Refresh
+        </button>
+      </section>
+
+      <!-- Agent Feature Toggles -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin-bottom: 16px;"><i data-lucide="toggle-right" style="width:18px;height:18px;vertical-align:middle;"></i> Agent Feature Toggles</h3>
+        <p class="muted" style="margin-bottom: 8px; font-size: 13px;">Toggle the autonomous agent brain features.</p>
+        <div class="agent-master-controls">
+          <button id="agentAllOnBtn" class="btn primary"><i data-lucide="power"></i> All On</button>
+          <button id="agentAllOffBtn" class="btn"><i data-lucide="power-off"></i> All Off</button>
+        </div>
+        <div id="agentToggles" class="automation-grid"></div>
+      </section>
+
+      <!-- Goal Planner -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="target" style="width:18px;height:18px;vertical-align:middle;"></i> Goal Planner</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Set a weekly sales target and the agent auto-adjusts strategies.</p>
+        <form id="goalForm" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+          <div style="flex:1;min-width:120px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Goal Type</label>
+            <select id="goalType" style="width:100%;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);">
+              <option value="bookings">Book calls</option>
+              <option value="hot_leads">Hot leads</option>
+              <option value="qualified">Qualify leads</option>
+              <option value="replies">Get replies</option>
+              <option value="revenue">Close revenue</option>
+            </select>
+          </div>
+          <div style="min-width:80px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Weekly Target</label>
+            <input type="number" id="goalTarget" min="1" value="5" style="width:80px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);" />
+          </div>
+          <button type="submit" class="btn primary" style="font-size:13px;"><i data-lucide="flag"></i> Set Goal</button>
+        </form>
+        <div id="goalProgress" style="margin-top:16px;"></div>
+        <div id="goalAdjustments" style="margin-top:8px;font-size:12px;"></div>
+      </section>
+
+      <!-- Outbound Prospecting -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="send" style="width:18px;height:18px;vertical-align:middle;"></i> Outbound Prospecting</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Agent auto-contacts the highest-opportunity leads.</p>
+        <div id="outboundStats" style="margin-top:12px;font-size:13px;"></div>
+        <div id="outboundQueue" style="margin-top:12px;font-size:13px;max-height:280px;overflow-y:auto;"></div>
+      </section>
+
+      <!-- Prompt Tuning -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="sliders" style="width:18px;height:18px;vertical-align:middle;"></i> Prompt Self-Tuning</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">AI analyses reply rates and auto-adjusts tone, closing style & aggressiveness.</p>
+        <div id="tuningMetrics" style="margin-top:12px;font-size:13px;"></div>
+        <div id="tuningRecommendations" style="margin-top:8px;font-size:12px;"></div>
+        <button id="applyTuningBtn" class="btn" style="font-size:13px;margin-top:12px;"><i data-lucide="wand-2"></i> Apply Tuning Now</button>
+      </section>
+
+      <!-- Revenue Attribution -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="dollar-sign" style="width:18px;height:18px;vertical-align:middle;"></i> Revenue Attribution</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Track deal values and see ROI per channel.</p>
+        <form id="revenueForm" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
+          <div style="flex:1;min-width:140px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Lead ID</label>
+            <select id="revLeadId" style="width:100%;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);"></select>
+          </div>
+          <div style="min-width:100px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Amount</label>
+            <input type="number" id="revAmount" min="1" placeholder="500" style="width:100px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);" />
+          </div>
+          <button type="submit" class="btn primary" style="font-size:13px;"><i data-lucide="plus"></i> Record</button>
+        </form>
+        <div id="revenueAttribution" style="margin-top:16px;font-size:13px;"></div>
+        <div id="scoringFeedback" style="margin-top:8px;font-size:12px;"></div>
+      </section>
+
+      <!-- Offer Authority -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="badge-percent" style="width:18px;height:18px;vertical-align:middle;"></i> Offer Authority</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">AI auto-generates discounts within your guardrails.</p>
+        <div id="offerStats" style="margin-top:12px;font-size:13px;"></div>
+        <div id="offerGuardrails" style="margin-top:8px;font-size:12px;"></div>
+      </section>
+
+      <!-- Self-Healing -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="heart-pulse" style="width:18px;height:18px;vertical-align:middle;"></i> Self-Healing Workflows</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Monitors all features and auto-fixes underperformance.</p>
+        <div id="healthChecks" style="margin-top:12px;font-size:13px;"></div>
+        <button id="healNowBtn" class="btn" style="font-size:13px;margin-top:12px;"><i data-lucide="activity"></i> Run Health Check</button>
+        <div id="healingActions" style="margin-top:8px;font-size:12px;"></div>
+      </section>
+    </div>
+
+    <!-- ─── Alerts View ───────────────────────────────────────────────── -->
+    <div class="view-container" id="alertsView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">Notifications</p>
+          <h1>WhatsApp Alerts & Reports</h1>
+          <p class="subtitle muted" style="margin-top: 8px;">Get real-time alerts and daily auto-reports sent to your WhatsApp.</p>
+        </div>
+        <button id="refreshAlertsBtn" class="btn primary">
+          <i data-lucide="refresh-cw"></i> Refresh
+        </button>
+      </section>
+
+      <!-- Alert Configuration -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="settings" style="width:18px;height:18px;vertical-align:middle;"></i> Alert Settings</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Configure your operator number and choose which events trigger alerts.</p>
+        <form id="alertConfigForm" style="margin-top:12px;">
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Operator WhatsApp Number</label>
+            <input type="text" id="alertOperator" placeholder="e.g. 255712345678" style="width:100%;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);" />
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Report Interval (hours)</label>
+            <input type="number" id="alertReportInterval" min="1" max="24" value="1" style="width:80px;padding:8px;border:1px solid var(--panel-border);border-radius:var(--radius-sm);background:var(--input-bg);color:var(--ink);" />
+            <p class="muted" style="font-size:11px;margin-top:4px;">Send summary report every N hours (1 = hourly, 24 = daily)</p>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:8px;">Master Switch</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="alertEnabledToggle" />
+              <span class="toggle-slider"></span>
+              <span class="toggle-status-label off" id="alertEnabledLabel">OFF</span>
+            </label>
+          </div>
+          <button type="submit" class="btn primary" style="font-size:13px;"><i data-lucide="save"></i> Save Settings</button>
+          <button type="button" id="sendTestAlertBtn" class="btn" style="font-size:13px;margin-left:8px;"><i data-lucide="bell-ring"></i> Send Test Alert</button>
+        </form>
+      </section>
+
+      <!-- Event Subscriptions -->
+      <section class="panel" style="grid-column: span 6;">
+        <h3><i data-lucide="list-checks" style="width:18px;height:18px;vertical-align:middle;"></i> Alert Events</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Choose which events send you a WhatsApp notification.</p>
+        <div id="alertEventsList" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- Alert History -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3><i data-lucide="history" style="width:18px;height:18px;vertical-align:middle;"></i> Alert History</h3>
+        <p class="muted" style="font-size:13px; margin: 8px 0;">Recent alerts sent to your WhatsApp.</p>
+        <div id="alertHistory" style="margin-top:12px;font-size:13px;max-height:400px;overflow-y:auto;"></div>
+      </section>
+    </div>
+
   </main>
 
   <!-- ─── Chat History Modal ───────────────────────────────────── -->

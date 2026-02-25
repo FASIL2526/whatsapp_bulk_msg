@@ -12,6 +12,7 @@ Web app to manage WhatsApp Web automation:
 - message template strategies (single / rotate / random)
 - run scheduled bulk sends with cron
 - automation replies (exact, contains, or multi-rule list)
+- booking agent (slot offering, auto-book confirm, reminders, no-show follow-up)
 - reports dashboard (summary, recent logs, CSV export)
 - Excel/CSV recipient import (append or replace)
 - connect timer with wait guidance while WhatsApp starts
@@ -79,3 +80,14 @@ CHROME_BUILD_ID=145.0.7632.77
 
 - Uses unofficial WhatsApp Web automation (`whatsapp-web.js`).
 - Avoid spam and follow WhatsApp policies.
+
+## Booking Agent API
+
+Set Booking + Google Calendar env keys in `.env` first, then use:
+
+- `GET /api/workspaces/:workspaceId/bookings`
+- `POST /api/workspaces/:workspaceId/booking/intent`
+- `GET /api/workspaces/:workspaceId/booking/slots?tz=UTC`
+- `POST /api/workspaces/:workspaceId/booking/confirm`
+- `POST /api/workspaces/:workspaceId/booking/cancel`
+- `POST /api/workspaces/:workspaceId/booking/reminder-sweep`

@@ -44,6 +44,51 @@ const DEFAULT_CONFIG = {
   AI_FOLLOW_UP_DELAY_MINUTES: "180",
   AI_FOLLOW_UP_MAX_ATTEMPTS: "3",
   AI_FOLLOW_UP_TEMPLATE: "Quick follow-up: still interested in solving this now?",
+
+  // ─── Autonomous features ───────────────────────────────────────────────
+  NURTURE_DRIP_ENABLED: "false",
+  NURTURE_DRIP_STEPS: "",
+  AUTO_REENGAGE_ENABLED: "false",
+  AUTO_REENGAGE_STALE_DAYS: "3",
+  AUTO_REENGAGE_MAX_ATTEMPTS: "2",
+  AUTO_ESCALATION_ENABLED: "false",
+  AUTO_ESCALATION_OPERATOR: "",
+  AUTO_LEAD_ROUTING_ENABLED: "false",
+  AB_TEST_ENABLED: "false",
+  AB_TEST_MIN_SENDS: "30",
+  AUTO_DAILY_DIGEST_ENABLED: "false",
+  AUTO_DAILY_DIGEST_OPERATOR: "",
+  AUTO_DAILY_DIGEST_HOUR: "9",
+  AUTO_OBJECTION_ENABLED: "false",
+  AUTO_CLEANUP_ENABLED: "false",
+  AUTO_CLEANUP_STALE_DAYS: "30",
+  AUTO_TIMEZONE_ENABLED: "false",
+  AUTO_TAGGING_ENABLED: "false",
+
+  // ─── Agentic features (v2) ──────────────────────────────────────────────
+  OUTBOUND_PROSPECTING_ENABLED: "false",
+  OUTBOUND_MAX_DAILY: "20",
+  OUTBOUND_COOLDOWN_HOURS: "6",
+  OUTBOUND_TEMPLATE: "",
+  GOAL_PLANNER_ENABLED: "false",
+  GOAL_TYPE: "bookings",
+  GOAL_WEEKLY_TARGET: "5",
+  PROMPT_TUNING_ENABLED: "false",
+  OFFER_AUTHORITY_ENABLED: "false",
+  OFFER_MAX_DISCOUNT_PCT: "15",
+  OFFER_MIN_LEAD_SCORE: "60",
+  OFFER_BASE_PRICE: "0",
+  OFFER_CURRENCY: "USD",
+  OFFER_ALLOW_PAYMENT_PLAN: "false",
+  OFFER_MAX_PER_LEAD: "2",
+  OFFER_URGENCY_WINDOW: "48 hours",
+  SELF_HEALING_ENABLED: "false",
+
+  // ─── WhatsApp Alerts & Auto-Reports ─────────────────────────────────────
+  WHATSAPP_ALERTS_ENABLED: "false",
+  WHATSAPP_ALERTS_OPERATOR: "",
+  WHATSAPP_ALERTS_EVENTS: "new_lead,hot_lead,human_requested,booking_confirmed,escalation,closed_won,ai_error,daily_report",
+  WHATSAPP_ALERTS_REPORT_INTERVAL_HRS: "1",
 };
 
 module.exports = {

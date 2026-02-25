@@ -872,3 +872,132 @@ textarea::placeholder {
     padding: 16px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Automation Hub Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.automation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.automation-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.automation-card.enabled {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary-glow);
+}
+.automation-card .toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}
+.toggle-switch input[type="checkbox"] {
+  display: none;
+}
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--panel-border);
+  border-radius: 12px;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+.toggle-slider::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+input[type="checkbox"]:checked + .toggle-slider {
+  background: var(--primary);
+}
+input[type="checkbox"]:checked + .toggle-slider::after {
+  transform: translateX(20px);
+}
+.toggle-status-label {
+  font-weight: 600;
+  min-width: 24px;
+}
+.toggle-status-label.on  { color: var(--primary); }
+.toggle-status-label.off { color: var(--muted); }
+
+/* Master toggle buttons */
+.agent-master-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.agent-master-controls .btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#automationView .panel {
+  margin-bottom: 20px;
+}
+
+#automationView h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#automationView .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#abTestForm textarea,
+#objectionTestForm textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  font-family: var(--font-main);
+  font-size: 13px;
+  padding: 10px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+#digestPreview {
+  display: none;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--import-bg);
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  font-size: 13px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .automation-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
