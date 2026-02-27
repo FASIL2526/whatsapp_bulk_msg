@@ -1,18 +1,19 @@
 /* ─── Billing Routes ────────────────────────────────────────────────────────
  *  Plan management, usage dashboard, subscription lifecycle.
+ *  Plans are per-user, not per-workspace.
  * ─────────────────────────────────────────────────────────────────────────── */
 
 const { Router } = require("express");
 const { requireWorkspace } = require("../middleware/auth");
-const { store, saveStore } = require("../models/store");
+const { store, saveStore, getUserById } = require("../models/store");
 const {
   getAllPlans,
   getPlanSummary,
-  setWorkspacePlan,
+  setUserPlan,
   startTrial,
   cancelPlan,
-  getWorkspacePlan,
-  getWorkspaceUsage,
+  getUserPlan,
+  getUserUsage,
 } = require("../services/plan.service");
 
 const router = Router();
@@ -22,22 +23,24 @@ router.get("/plans", (_req, res) => {
   res.json({ ok: true, plans: getAllPlans() });
 });
 
-// ─── Workspace plan summary (current plan + usage) ────────────────────────
+// ─── User plan summary (current plan + usage) ─────────────────────────────
 router.get("/:workspaceId/billing", (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
-  res.json({ ok: true, ...getPlanSummary(workspace) });
+  const user = req.user;
+  res.json({ ok: true, ...getPlanSummary(user, workspace) });
 });
 
-// ─── Change plan (admin only) ─────────────────────────────────────────────
+// ─── Change plan (user-level) ─────────────────────────────────────────────
 router.post("/:workspaceId/billing/plan", (req, res) => {
   const workspace = requireWorkspace(req, res, "owner");
   if (!workspace) return;
+  const user = req.user;
   const { planId, paymentMethod, billingEmail } = req.body || {};
   if (!planId) return res.status(400).json({ ok: false, error: "planId is required." });
 
   try {
-    const plan = setWorkspacePlan(workspace, planId, {
+    const plan = setUserPlan(user, planId, {
       paymentMethod: paymentMethod || "manual",
       billingEmail: billingEmail || null,
       lastPaymentAt: new Date().toISOString(),
@@ -52,15 +55,16 @@ router.post("/:workspaceId/billing/plan", (req, res) => {
 router.post("/:workspaceId/billing/trial", (req, res) => {
   const workspace = requireWorkspace(req, res, "owner");
   if (!workspace) return;
+  const user = req.user;
   const planId = req.body?.planId || "pro";
 
   // Prevent multiple trials
-  if (workspace.plan?.trialEndsAt) {
-    return res.status(400).json({ ok: false, error: "Trial already used for this workspace." });
+  if (user.plan?.trialEndsAt) {
+    return res.status(400).json({ ok: false, error: "Trial already used for this account." });
   }
 
   try {
-    const plan = startTrial(workspace, planId);
+    const plan = startTrial(user, planId);
     res.json({ ok: true, plan, message: `${plan.name} trial started! Ends at ${plan.trialEndsAt}.` });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -71,52 +75,65 @@ router.post("/:workspaceId/billing/trial", (req, res) => {
 router.post("/:workspaceId/billing/cancel", (req, res) => {
   const workspace = requireWorkspace(req, res, "owner");
   if (!workspace) return;
+  const user = req.user;
   try {
-    const plan = cancelPlan(workspace);
+    const plan = cancelPlan(user);
     res.json({ ok: true, plan, message: "Subscription cancelled. You'll be downgraded to Free at the end of the billing cycle." });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
 });
 
-// ─── Super admin: all workspace billing overview ──────────────────────────
+// ─── Super admin: billing overview ────────────────────────────────────────
 router.get("/admin/billing/overview", (req, res) => {
-  // Only bootstrap admin can see this
   const adminUsername = (process.env.ADMIN_USERNAME || "admin").toLowerCase();
   if (req.user?.username !== adminUsername) {
     return res.status(403).json({ ok: false, error: "Super admin access required." });
   }
 
-  const overview = store.workspaces.map(ws => {
-    const plan = getWorkspacePlan(ws);
-    const usage = ws._usage || {};
+  // Build per-user overview (plans are on users now)
+  const usersOverview = store.users.map(u => {
+    const plan = getUserPlan(u);
+    const usage = u._usage || {};
+    const userWorkspaces = store.workspaces.filter(ws =>
+      (ws.members || []).some(m => m.userId === u.id)
+    );
     return {
-      id: ws.id,
-      name: ws.name,
+      id: u.id,
+      username: u.username,
       plan: plan.id,
       planName: plan.name,
-      status: ws.plan?.status || "active",
-      trialEndsAt: ws.plan?.trialEndsAt || null,
+      status: u.plan?.status || "active",
+      trialEndsAt: u.plan?.trialEndsAt || null,
       messagesSent: usage.messagesSent || 0,
       aiCalls: usage.aiCalls || 0,
-      leads: (ws.leads || []).length,
-      members: (ws.members || []).length,
-      createdAt: ws.createdAt,
+      workspaceCount: userWorkspaces.length,
+      createdAt: u.createdAt,
     };
   });
 
-  const totalRevenue = overview.reduce((sum, ws) => {
-    const plan = getAllPlans().find(p => p.id === ws.plan);
-    return sum + (ws.status === "active" ? (plan?.price || 0) : 0);
+  const totalRevenue = usersOverview.reduce((sum, u) => {
+    const plan = getAllPlans().find(p => p.id === u.plan);
+    return sum + (u.status === "active" ? (plan?.price || 0) : 0);
   }, 0);
+
+  // Basic workspace info for admin panel
+  const workspacesOverview = store.workspaces.map(ws => ({
+    id: ws.id,
+    name: ws.name,
+    members: (ws.members || []).length,
+    leads: (ws.leads || []).length,
+    createdAt: ws.createdAt,
+  }));
 
   res.json({
     ok: true,
-    totalWorkspaces: overview.length,
+    totalWorkspaces: store.workspaces.length,
     totalUsers: store.users.length,
     monthlyRevenue: totalRevenue,
     currency: "USD",
-    workspaces: overview,
+    users: usersOverview,
+    workspaces: workspacesOverview,
   });
 });
 
@@ -130,14 +147,20 @@ function isSuperAdmin(req) {
 router.get("/admin/users", (req, res) => {
   if (!isSuperAdmin(req)) return res.status(403).json({ ok: false, error: "Super admin access required." });
 
-  const users = store.users.map(u => ({
-    id: u.id,
-    username: u.username,
-    createdAt: u.createdAt,
-    workspaces: store.workspaces
-      .filter(ws => (ws.members || []).some(m => m.userId === u.id))
-      .map(ws => ({ id: ws.id, name: ws.name, role: (ws.members || []).find(m => m.userId === u.id)?.role })),
-  }));
+  const users = store.users.map(u => {
+    const plan = getUserPlan(u);
+    return {
+      id: u.id,
+      username: u.username,
+      plan: plan.id,
+      planName: plan.name,
+      planStatus: u.plan?.status || "active",
+      createdAt: u.createdAt,
+      workspaces: store.workspaces
+        .filter(ws => (ws.members || []).some(m => m.userId === u.id))
+        .map(ws => ({ id: ws.id, name: ws.name, role: (ws.members || []).find(m => m.userId === u.id)?.role })),
+    };
+  });
   res.json({ ok: true, users });
 });
 
@@ -159,45 +182,43 @@ router.delete("/admin/users/:userId", (req, res) => {
   res.json({ ok: true, removed: removed.username });
 });
 
-// ─── Super admin: change a workspace's plan ───────────────────────────────
-router.post("/admin/workspaces/:workspaceId/plan", (req, res) => {
+// ─── Super admin: change a user's plan ────────────────────────────────────
+router.post("/admin/users/:userId/plan", (req, res) => {
   if (!isSuperAdmin(req)) return res.status(403).json({ ok: false, error: "Super admin access required." });
 
-  const { getWorkspace } = require("../models/store");
-  const workspace = getWorkspace(req.params.workspaceId);
-  if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found." });
+  const user = getUserById(req.params.userId);
+  if (!user) return res.status(404).json({ ok: false, error: "User not found." });
 
   const { planId } = req.body || {};
   if (!planId) return res.status(400).json({ ok: false, error: "planId is required." });
 
   try {
-    const plan = setWorkspacePlan(workspace, planId, {
+    const plan = setUserPlan(user, planId, {
       paymentMethod: "admin_override",
       lastPaymentAt: new Date().toISOString(),
     });
-    res.json({ ok: true, plan, message: `Workspace ${workspace.name} set to ${plan.name}.` });
+    res.json({ ok: true, plan, message: `User ${user.username} set to ${plan.name}.` });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
 });
 
-// ─── Super admin: reset workspace usage counters ──────────────────────────
-router.post("/admin/workspaces/:workspaceId/reset-usage", (req, res) => {
+// ─── Super admin: reset user usage counters ───────────────────────────────
+router.post("/admin/users/:userId/reset-usage", (req, res) => {
   if (!isSuperAdmin(req)) return res.status(403).json({ ok: false, error: "Super admin access required." });
 
-  const { getWorkspace } = require("../models/store");
-  const workspace = getWorkspace(req.params.workspaceId);
-  if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found." });
+  const user = getUserById(req.params.userId);
+  if (!user) return res.status(404).json({ ok: false, error: "User not found." });
 
   const now = new Date();
-  workspace._usage = {
+  user._usage = {
     messagesSent: 0,
     aiCalls: 0,
     cycleStart: now.toISOString(),
     cycleResetAt: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
   };
   saveStore();
-  res.json({ ok: true, message: `Usage counters reset for ${workspace.name}.` });
+  res.json({ ok: true, message: `Usage counters reset for ${user.username}.` });
 });
 
 module.exports = router;

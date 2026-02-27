@@ -1,6 +1,6 @@
 /* ─── Plan / Tier Service ───────────────────────────────────────────────────
- *  Defines SaaS plans, feature gates, and workspace plan helpers.
- *  All limits are per-workspace per billing cycle (monthly).
+ *  Defines SaaS plans, feature gates, and user plan helpers.
+ *  Plans are per-user. Usage limits are per-user per billing cycle (monthly).
  * ─────────────────────────────────────────────────────────────────────────── */
 
 const { saveStore } = require("../models/store");
@@ -168,24 +168,24 @@ const PLANS = {
   },
 };
 
-// ─── Workspace plan helpers ────────────────────────────────────────────────
+// ─── User plan helpers ────────────────────────────────────────────────────────
 
-function getWorkspacePlan(workspace) {
-  const planId = workspace.plan?.id || "free";
+function getUserPlan(user) {
+  const planId = user.plan?.id || "free";
   return PLANS[planId] || PLANS.free;
 }
 
-function getWorkspaceUsage(workspace) {
-  if (!workspace._usage) {
-    workspace._usage = freshUsage();
+function getUserUsage(user) {
+  if (!user._usage) {
+    user._usage = freshUsage();
   }
   // Auto-reset if billing cycle has passed
-  const resetAt = workspace._usage.cycleResetAt;
+  const resetAt = user._usage.cycleResetAt;
   if (resetAt && new Date(resetAt).getTime() <= Date.now()) {
-    workspace._usage = freshUsage();
+    user._usage = freshUsage();
     saveStore();
   }
-  return workspace._usage;
+  return user._usage;
 }
 
 function freshUsage() {
@@ -199,15 +199,15 @@ function freshUsage() {
   };
 }
 
-function incrementUsage(workspace, key, amount = 1) {
-  const usage = getWorkspaceUsage(workspace);
+function incrementUsage(user, key, amount = 1) {
+  const usage = getUserUsage(user);
   usage[key] = (usage[key] || 0) + amount;
   saveStore();
   return usage;
 }
 
-function checkLimit(workspace, limitKey, currentValueOverride) {
-  const plan = getWorkspacePlan(workspace);
+function checkLimit(user, limitKey, currentValueOverride) {
+  const plan = getUserPlan(user);
   const limit = plan.limits[limitKey];
   if (limit === -1) return { ok: true, limit, used: 0, remaining: Infinity };
 
@@ -215,7 +215,7 @@ function checkLimit(workspace, limitKey, currentValueOverride) {
   if (currentValueOverride !== undefined) {
     used = currentValueOverride;
   } else {
-    const usage = getWorkspaceUsage(workspace);
+    const usage = getUserUsage(user);
     const usageKeyMap = {
       messagesPerMonth: "messagesSent",
       aiCallsPerMonth: "aiCalls",
@@ -227,18 +227,18 @@ function checkLimit(workspace, limitKey, currentValueOverride) {
   return { ok: used < limit, limit, used, remaining };
 }
 
-function checkFeature(workspace, featureKey) {
-  const plan = getWorkspacePlan(workspace);
+function checkFeature(user, featureKey) {
+  const plan = getUserPlan(user);
 
   // Check trial
-  if (workspace.plan?.trialEndsAt) {
-    const trialEnd = new Date(workspace.plan.trialEndsAt).getTime();
+  if (user.plan?.trialEndsAt) {
+    const trialEnd = new Date(user.plan.trialEndsAt).getTime();
     if (Date.now() <= trialEnd) {
       // During trial, all plan features are unlocked
       return plan.features[featureKey] !== undefined ? plan.features[featureKey] : false;
     }
     // Trial expired and no active subscription
-    if (workspace.plan.status !== "active") {
+    if (user.plan.status !== "active") {
       // Fall back to free plan features
       return PLANS.free.features[featureKey] || false;
     }
@@ -247,12 +247,12 @@ function checkFeature(workspace, featureKey) {
   return plan.features[featureKey] || false;
 }
 
-function setWorkspacePlan(workspace, planId, options = {}) {
+function setUserPlan(user, planId, options = {}) {
   const plan = PLANS[planId];
   if (!plan) throw new Error(`Unknown plan: ${planId}`);
 
   const now = new Date();
-  workspace.plan = {
+  user.plan = {
     id: planId,
     name: plan.name,
     status: options.status || "active",
@@ -266,12 +266,12 @@ function setWorkspacePlan(workspace, planId, options = {}) {
   };
 
   // Reset usage on plan change
-  workspace._usage = freshUsage();
+  user._usage = freshUsage();
   saveStore();
-  return workspace.plan;
+  return user.plan;
 }
 
-function startTrial(workspace, planId) {
+function startTrial(user, planId) {
   const plan = PLANS[planId];
   if (!plan) throw new Error(`Unknown plan: ${planId}`);
   if (plan.trialDays <= 0) throw new Error(`Plan ${planId} has no trial.`);
@@ -279,30 +279,30 @@ function startTrial(workspace, planId) {
   const now = new Date();
   const trialEnd = new Date(now.getTime() + plan.trialDays * 24 * 60 * 60 * 1000);
 
-  return setWorkspacePlan(workspace, planId, {
+  return setUserPlan(user, planId, {
     status: "trialing",
     trialEndsAt: trialEnd.toISOString(),
   });
 }
 
-function cancelPlan(workspace) {
-  if (!workspace.plan || workspace.plan.id === "free") {
+function cancelPlan(user) {
+  if (!user.plan || user.plan.id === "free") {
     throw new Error("No active subscription to cancel.");
   }
-  workspace.plan.status = "cancelled";
-  workspace.plan.cancelledAt = new Date().toISOString();
+  user.plan.status = "cancelled";
+  user.plan.cancelledAt = new Date().toISOString();
   saveStore();
-  return workspace.plan;
+  return user.plan;
 }
 
-function getPlanSummary(workspace) {
-  const plan = getWorkspacePlan(workspace);
-  const usage = getWorkspaceUsage(workspace);
-  const leadsCount = Array.isArray(workspace.leads) ? workspace.leads.length : 0;
-  const membersCount = Array.isArray(workspace.members) ? workspace.members.length : 0;
-  const mediaCount = Array.isArray(workspace.media) ? workspace.media.length : 0;
-  const scheduledCount = Array.isArray(workspace.scheduledMessages)
-    ? workspace.scheduledMessages.filter(s => s.status === "pending").length : 0;
+function getPlanSummary(user, workspace) {
+  const plan = getUserPlan(user);
+  const usage = getUserUsage(user);
+  const leadsCount = workspace ? (Array.isArray(workspace.leads) ? workspace.leads.length : 0) : 0;
+  const membersCount = workspace ? (Array.isArray(workspace.members) ? workspace.members.length : 0) : 0;
+  const mediaCount = workspace ? (Array.isArray(workspace.media) ? workspace.media.length : 0) : 0;
+  const scheduledCount = workspace ? (Array.isArray(workspace.scheduledMessages)
+    ? workspace.scheduledMessages.filter(s => s.status === "pending").length : 0) : 0;
 
   return {
     plan: {
@@ -312,7 +312,7 @@ function getPlanSummary(workspace) {
       currency: plan.currency,
       billing: plan.billing,
     },
-    subscription: workspace.plan || { id: "free", status: "active" },
+    subscription: user.plan || { id: "free", status: "active" },
     usage: {
       messagesSent: { used: usage.messagesSent || 0, limit: plan.limits.messagesPerMonth, label: "Messages / month" },
       aiCalls: { used: usage.aiCalls || 0, limit: plan.limits.aiCallsPerMonth, label: "AI calls / month" },
@@ -340,12 +340,12 @@ function getAllPlans() {
 
 module.exports = {
   PLANS,
-  getWorkspacePlan,
-  getWorkspaceUsage,
+  getUserPlan,
+  getUserUsage,
   incrementUsage,
   checkLimit,
   checkFeature,
-  setWorkspacePlan,
+  setUserPlan,
   startTrial,
   cancelPlan,
   getPlanSummary,

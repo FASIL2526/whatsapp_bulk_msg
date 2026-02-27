@@ -2662,7 +2662,7 @@ async function loadAdminPanel() {
 
     renderAdminKpis(overview);
     renderAdminWorkspaces(overview.workspaces || [], plansData.plans || []);
-    renderAdminUsers(usersData.users || []);
+    renderAdminUsers(usersData.users || [], plansData.plans || []);
   } catch (e) {
     console.error("Admin panel load error:", e);
   }
@@ -2697,31 +2697,51 @@ function renderAdminWorkspaces(workspaces, plans) {
   const table = document.getElementById("adminWorkspacesTable");
   if (!table) return;
 
-  const planOptions = plans.map(p => `<option value="${p.id}">${p.name} ($${p.price})</option>`).join("");
-
   let html = `<thead><tr>
-    <th>Workspace</th><th>Plan</th><th>Status</th>
-    <th>Messages</th><th>AI Calls</th><th>Leads</th><th>Members</th>
-    <th>Created</th><th>Actions</th>
+    <th>Workspace</th>
+    <th>Members</th>
+    <th>Created</th>
   </tr></thead><tbody>`;
 
   workspaces.forEach(ws => {
-    const statusClass = ws.status === "active" ? "badge-green" : ws.status === "trial" ? "badge-yellow" : "badge-red";
     html += `<tr>
       <td><strong>${escapeHtml(ws.name)}</strong><br><span class="muted" style="font-size:11px;">${ws.id}</span></td>
-      <td>${ws.planName}</td>
-      <td><span class="status-badge ${statusClass}">${ws.status}</span>${ws.trialEndsAt ? '<br><span class="muted" style="font-size:10px;">ends ' + new Date(ws.trialEndsAt).toLocaleDateString() + '</span>' : ''}</td>
-      <td>${(ws.messagesSent || 0).toLocaleString()}</td>
-      <td>${(ws.aiCalls || 0).toLocaleString()}</td>
-      <td>${ws.leads}</td>
       <td>${ws.members}</td>
       <td style="font-size:11px;">${new Date(ws.createdAt).toLocaleDateString()}</td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+function renderAdminUsers(users, plans) {
+  const table = document.getElementById("adminUsersTable");
+  if (!table) return;
+
+  const planOptions = (plans || []).map(p => `<option value="${p.id}">${p.name} ($${p.price})</option>`).join("");
+
+  let html = `<thead><tr>
+    <th>Username</th><th>User ID</th><th>Plan</th><th>Status</th><th>Workspaces</th><th>Created</th><th>Actions</th>
+  </tr></thead><tbody>`;
+
+  users.forEach(u => {
+    const wsList = (u.workspaces || []).map(w => `${escapeHtml(w.name)} (${w.role})`).join(", ") || "—";
+    const statusClass = u.planStatus === "active" ? "badge-green" : u.planStatus === "trialing" ? "badge-yellow" : "badge-red";
+    html += `<tr>
+      <td><strong>${escapeHtml(u.username)}</strong></td>
+      <td class="muted" style="font-size:11px;">${u.id}</td>
+      <td>${u.planName || 'Free'}</td>
+      <td><span class="status-badge ${statusClass}">${u.planStatus || 'active'}</span></td>
+      <td style="font-size:12px;">${wsList}</td>
+      <td style="font-size:11px;">${new Date(u.createdAt).toLocaleDateString()}</td>
       <td style="white-space:nowrap;">
-        <select id="adminPlan_${ws.id}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--panel-border);background:var(--input-bg);color:var(--ink);">
+        <select id="adminUserPlan_${u.id}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--panel-border);background:var(--input-bg);color:var(--ink);">
           ${planOptions}
         </select>
-        <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminChangePlan('${ws.id}')">Set</button>
-        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--accent);color:#fff;border:none;" onclick="adminResetUsage('${ws.id}')">Reset</button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminChangeUserPlan('${u.id}')">Set</button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--accent);color:#fff;border:none;" onclick="adminResetUserUsage('${u.id}')">Reset</button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteUser('${u.id}','${escapeHtml(u.username)}')">Delete</button>
       </td>
     </tr>`;
   });
@@ -2730,44 +2750,19 @@ function renderAdminWorkspaces(workspaces, plans) {
   table.innerHTML = html;
 
   // Set current plan in dropdowns
-  workspaces.forEach(ws => {
-    const sel = document.getElementById(`adminPlan_${ws.id}`);
-    if (sel) sel.value = ws.plan;
-  });
-}
-
-function renderAdminUsers(users) {
-  const table = document.getElementById("adminUsersTable");
-  if (!table) return;
-
-  let html = `<thead><tr>
-    <th>Username</th><th>User ID</th><th>Workspaces</th><th>Created</th><th>Actions</th>
-  </tr></thead><tbody>`;
-
   users.forEach(u => {
-    const wsList = (u.workspaces || []).map(w => `${escapeHtml(w.name)} (${w.role})`).join(", ") || "—";
-    html += `<tr>
-      <td><strong>${escapeHtml(u.username)}</strong></td>
-      <td class="muted" style="font-size:11px;">${u.id}</td>
-      <td style="font-size:12px;">${wsList}</td>
-      <td style="font-size:11px;">${new Date(u.createdAt).toLocaleDateString()}</td>
-      <td>
-        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteUser('${u.id}','${escapeHtml(u.username)}')">Delete</button>
-      </td>
-    </tr>`;
+    const sel = document.getElementById(`adminUserPlan_${u.id}`);
+    if (sel) sel.value = u.plan || 'free';
   });
-
-  html += "</tbody>";
-  table.innerHTML = html;
 }
 
-async function adminChangePlan(wsId) {
-  const sel = document.getElementById(`adminPlan_${wsId}`);
+async function adminChangeUserPlan(userId) {
+  const sel = document.getElementById(`adminUserPlan_${userId}`);
   if (!sel) return;
   const planId = sel.value;
-  if (!confirm(`Set workspace ${wsId} to plan "${planId}"?`)) return;
+  if (!confirm(`Set user ${userId} to plan "${planId}"?`)) return;
   try {
-    const resp = await fetch(`/api/workspaces/admin/workspaces/${wsId}/plan`, {
+    const resp = await fetch(`/api/workspaces/admin/users/${userId}/plan`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ planId }),
@@ -2779,10 +2774,10 @@ async function adminChangePlan(wsId) {
   } catch (e) { alert("Error: " + e.message); }
 }
 
-async function adminResetUsage(wsId) {
-  if (!confirm(`Reset all usage counters for workspace ${wsId}?`)) return;
+async function adminResetUserUsage(userId) {
+  if (!confirm(`Reset all usage counters for user ${userId}?`)) return;
   try {
-    const resp = await fetch(`/api/workspaces/admin/workspaces/${wsId}/reset-usage`, {
+    const resp = await fetch(`/api/workspaces/admin/users/${userId}/reset-usage`, {
       method: "POST",
       headers: authHeaders(),
     });

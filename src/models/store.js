@@ -37,7 +37,7 @@ function normalizeUsername(value) {
 }
 
 function safeUser(user) {
-  return { id: user.id, username: user.username, createdAt: user.createdAt };
+  return { id: user.id, username: user.username, plan: user.plan, createdAt: user.createdAt };
 }
 
 function getUserById(userId) {
@@ -56,13 +56,25 @@ function ensureBootstrapAdmin() {
   }
   let admin = getUserByUsername(adminUsername);
   if (!admin) {
+    const now = new Date();
     admin = {
       id: `u_${Date.now().toString(36)}`,
       username: adminUsername,
       passwordHash: bcrypt.hashSync(adminPassword, 10),
-      createdAt: new Date().toISOString(),
+      plan: { id: "free", name: "Free", status: "active", startedAt: now.toISOString() },
+      _usage: { messagesSent: 0, aiCalls: 0, cycleStart: now.toISOString(), cycleResetAt: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString() },
+      createdAt: now.toISOString(),
     };
     store.users.push(admin);
+  } else {
+    // Migrate existing admin user
+    if (!admin.plan) {
+      admin.plan = { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() };
+    }
+    if (!admin._usage) {
+      const now = new Date();
+      admin._usage = { messagesSent: 0, aiCalls: 0, cycleStart: now.toISOString(), cycleResetAt: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString() };
+    }
   }
   return admin;
 }
@@ -264,10 +276,29 @@ function ensureStore() {
       bookings: normalizedBookings,
       scheduledMessages: normalizedScheduled,
       media: normalizedMedia,
-      // ─── SaaS fields (safe migration) ─────────────────────────────────
-      plan: workspace.plan || { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() },
-      _usage: workspace._usage || { messagesSent: 0, aiCalls: 0, cycleStart: new Date().toISOString(), cycleResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString() },
     };
+  });
+
+  // ─── Migrate plan & usage from workspace to user (safe migration) ────
+  store.users.forEach((user) => {
+    if (!user.plan) {
+      user.plan = { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() };
+      changed = true;
+    }
+    if (!user._usage) {
+      const now = new Date();
+      user._usage = { messagesSent: 0, aiCalls: 0, cycleStart: now.toISOString(), cycleResetAt: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString() };
+      changed = true;
+    }
+  });
+
+  // Remove legacy plan/_usage from workspaces if present
+  store.workspaces.forEach((ws) => {
+    if (ws.plan || ws._usage) {
+      delete ws.plan;
+      delete ws._usage;
+      changed = true;
+    }
   });
 
   if (changed) saveStore();

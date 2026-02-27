@@ -27,8 +27,16 @@ const {
   ensureWorkspaceBookings,
   initBookingRecord,
   bookingTimezone,
+  getUserById,
 } = require("../models/store");
 const { incrementUsage } = require("./plan.service");
+
+/** Get the owner user of a workspace (for plan/usage tracking) */
+function getWorkspaceOwner(workspace) {
+  const members = Array.isArray(workspace.members) ? workspace.members : [];
+  const ownerMember = members.find(m => m.role === "owner") || members[0];
+  return ownerMember ? getUserById(ownerMember.userId) : null;
+}
 const {
   resolveChromeExecutablePath,
   clearStaleProfileLocks,
@@ -412,7 +420,8 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
             await runtime.client.sendMessage(chatId, outgoingMessage);
           }
           results.push({ chatId, ok: true, mode: options.mode });
-          incrementUsage(workspace, "messagesSent");
+          const _owner1 = getWorkspaceOwner(workspace);
+          if (_owner1) incrementUsage(_owner1, "messagesSent");
           appendReport(workspace, {
             kind: "outgoing",
             source,
@@ -983,7 +992,8 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           const result = await model.generateContent(prompt);
           rawContent = result.response.text().trim();
           console.log(`[${workspace.id}] Google AI Raw Response: ${rawContent}`);
-          incrementUsage(workspace, "aiCalls");
+          const _owner2 = getWorkspaceOwner(workspace);
+          if (_owner2) incrementUsage(_owner2, "aiCalls");
         } else if (provider === "openrouter") {
           console.log(`[${workspace.id}] OpenRouter AI Request started...`);
           const response = await fetchWithRetry(
@@ -1014,7 +1024,8 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           console.log(`[${workspace.id}] OpenRouter AI Raw Response Received`);
           if (data.error) throw new Error(data.error.message || "OpenRouter Error");
           rawContent = data?.choices?.[0]?.message?.content || "";
-          incrementUsage(workspace, "aiCalls");
+          const _owner3 = getWorkspaceOwner(workspace);
+          if (_owner3) incrementUsage(_owner3, "aiCalls");
         }
 
         if (rawContent) {
@@ -1130,7 +1141,8 @@ async function handleIncomingMessage(workspace, runtime, msg) {
   if (replyText) {
     try {
       await msg.reply(replyText);
-      incrementUsage(workspace, "messagesSent");
+      const _owner4 = getWorkspaceOwner(workspace);
+      if (_owner4) incrementUsage(_owner4, "messagesSent");
       updateLeadStatus(workspace, {
         from: msg.from,
         message: msg.body,
