@@ -1166,6 +1166,7 @@ navItems.forEach(item => {
     }
     if (target === "admin") {
       loadAdminPanel();
+      loadBackupPanel();
     }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
@@ -2859,6 +2860,177 @@ async function adminDeleteUser(userId, username) {
     alert(`✅ User "${data.removed}" deleted.`);
     loadAdminPanel();
   } catch (e) { alert("Error: " + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BACKUP & DATA SAFETY PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadBackupPanel() {
+  try {
+    const [statusRes, listRes] = await Promise.all([
+      fetch("/api/workspaces/admin/backups/status", { headers: authHeaders() }),
+      fetch("/api/workspaces/admin/backups", { headers: authHeaders() }),
+    ]);
+    const statusData = await statusRes.json();
+    const listData = await listRes.json();
+
+    if (!statusData.ok) { console.error("Backup status:", statusData.error); return; }
+
+    renderBackupStatus(statusData);
+    renderBackupList(listData.backups || []);
+  } catch (e) {
+    console.error("Backup panel load error:", e);
+  }
+}
+
+function renderBackupStatus(data) {
+  const container = document.getElementById("backupStatusCards");
+  if (!container) return;
+
+  const cards = [
+    { label: "Total Backups", value: data.totalBackups || 0, icon: "archive", color: "var(--primary)" },
+    { label: "Backup Size", value: `${data.totalBackupSizeMB || 0} MB`, icon: "hard-drive", color: "var(--accent)" },
+    { label: "Main File", value: `${data.mainFileSizeMB || 0} MB`, icon: "file-json", color: "#10b981" },
+    { label: "Max Kept", value: data.maxBackups || 50, icon: "layers", color: "#f59e0b" },
+    { label: "Auto Interval", value: `${data.backupIntervalMinutes || 60} min`, icon: "timer", color: "#8b5cf6" },
+    { label: "Saves Since Boot", value: data.savesSinceStart || 0, icon: "save", color: "var(--muted)" },
+  ];
+
+  container.innerHTML = cards.map(k => `
+    <div class="admin-kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:${k.color}15;display:flex;align-items:center;justify-content:center;">
+          <i data-lucide="${k.icon}" style="width:16px;height:16px;color:${k.color};"></i>
+        </div>
+        <span class="muted" style="font-size:11px;">${k.label}</span>
+      </div>
+      <div style="font-size:20px;font-weight:800;">${k.value}</div>
+    </div>
+  `).join("");
+
+  // Last backup info
+  if (data.lastBackupAt) {
+    container.innerHTML += `
+      <div class="admin-kpi-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:#10b98115;display:flex;align-items:center;justify-content:center;">
+            <i data-lucide="clock" style="width:16px;height:16px;color:#10b981;"></i>
+          </div>
+          <span class="muted" style="font-size:11px;">Last Backup</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;">${new Date(data.lastBackupAt).toLocaleString()}</div>
+      </div>
+    `;
+  }
+
+  lucide.createIcons();
+}
+
+function renderBackupList(backups) {
+  const table = document.getElementById("backupListTable");
+  if (!table) return;
+
+  if (backups.length === 0) {
+    table.innerHTML = '<tr><td class="muted" style="padding:20px;text-align:center;">No backups yet. Click "Create Backup Now" to make one.</td></tr>';
+    return;
+  }
+
+  let html = `<thead><tr>
+    <th>Filename</th><th>Size</th><th>Created</th><th style="text-align:right;">Actions</th>
+  </tr></thead><tbody>`;
+
+  backups.forEach(b => {
+    const sizeMB = (b.sizeBytes / 1024 / 1024).toFixed(2);
+    const label = b.filename.includes("_manual") ? "🔵 Manual" :
+                  b.filename.includes("_startup") ? "🟢 Startup" :
+                  b.filename.includes("_pre-restore") ? "🟠 Pre-Restore" :
+                  b.filename.includes("_scheduled") ? "⏱️ Scheduled" : "📦 Auto";
+    html += `<tr>
+      <td>
+        <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--panel-border);margin-right:6px;">${label}</span>
+        <span style="font-size:12px;font-family:monospace;">${escapeHtml(b.filename)}</span>
+      </td>
+      <td style="font-size:12px;">${sizeMB} MB</td>
+      <td style="font-size:12px;">${new Date(b.createdAt).toLocaleString()}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminDownloadBackup('${escapeHtml(b.filename)}')">
+          <i data-lucide="download" style="width:12px;height:12px;"></i> Download
+        </button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:#f59e0b;color:#fff;border:none;" onclick="adminRestoreBackup('${escapeHtml(b.filename)}')">
+          <i data-lucide="undo-2" style="width:12px;height:12px;"></i> Restore
+        </button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteBackup('${escapeHtml(b.filename)}')">
+          <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+        </button>
+      </td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  table.innerHTML = html;
+  lucide.createIcons();
+}
+
+async function adminCreateBackup() {
+  try {
+    const resp = await fetch("/api/workspaces/admin/backups/create", {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Backup failed");
+    alert("✅ " + data.message);
+    loadBackupPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function adminRestoreBackup(filename) {
+  if (!confirm(`⚠️ RESTORE from backup "${filename}"?\n\nThis will:\n• Save a pre-restore backup first\n• Replace ALL current data (users, workspaces, leads, etc.)\n• Take effect immediately\n\nAre you sure?`)) return;
+  if (!confirm("This is your LAST chance. Current data will be overwritten. Continue?")) return;
+  try {
+    const resp = await fetch("/api/workspaces/admin/backups/restore", {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ filename }),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Restore failed");
+    alert("✅ " + data.message);
+    loadAdminPanel();
+    loadBackupPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function adminDeleteBackup(filename) {
+  if (!confirm(`Delete backup "${filename}"?`)) return;
+  try {
+    const resp = await fetch(`/api/workspaces/admin/backups/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Delete failed");
+    loadBackupPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+function adminDownloadBackup(filename) {
+  const a = document.createElement("a");
+  a.href = `/api/workspaces/admin/backups/download/${encodeURIComponent(filename)}`;
+  a.download = filename;
+  // Need auth header — use fetch instead
+  fetch(a.href, { headers: authHeaders() })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    })
+    .catch(e => alert("Download failed: " + e.message));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

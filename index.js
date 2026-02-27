@@ -8,7 +8,7 @@ const path = require("path");
 const express = require("express");
 const { configureRuntimeEnv } = require("./src/config/runtime-env");
 const { PORT, HOST } = require("./src/config/env");
-const { ensureStore } = require("./src/models/store");
+const { ensureStore, startAutoBackup } = require("./src/models/store");
 const { mountRoutes } = require("./src/routes");
 const { processAutoFollowUps } = require("./src/services/lead.service");
 const { processBookingReminders } = require("./src/services/booking.service");
@@ -42,6 +42,7 @@ mountRoutes(app);
 function startHttpServer() {
   try {
     ensureStore();
+    startAutoBackup();
   } catch (err) {
     console.error(`[FATAL] Failed to initialize data store: ${err.message}`);
     process.exit(1);

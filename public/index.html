@@ -1493,6 +1493,29 @@
           </table>
         </div>
       </section>
+
+      <!-- Backup & Data Safety -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+          <h3 style="margin:0;"><i data-lucide="shield-check" style="width:16px;height:16px;vertical-align:middle;"></i> Backup &amp; Data Safety</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn primary" onclick="adminCreateBackup()" style="font-size:12px;"><i data-lucide="download" style="width:14px;height:14px;"></i> Create Backup Now</button>
+            <button class="btn" onclick="loadBackupPanel()" style="font-size:12px;"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Refresh</button>
+          </div>
+        </div>
+
+        <!-- Backup Status Cards -->
+        <div id="backupStatusCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px;">
+          <!-- rendered by JS -->
+        </div>
+
+        <!-- Backup List -->
+        <div style="overflow-x:auto;">
+          <table id="backupListTable" class="admin-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <!-- rendered by JS -->
+          </table>
+        </div>
+      </section>
     </div>
 
   </main>

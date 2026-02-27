@@ -18,6 +18,10 @@ const HOST =
 
 const DATA_DIR = path.join(PROJECT_ROOT, "data");
 const STORE_PATH = path.join(DATA_DIR, "workspaces.json");
+const STORE_TEMP_PATH = path.join(DATA_DIR, "workspaces.tmp.json");
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const BACKUP_MAX = Math.max(5, Number(process.env.BACKUP_MAX || 50));
+const BACKUP_INTERVAL_MS = Math.max(60000, Number(process.env.BACKUP_INTERVAL_MINUTES || 60) * 60000);
 const MAX_REPORT_ENTRIES = 5000;
 
 const AUTH_SECRET = process.env.AUTH_SECRET || "restartx-dev-secret-change-me";
@@ -67,6 +71,10 @@ module.exports = {
   HOST,
   DATA_DIR,
   STORE_PATH,
+  STORE_TEMP_PATH,
+  BACKUP_DIR,
+  BACKUP_MAX,
+  BACKUP_INTERVAL_MS,
   MAX_REPORT_ENTRIES,
   AUTH_SECRET,
   TOKEN_TTL,

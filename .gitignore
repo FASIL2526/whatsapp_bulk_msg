@@ -5,3 +5,5 @@ node_modules/
 .wwebjs_cache/
 npm-debug.log*
 data/workspaces.json
+data/workspaces.tmp.json
+data/backups/

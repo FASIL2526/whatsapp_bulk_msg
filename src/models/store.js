@@ -4,10 +4,15 @@
  * ─────────────────────────────────────────────────────────────────────────── */
 
 const fs = require("fs");
+const path = require("path");
 const bcrypt = require("bcryptjs");
 const {
   DATA_DIR,
   STORE_PATH,
+  STORE_TEMP_PATH,
+  BACKUP_DIR,
+  BACKUP_MAX,
+  BACKUP_INTERVAL_MS,
   MAX_REPORT_ENTRIES,
   BOOKING_REMINDER_MINUTES,
   BOOKING_TIMEZONE,
@@ -108,10 +113,227 @@ function workspaceRecipientsChatIds(workspace) {
   return normalizeRecipients(workspace.config.RECIPIENTS || "").map((num) => `${num}@c.us`);
 }
 
-// ─── Persistence ───────────────────────────────────────────────────────────
+// ─── Persistence (atomic write + auto-backup) ─────────────────────────────
+let _saveCounter = 0;
+let _lastBackupAt = null;
+let _backupTimer = null;
+
+/**
+ * Atomic save: write to temp file first, then rename.
+ * This prevents half-written / corrupt JSON on crash.
+ */
 function saveStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(STORE_PATH, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  const json = `${JSON.stringify(store, null, 2)}\n`;
+
+  // 1) Validate the JSON we're about to write (sanity check)
+  try {
+    JSON.parse(json);
+  } catch {
+    console.error("[STORE] ❌ REFUSING to save — serialised JSON is invalid. This should never happen.");
+    return;
+  }
+
+  // 2) Write to temp file first
+  fs.writeFileSync(STORE_TEMP_PATH, json, "utf8");
+
+  // 3) Atomic rename (overwrites old file safely)
+  fs.renameSync(STORE_TEMP_PATH, STORE_PATH);
+
+  _saveCounter++;
+}
+
+/**
+ * Create a timestamped backup copy of workspaces.json.
+ * Rotates old backups to keep at most BACKUP_MAX files.
+ */
+function createBackup(label = "auto") {
+  try {
+    if (!fs.existsSync(STORE_PATH)) return null;
+
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+    const now = new Date();
+    const ts = now.toISOString().replace(/[:.]/g, "-");
+    const filename = `workspaces_${ts}_${label}.json`;
+    const backupPath = path.join(BACKUP_DIR, filename);
+
+    fs.copyFileSync(STORE_PATH, backupPath);
+    _lastBackupAt = now.toISOString();
+
+    // Rotate: delete oldest if over limit
+    rotateBackups();
+
+    console.log(`[BACKUP] ✅ Created: ${filename}`);
+    return { filename, path: backupPath, createdAt: _lastBackupAt, sizeBytes: fs.statSync(backupPath).size };
+  } catch (err) {
+    console.error("[BACKUP] ❌ Failed to create backup:", err.message);
+    return null;
+  }
+}
+
+/**
+ * Keep only the newest BACKUP_MAX backups.
+ */
+function rotateBackups() {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith("workspaces_") && f.endsWith(".json"))
+      .sort();
+    while (files.length > BACKUP_MAX) {
+      const oldest = files.shift();
+      try { fs.unlinkSync(path.join(BACKUP_DIR, oldest)); } catch {}
+    }
+  } catch {}
+}
+
+/**
+ * List all backup files with metadata.
+ */
+function listBackups() {
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+    return fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith("workspaces_") && f.endsWith(".json"))
+      .sort()
+      .reverse()
+      .map(filename => {
+        const fullPath = path.join(BACKUP_DIR, filename);
+        const stat = fs.statSync(fullPath);
+        return { filename, sizeBytes: stat.size, createdAt: stat.mtime.toISOString() };
+      });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Delete a specific backup file.
+ */
+function deleteBackup(filename) {
+  // Prevent path traversal
+  const safe = path.basename(filename);
+  if (!safe.startsWith("workspaces_") || !safe.endsWith(".json")) return false;
+  const fullPath = path.join(BACKUP_DIR, safe);
+  if (!fs.existsSync(fullPath)) return false;
+  fs.unlinkSync(fullPath);
+  return true;
+}
+
+/**
+ * Restore from a backup file — overwrites current workspaces.json and reloads into memory.
+ * Creates a pre-restore backup first.
+ */
+function restoreFromBackup(filename) {
+  const safe = path.basename(filename);
+  const fullPath = path.join(BACKUP_DIR, safe);
+  if (!fs.existsSync(fullPath)) throw new Error("Backup file not found.");
+
+  // Validate the backup JSON before restoring
+  const raw = fs.readFileSync(fullPath, "utf8");
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Backup file contains invalid JSON.");
+  }
+  if (!parsed || !Array.isArray(parsed.users) || !Array.isArray(parsed.workspaces)) {
+    throw new Error("Backup file has invalid data structure (missing users or workspaces).");
+  }
+
+  // Create a pre-restore safety backup
+  createBackup("pre-restore");
+
+  // Overwrite current store
+  store.users = parsed.users;
+  store.workspaces = parsed.workspaces;
+  saveStore();
+
+  return { users: store.users.length, workspaces: store.workspaces.length };
+}
+
+/**
+ * Try loading store from main file, fallback to latest backup if corrupt.
+ */
+function loadStoreWithRecovery() {
+  // Try main file first
+  if (fs.existsSync(STORE_PATH)) {
+    try {
+      const raw = fs.readFileSync(STORE_PATH, "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.workspaces)) {
+        store.users = parsed.users;
+        store.workspaces = parsed.workspaces;
+        console.log(`[STORE] ✅ Loaded ${store.users.length} users, ${store.workspaces.length} workspaces`);
+        return true;
+      }
+    } catch (err) {
+      console.error("[STORE] ⚠️ Main file corrupted:", err.message);
+    }
+  }
+
+  // Fallback: try latest backup
+  console.log("[STORE] 🔄 Attempting recovery from backup...");
+  const backups = listBackups();
+  for (const bk of backups) {
+    try {
+      const raw = fs.readFileSync(path.join(BACKUP_DIR, bk.filename), "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.workspaces)) {
+        store.users = parsed.users;
+        store.workspaces = parsed.workspaces;
+        // Re-save recovered data to main file
+        saveStore();
+        console.log(`[STORE] ✅ RECOVERED from backup: ${bk.filename} (${store.users.length} users, ${store.workspaces.length} workspaces)`);
+        return true;
+      }
+    } catch {}
+  }
+
+  console.log("[STORE] ℹ️ No valid data found — starting fresh.");
+  return false;
+}
+
+/**
+ * Get backup system status.
+ */
+function getBackupStatus() {
+  const backups = listBackups();
+  const totalBytes = backups.reduce((sum, b) => sum + b.sizeBytes, 0);
+  const mainSize = fs.existsSync(STORE_PATH) ? fs.statSync(STORE_PATH).size : 0;
+  return {
+    enabled: true,
+    maxBackups: BACKUP_MAX,
+    backupIntervalMinutes: BACKUP_INTERVAL_MS / 60000,
+    totalBackups: backups.length,
+    totalBackupSizeMB: +(totalBytes / 1024 / 1024).toFixed(2),
+    mainFileSizeMB: +(mainSize / 1024 / 1024).toFixed(2),
+    lastBackupAt: _lastBackupAt,
+    savesSinceStart: _saveCounter,
+    latestBackup: backups[0] || null,
+  };
+}
+
+/**
+ * Start periodic auto-backup timer.
+ */
+function startAutoBackup() {
+  if (_backupTimer) clearInterval(_backupTimer);
+  // Initial backup on startup
+  createBackup("startup");
+  _backupTimer = setInterval(() => createBackup("scheduled"), BACKUP_INTERVAL_MS);
+  console.log(`[BACKUP] ⏱️ Auto-backup every ${BACKUP_INTERVAL_MS / 60000} min (max ${BACKUP_MAX} kept)`);
+}
+
+/**
+ * Stop periodic auto-backup timer.
+ */
+function stopAutoBackup() {
+  if (_backupTimer) {
+    clearInterval(_backupTimer);
+    _backupTimer = null;
+  }
 }
 
 // ─── Booking model helpers (needed by ensureStore) ─────────────────────────
@@ -196,11 +418,8 @@ function bookingById(workspace, bookingId) {
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 
-  if (fs.existsSync(STORE_PATH)) {
-    const parsed = JSON.parse(fs.readFileSync(STORE_PATH, "utf8"));
-    store.users = Array.isArray(parsed.users) ? parsed.users : [];
-    store.workspaces = Array.isArray(parsed.workspaces) ? parsed.workspaces : [];
-  }
+  // Load with corruption recovery (tries main file, then backups)
+  loadStoreWithRecovery();
 
   const adminUser = ensureBootstrapAdmin();
 
@@ -380,4 +599,12 @@ module.exports = {
   ROLE_RANK,
   getFollowUpSweepInProgress,
   setFollowUpSweepInProgress,
+  // Backup system
+  createBackup,
+  listBackups,
+  deleteBackup,
+  restoreFromBackup,
+  getBackupStatus,
+  startAutoBackup,
+  stopAutoBackup,
 };
