@@ -84,6 +84,25 @@ const DEFAULT_CONFIG = {
   OFFER_URGENCY_WINDOW: "48 hours",
   SELF_HEALING_ENABLED: "false",
 
+  // ─── Chatbot Flow Builder ──────────────────────────────────────────────
+  CHATBOT_FLOW_ENABLED: "false",
+  CHATBOT_FLOW_PRIORITY: "before_ai",
+
+  // ─── Multi-language AI ─────────────────────────────────────────────────
+  MULTI_LANGUAGE_ENABLED: "true",
+  MULTI_LANGUAGE_DEFAULT: "English",
+
+  // ─── Webhooks / Zapier ─────────────────────────────────────────────────
+  WEBHOOKS_ENABLED: "false",
+
+  // ─── Email Notifications ───────────────────────────────────────────────
+  EMAIL_NOTIFICATIONS_ENABLED: "false",
+  EMAIL_WEBHOOK_URL: "",
+  EMAIL_ALERT_RECIPIENTS: "",
+
+  // ─── Interactive Buttons ───────────────────────────────────────────────
+  INTERACTIVE_BUTTONS_ENABLED: "false",
+
   // ─── WhatsApp Alerts & Auto-Reports ─────────────────────────────────────
   WHATSAPP_ALERTS_ENABLED: "false",
   WHATSAPP_ALERTS_OPERATOR: "",

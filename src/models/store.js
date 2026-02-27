@@ -435,6 +435,12 @@ function ensureStore() {
       media: [],
       campaigns: [],
       templates: [],
+      blacklist: [],
+      auditLog: [],
+      webhooks: [],
+      chatFlows: [],
+      customFields: [],
+      branding: {},
       members: [{ userId: adminUser.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     });
@@ -479,6 +485,26 @@ function ensureStore() {
     const normalizedCampaigns = Array.isArray(workspace.campaigns) ? workspace.campaigns : [];
     const normalizedTemplates = Array.isArray(workspace.templates) ? workspace.templates : [];
 
+    // ─── New feature arrays (v2) ─────────────────────────────────────────
+    const normalizedBlacklist = Array.isArray(workspace.blacklist) ? workspace.blacklist : [];
+    const normalizedAuditLog = Array.isArray(workspace.auditLog) ? workspace.auditLog : [];
+    const normalizedWebhooks = Array.isArray(workspace.webhooks) ? workspace.webhooks : [];
+    const normalizedChatFlows = Array.isArray(workspace.chatFlows) ? workspace.chatFlows : [];
+    const normalizedCustomFields = Array.isArray(workspace.customFields) ? workspace.customFields : [];
+    const normalizedBranding = (workspace.branding && typeof workspace.branding === "object") ? workspace.branding : {};
+
+    // ─── Lead-level migration (team assignment, notes, tags, custom data) ──
+    const migratedLeads = normalizedLeads.map(lead => {
+      let lChanged = false;
+      if (!Array.isArray(lead.tags)) { lead.tags = []; lChanged = true; }
+      if (!Array.isArray(lead.internalNotes)) { lead.internalNotes = []; lChanged = true; }
+      if (!lead.customData || typeof lead.customData !== "object") { lead.customData = {}; lChanged = true; }
+      if (lead.assignedTo === undefined) { lead.assignedTo = ""; lChanged = true; }
+      if (lead.language === undefined) { lead.language = ""; lChanged = true; }
+      if (lChanged) changed = true;
+      return lead;
+    });
+
     if (JSON.stringify(normalizedConfig) !== JSON.stringify(workspace.config || {})) changed = true;
     if (!Array.isArray(workspace.reports)) changed = true;
     if (!Array.isArray(workspace.members)) changed = true;
@@ -488,6 +514,12 @@ function ensureStore() {
     if (!Array.isArray(workspace.media)) changed = true;
     if (!Array.isArray(workspace.campaigns)) changed = true;
     if (!Array.isArray(workspace.templates)) changed = true;
+    if (!Array.isArray(workspace.blacklist)) changed = true;
+    if (!Array.isArray(workspace.auditLog)) changed = true;
+    if (!Array.isArray(workspace.webhooks)) changed = true;
+    if (!Array.isArray(workspace.chatFlows)) changed = true;
+    if (!Array.isArray(workspace.customFields)) changed = true;
+    if (!workspace.branding || typeof workspace.branding !== "object") changed = true;
     if (normalizedMembers.length === 0) {
       normalizedMembers.push({ userId: adminUser.id, role: "owner" });
       changed = true;
@@ -498,12 +530,18 @@ function ensureStore() {
       config: normalizedConfig,
       reports: normalizedReports,
       members: normalizedMembers,
-      leads: normalizedLeads,
+      leads: migratedLeads,
       bookings: normalizedBookings,
       scheduledMessages: normalizedScheduled,
       media: normalizedMedia,
       campaigns: normalizedCampaigns,
       templates: normalizedTemplates,
+      blacklist: normalizedBlacklist,
+      auditLog: normalizedAuditLog,
+      webhooks: normalizedWebhooks,
+      chatFlows: normalizedChatFlows,
+      customFields: normalizedCustomFields,
+      branding: normalizedBranding,
     };
   });
 

@@ -69,6 +69,10 @@ const { getObjectionRebuttal } = require("./objection.service");
 const { isOptimalSendTime } = require("./timezone.service");
 const { recordReply } = require("./ab-testing.service");
 const { computeOffer, buildOfferMessage, logOffer } = require("./offer-authority.service");
+const { isBlacklisted, isOptOutMessage, addToBlacklist } = require("./blacklist.service");
+const { matchFlow, getFirstStep } = require("./flow.service");
+const { fireWebhookEvent } = require("./webhook.service");
+const { logAction } = require("./audit.service");
 
 // ─── Bulk-send helpers ─────────────────────────────────────────────────────
 function getBulkOptions(config, overrides = {}) {
@@ -392,12 +396,22 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
     }
     if (recipients.length === 0) throw new Error("No recipients configured.");
 
+    // ── DND / Blacklist filter: remove opted-out numbers ──
+    const beforeCount = recipients.length;
+    const filteredRecipients = recipients.filter(chatId => !isBlacklisted(workspace, chatId));
+    if (filteredRecipients.length === 0 && beforeCount > 0) {
+      throw new Error(`All ${beforeCount} recipients are on the DND/blacklist. No messages sent.`);
+    }
+    if (filteredRecipients.length < beforeCount) {
+      console.log(`[${workspace.id}] DND filter: ${beforeCount - filteredRecipients.length} blacklisted numbers removed.`);
+    }
+
     const options = getBulkOptions(workspace.config, overrides);
     const results = [];
     const messages = Array.isArray(messageOrMessages) ? messageOrMessages : [messageOrMessages];
 
-    for (let i = 0; i < recipients.length; i += 1) {
-      const chatId = recipients[i];
+    for (let i = 0; i < filteredRecipients.length; i += 1) {
+      const chatId = filteredRecipients[i];
       const source = sanitizeText(overrides.source, "manual");
 
       // Timezone-aware sending: skip recipients outside optimal hours
@@ -728,6 +742,59 @@ async function handleIncomingMessage(workspace, runtime, msg) {
   if (isStatusMessage || isChannelMessage) {
     console.log(`[${workspace.id}] Ignoring status/channel message from ${fromId || "unknown"}.`);
     return;
+  }
+
+  // ── Fire webhook for incoming message ──
+  if (workspace.config.WEBHOOKS_ENABLED === "true") {
+    fireWebhookEvent(workspace, "message.received", {
+      from: fromId,
+      body: msg.body || "",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // ── Opt-out / DND detection ──
+  if (!msg.fromMe && isOptOutMessage(msg.body || "")) {
+    addToBlacklist(workspace, [fromId], "opt_out");
+    console.log(`[${workspace.id}] 🚫 ${fromId} opted out — added to DND blacklist.`);
+    try {
+      await runtime.client.sendMessage(fromId, "You have been unsubscribed. You will no longer receive automated messages from us.");
+    } catch {}
+    fireWebhookEvent(workspace, "opt_out", { from: fromId, message: msg.body });
+    appendReport(workspace, { kind: "opt_out", source: "auto", ok: true, from: fromId, message: msg.body });
+    return;
+  }
+
+  // ── Blacklisted contact check (skip processing) ──
+  if (isBlacklisted(workspace, fromId)) {
+    console.log(`[${workspace.id}] Ignoring blacklisted contact: ${fromId}`);
+    return;
+  }
+
+  // ── Chatbot Flow matching (before booking/AI) ──
+  if (workspace.config.CHATBOT_FLOW_ENABLED === "true" && !msg.fromMe) {
+    const matchedFlow = matchFlow(workspace, msg.body || "");
+    if (matchedFlow) {
+      const firstStep = getFirstStep(matchedFlow);
+      if (firstStep && firstStep.type === "reply" && firstStep.message) {
+        try {
+          await runtime.client.sendMessage(fromId, firstStep.message);
+          appendReport(workspace, {
+            kind: "chatbot_flow",
+            source: "flow_builder",
+            ok: true,
+            from: fromId,
+            flowId: matchedFlow.id,
+            flowName: matchedFlow.name,
+            message: firstStep.message,
+          });
+          console.log(`[${workspace.id}] Chatbot flow "${matchedFlow.name}" triggered for ${fromId}`);
+        } catch (err) {
+          console.error(`[${workspace.id}] Flow send error:`, err.message);
+        }
+        if (workspace.config.CHATBOT_FLOW_PRIORITY === "before_ai") return;
+      }
+    }
   }
 
   // ── Booking intent handling ──
@@ -1077,6 +1144,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
               qualification: normalized.qualification,
               missingQualificationFields: normalized.missingQualificationFields,
               primaryObjection: normalized.primaryObjection,
+              language: normalized.language || "",
               lastInboundAt: new Date().toISOString(),
               lastOutboundAt: new Date().toISOString(),
               followUpCount: 0,
@@ -1166,6 +1234,15 @@ async function handleIncomingMessage(workspace, runtime, msg) {
         message: replyText,
         mode,
       });
+      // Fire webhook for outgoing reply
+      if (workspace.config.WEBHOOKS_ENABLED === "true") {
+        fireWebhookEvent(workspace, "message.sent", {
+          to: msg.from,
+          body: replyText,
+          source: "auto_reply",
+          timestamp: new Date().toISOString(),
+        });
+      }
     } catch (err) {
       runtime.lastError = err.message;
       appendReport(workspace, {

@@ -1168,6 +1168,9 @@ navItems.forEach(item => {
       loadAdminPanel();
       loadBackupPanel();
     }
+    if (target === "tools") {
+      loadToolsView();
+    }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
     item.classList.add("active");
@@ -1304,12 +1307,79 @@ async function loadLeads() {
     ]);
     if (!result.ok) throw new Error(result.error);
     renderLeads(result.leads || []);
+    renderLeadCharts(result.leads || []);
     const s = summaryResult.summary || {};
+    renderLeadStats(result.leads || [], s);
     log(
       `[${activeWorkspaceId}] leads summary: total=${s.total || 0}, hot=${s.byStatus?.hot || 0}, warm=${s.byStatus?.warm || 0}, actionable=${s.actionable || 0}`
     );
   } catch (err) {
     log(`loadLeads error: ${err.message}`);
+  }
+}
+
+function renderLeadStats(leads, summary) {
+  const el = document.getElementById("leadStatsCards");
+  if (!el) return;
+  const total = leads.length;
+  const hot = leads.filter(l => l.status === "hot").length;
+  const warm = leads.filter(l => l.status === "warm").length;
+  const cold = leads.filter(l => l.status === "cold").length;
+  const avgScore = total ? Math.round(leads.reduce((s, l) => s + (l.score || 0), 0) / total) : 0;
+  const assigned = leads.filter(l => l.assignedTo).length;
+  el.innerHTML = `
+    <div class="kpi-card"><div class="kpi-value">${total}</div><div class="kpi-label">Total</div></div>
+    <div class="kpi-card" style="border-left:3px solid #e74c3c;"><div class="kpi-value">${hot}</div><div class="kpi-label">Hot</div></div>
+    <div class="kpi-card" style="border-left:3px solid #f39c12;"><div class="kpi-value">${warm}</div><div class="kpi-label">Warm</div></div>
+    <div class="kpi-card" style="border-left:3px solid #3498db;"><div class="kpi-value">${cold}</div><div class="kpi-label">Cold</div></div>
+    <div class="kpi-card"><div class="kpi-value">${avgScore}</div><div class="kpi-label">Avg Score</div></div>
+    <div class="kpi-card"><div class="kpi-value">${assigned}</div><div class="kpi-label">Assigned</div></div>
+  `;
+}
+
+let _leadStatusChart = null;
+let _leadStageChart = null;
+
+function renderLeadCharts(leads) {
+  // Status distribution (doughnut)
+  const statusCounts = { hot: 0, warm: 0, cold: 0 };
+  leads.forEach(l => { statusCounts[l.status || "cold"] = (statusCounts[l.status || "cold"] || 0) + 1; });
+  const statusCtx = document.getElementById("leadStatusChart");
+  if (statusCtx && window.Chart) {
+    if (_leadStatusChart) _leadStatusChart.destroy();
+    _leadStatusChart = new Chart(statusCtx, {
+      type: "doughnut",
+      data: {
+        labels: ["Hot", "Warm", "Cold"],
+        datasets: [{
+          data: [statusCounts.hot, statusCounts.warm, statusCounts.cold],
+          backgroundColor: ["#e74c3c", "#f39c12", "#3498db"],
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+    });
+  }
+
+  // Stage pipeline (bar)
+  const stageOrder = ["new", "qualified", "proposal", "booking", "closed_won", "closed_lost"];
+  const stageCounts = {};
+  stageOrder.forEach(s => stageCounts[s] = 0);
+  leads.forEach(l => { const s = l.stage || "new"; stageCounts[s] = (stageCounts[s] || 0) + 1; });
+  const stageCtx = document.getElementById("leadStageChart");
+  if (stageCtx && window.Chart) {
+    if (_leadStageChart) _leadStageChart.destroy();
+    _leadStageChart = new Chart(stageCtx, {
+      type: "bar",
+      data: {
+        labels: stageOrder.map(s => s.replace(/_/g, " ")),
+        datasets: [{
+          label: "Leads",
+          data: stageOrder.map(s => stageCounts[s]),
+          backgroundColor: ["#9b59b6", "#3498db", "#2ecc71", "#f39c12", "#27ae60", "#e74c3c"],
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
   }
 }
 
@@ -1324,7 +1394,6 @@ function renderLeads(leads) {
 
   leadsEmptyState.style.display = "none";
 
-  // Sort leads by score first, then by status priority.
   const statusWeight = { hot: 3, warm: 2, cold: 1 };
   leads.sort((a, b) => {
     const scoreDelta = (b.score || 0) - (a.score || 0);
@@ -1338,6 +1407,9 @@ function renderLeads(leads) {
     const score = Number.isFinite(Number(lead.score)) ? Math.max(0, Math.min(100, Number(lead.score))) : 0;
     const stage = lead.stage || "new";
     const date = new Date(lead.updatedAt).toLocaleString();
+    const tags = (lead.tags || []).map(t => `<span class="badge" style="font-size:10px;padding:2px 6px;">${t}</span>`).join(" ");
+    const lang = lead.language || "";
+    const assigned = lead.assignedTo || "";
 
     tr.innerHTML = `
       <td>
@@ -1347,19 +1419,24 @@ function renderLeads(leads) {
       <td><span class="badge ${statusClass}">${lead.status || 'cold'}</span></td>
       <td><span class="badge">${stage}</span></td>
       <td style="font-weight: 700;">${score}</td>
-      <td style="max-width: 220px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
-      <td style="max-width: 250px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
+      <td style="max-width:150px;">${tags || '<span class="muted">-</span>'}</td>
+      <td class="muted" style="font-size:12px;">${assigned || '-'}</td>
+      <td class="muted" style="font-size:12px;">${lang || '-'}</td>
+      <td style="max-width: 200px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
+      <td style="max-width: 200px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
       <td class="muted" style="font-size: 12px;">${date}</td>
-      <td>
-        <button class="btn view-chat-btn" style="padding: 6px 12px; font-size: 12px; gap: 6px;" data-lead-id="${lead.id}">
-          <i data-lucide="message-square"></i> Chat
+      <td style="white-space:nowrap;">
+        <button class="btn view-chat-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${lead.id}">
+          <i data-lucide="message-square" style="width:12px;height:12px;"></i>
+        </button>
+        <button class="btn view-detail-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${lead.id}">
+          <i data-lucide="eye" style="width:12px;height:12px;"></i>
         </button>
       </td>
     `;
     leadsTableBody.appendChild(tr);
   });
 
-  // Wire up View Chat buttons
   leadsTableBody.querySelectorAll(".view-chat-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const leadId = btn.getAttribute("data-lead-id");
@@ -1368,7 +1445,14 @@ function renderLeads(leads) {
     });
   });
 
-  // Re-init icons for the new chat buttons
+  leadsTableBody.querySelectorAll(".view-detail-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const leadId = btn.getAttribute("data-lead-id");
+      const lead = leads.find(l => l.id === leadId);
+      if (lead) openLeadDetail(lead);
+    });
+  });
+
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -3450,3 +3534,590 @@ function loadAutoReplySettings() {
     });
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Tools View (Blacklist, Webhooks, Flows, Custom Fields, Audit, Branding)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function loadToolsView() {
+  loadBlacklist();
+  loadWebhooks();
+  loadFlows();
+  loadCustomFields();
+  loadAuditLog();
+  loadBranding();
+}
+
+// ── Lead CSV Export ──
+async function exportLeadsCsv() {
+  if (!activeWorkspaceId) return;
+  try {
+    const res = await fetch(workspacePath("/leads/export"), { headers: authHeaders() });
+    if (!res.ok) throw new Error("Export failed");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads_${activeWorkspaceId}_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("CSV exported", "success");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ── Lead CSV Import ──
+function showImportLeadsModal() {
+  const m = document.getElementById("importLeadsModal");
+  if (m) { m.style.display = "flex"; document.getElementById("importResult").textContent = ""; }
+}
+
+async function importLeadsCsv() {
+  const raw = document.getElementById("importCsvText")?.value || "";
+  if (!raw.trim()) return showToast("Paste CSV data first", "error");
+  try {
+    const lines = raw.trim().split("\n").map(l => l.split(",").map(c => c.trim()));
+    const headers = lines[0].map(h => h.toLowerCase());
+    const leads = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      const lead = {};
+      headers.forEach((h, idx) => { lead[h] = row[idx] || ""; });
+      leads.push(lead);
+    }
+    const data = await getJson(workspacePath("/leads/import"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ leads })
+    });
+    document.getElementById("importResult").textContent = `✅ Imported: ${data.imported}, Updated: ${data.updated}, Total: ${data.total}`;
+    showToast(`Imported ${data.imported} new leads`, "success");
+    loadLeads();
+  } catch (e) {
+    document.getElementById("importResult").textContent = "❌ " + e.message;
+    showToast(e.message, "error");
+  }
+}
+
+// ── Lead Detail Modal ──
+async function openLeadDetail(lead) {
+  const modal = document.getElementById("leadDetailModal");
+  const title = document.getElementById("leadDetailTitle");
+  const content = document.getElementById("leadDetailContent");
+  if (!modal || !content) return;
+  title.textContent = lead.name || lead.id;
+  modal.style.display = "flex";
+
+  // Load notes and custom fields
+  let notes = [];
+  let customFields = [];
+  try {
+    const [notesRes, fieldsRes] = await Promise.all([
+      getJson(workspacePath(`/leads/${encodeURIComponent(lead.id)}/notes`)),
+      getJson(workspacePath("/custom-fields"))
+    ]);
+    notes = notesRes.notes || [];
+    customFields = fieldsRes.fields || [];
+  } catch {}
+
+  const q = lead.qualification || {};
+  content.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div><b style="font-size:11px;">Status:</b> <span class="badge status-${lead.status || 'cold'}">${lead.status || 'cold'}</span></div>
+      <div><b style="font-size:11px;">Stage:</b> <span class="badge">${lead.stage || 'new'}</span></div>
+      <div><b style="font-size:11px;">Score:</b> ${lead.score || 0}</div>
+      <div><b style="font-size:11px;">Language:</b> ${lead.language || '-'}</div>
+      <div><b style="font-size:11px;">Assigned:</b> ${lead.assignedTo || '<i class="muted">unassigned</i>'}</div>
+      <div><b style="font-size:11px;">Tags:</b> ${(lead.tags || []).join(", ") || '-'}</div>
+      <div><b style="font-size:11px;">Need:</b> ${q.need || '-'}</div>
+      <div><b style="font-size:11px;">Budget:</b> ${q.budget || '-'}</div>
+      <div><b style="font-size:11px;">Timeline:</b> ${q.timeline || '-'}</div>
+      <div><b style="font-size:11px;">Decision Maker:</b> ${q.decision_maker || '-'}</div>
+      <div><b style="font-size:11px;">Objection:</b> ${lead.primaryObjection || '-'}</div>
+      <div><b style="font-size:11px;">Follow-ups:</b> ${lead.followUpCount || 0}</div>
+    </div>
+
+    <!-- Assignment -->
+    <div style="margin-bottom:16px;">
+      <b style="font-size:12px;">Assign To:</b>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <input id="assignInput" type="text" value="${lead.assignedTo || ''}" placeholder="Username or team member" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+        <button class="btn primary" onclick="assignLead('${lead.id}')" style="font-size:11px;">Assign</button>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div style="margin-bottom:16px;">
+      <b style="font-size:12px;">Tags:</b>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <input id="tagsInput" type="text" value="${(lead.tags || []).join(', ')}" placeholder="tag1, tag2, tag3" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+        <button class="btn primary" onclick="updateLeadTags('${lead.id}')" style="font-size:11px;">Save Tags</button>
+      </div>
+    </div>
+
+    <!-- Custom Fields -->
+    ${customFields.length > 0 ? `
+      <div style="margin-bottom:16px;">
+        <b style="font-size:12px;">Custom Fields:</b>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+          ${customFields.map(f => `
+            <div>
+              <label style="font-size:11px;">${f.name}</label>
+              <input class="cf-input" data-key="${f.key}" type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}" value="${(lead.customData || {})[f.key] || ''}" style="width:100%;padding:4px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+            </div>
+          `).join("")}
+        </div>
+        <button class="btn primary" onclick="saveLeadCustomData('${lead.id}')" style="font-size:11px;margin-top:8px;">Save Custom Fields</button>
+      </div>
+    ` : ''}
+
+    <!-- Notes -->
+    <div>
+      <b style="font-size:12px;">Internal Notes (${notes.length}):</b>
+      <div style="display:flex;gap:8px;margin:8px 0;">
+        <input id="noteInput" type="text" placeholder="Add a note..." style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+        <button class="btn primary" onclick="addLeadNote('${lead.id}')" style="font-size:11px;">Add</button>
+      </div>
+      <div id="notesList" style="max-height:200px;overflow-y:auto;">
+        ${notes.map(n => `
+          <div style="padding:8px;border-bottom:1px solid var(--border);font-size:12px;">
+            <div>${n.text}</div>
+            <div class="muted" style="font-size:10px;margin-top:4px;">${n.author} — ${new Date(n.createdAt).toLocaleString()}</div>
+          </div>
+        `).join("") || '<div class="muted" style="font-size:12px;padding:8px;">No notes yet.</div>'}
+      </div>
+    </div>
+  `;
+  if (window.lucide) window.lucide.createIcons();
+}
+
+async function assignLead(leadId) {
+  try {
+    const assignedTo = document.getElementById("assignInput")?.value || "";
+    await getJson(workspacePath(`/leads/${encodeURIComponent(leadId)}/assign`), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ assignedTo })
+    });
+    showToast("Lead assigned", "success");
+    loadLeads();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function updateLeadTags(leadId) {
+  try {
+    const tags = (document.getElementById("tagsInput")?.value || "").split(",").map(t => t.trim()).filter(Boolean);
+    await getJson(workspacePath(`/leads/${encodeURIComponent(leadId)}/tags`), {
+      method: "PATCH",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ tags })
+    });
+    showToast("Tags updated", "success");
+    loadLeads();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function saveLeadCustomData(leadId) {
+  try {
+    const inputs = document.querySelectorAll(".cf-input");
+    const customData = {};
+    inputs.forEach(inp => { customData[inp.dataset.key] = inp.value; });
+    await getJson(workspacePath(`/leads/${encodeURIComponent(leadId)}/custom-data`), {
+      method: "PATCH",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify(customData)
+    });
+    showToast("Custom fields saved", "success");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function addLeadNote(leadId) {
+  try {
+    const text = document.getElementById("noteInput")?.value || "";
+    if (!text) return;
+    await getJson(workspacePath(`/leads/${encodeURIComponent(leadId)}/notes`), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    showToast("Note added", "success");
+    // Reload detail
+    const result = await getJson(workspacePath("/leads"));
+    const lead = (result.leads || []).find(l => l.id === leadId);
+    if (lead) openLeadDetail(lead);
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ── Duplicates ──
+async function findDuplicateLeads() {
+  try {
+    const data = await getJson(workspacePath("/leads/duplicates"));
+    const modal = document.getElementById("dedupModal");
+    const content = document.getElementById("dedupContent");
+    if (!modal || !content) return;
+    modal.style.display = "flex";
+    if (data.groups.length === 0) {
+      content.innerHTML = '<p class="muted">No duplicate leads found. 🎉</p>';
+      return;
+    }
+    content.innerHTML = data.groups.map(g => `
+      <div style="padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
+        <div style="font-weight:600;font-size:13px;">Primary: ${g.primaryId}</div>
+        <div class="muted" style="font-size:11px;">Duplicates: ${g.duplicates.map(d => d.id).join(", ")}</div>
+        <button class="btn primary" onclick="mergeDups('${g.primaryId}', ${JSON.stringify(g.duplicates.map(d => d.id))})" style="font-size:11px;margin-top:6px;">Merge</button>
+      </div>
+    `).join("");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function mergeDups(primaryId, dupIds) {
+  try {
+    await getJson(workspacePath("/leads/merge"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ primaryId, duplicateIds: dupIds })
+    });
+    showToast("Leads merged", "success");
+    findDuplicateLeads();
+    loadLeads();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function autoMergeAllDups() {
+  try {
+    const data = await getJson(workspacePath("/leads/auto-merge"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" }
+    });
+    showToast(`Auto-merged ${data.totalMerged || 0} duplicates`, "success");
+    document.getElementById("dedupModal").style.display = "none";
+    loadLeads();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Blacklist / DND ──
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadBlacklist() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/blacklist"));
+    const list = data.blacklist || [];
+    document.getElementById("blacklistCount").textContent = `${list.length} blocked number${list.length !== 1 ? "s" : ""}`;
+    const el = document.getElementById("blacklistList");
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<span class="muted">No blocked numbers.</span>'; return; }
+    el.innerHTML = list.map(b => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);">
+        <span>${b.number} <span class="muted">(${b.reason || 'manual'})</span></span>
+        <button class="btn" onclick="removeFromBlacklist('${b.number}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Remove</button>
+      </div>
+    `).join("");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function addToBlacklist() {
+  const numbers = document.getElementById("blacklistInput")?.value || "";
+  if (!numbers.trim()) return showToast("Enter numbers to block", "error");
+  try {
+    await getJson(workspacePath("/blacklist"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ numbers, reason: "manual" })
+    });
+    document.getElementById("blacklistInput").value = "";
+    showToast("Numbers added to blacklist", "success");
+    loadBlacklist();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function removeFromBlacklist(number) {
+  try {
+    await getJson(workspacePath("/blacklist"), {
+      method: "DELETE",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ numbers: [number] })
+    });
+    showToast("Removed from blacklist", "success");
+    loadBlacklist();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Webhooks ──
+// ═══════════════════════════════════════════════════════════════════════════
+let _webhookEvents = [];
+
+async function loadWebhooks() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/webhooks"));
+    _webhookEvents = data.availableEvents || [];
+    const list = data.webhooks || [];
+    const el = document.getElementById("webhookList");
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<span class="muted">No webhooks configured.</span>'; return; }
+    el.innerHTML = list.map(w => `
+      <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;">
+        <div style="font-weight:600;word-break:break-all;">${w.url}</div>
+        <div class="muted" style="font-size:10px;">Events: ${(w.events || []).join(", ")} | Fired: ${w.firedCount || 0} | Fails: ${w.failCount || 0}</div>
+        <div style="margin-top:4px;display:flex;gap:6px;">
+          <button class="btn" onclick="testWebhook('${w.id}')" style="font-size:10px;padding:2px 6px;">Test</button>
+          <button class="btn" onclick="deleteWebhook('${w.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function showAddWebhookForm() {
+  const form = document.getElementById("webhookForm");
+  form.style.display = "block";
+  const checkboxes = document.getElementById("webhookEventsCheckboxes");
+  if (_webhookEvents.length === 0) {
+    // Load events first
+    getJson(workspacePath("/webhooks")).then(d => {
+      _webhookEvents = d.availableEvents || [];
+      renderWebhookEventCheckboxes();
+    });
+  } else {
+    renderWebhookEventCheckboxes();
+  }
+}
+
+function renderWebhookEventCheckboxes() {
+  const el = document.getElementById("webhookEventsCheckboxes");
+  if (!el) return;
+  el.innerHTML = _webhookEvents.map(evt => `
+    <label style="display:flex;align-items:center;gap:3px;"><input type="checkbox" class="wh-evt-cb" value="${evt}" checked />${evt}</label>
+  `).join("");
+}
+
+async function saveWebhook() {
+  try {
+    const url = document.getElementById("webhookUrl")?.value || "";
+    const secret = document.getElementById("webhookSecret")?.value || "";
+    const events = Array.from(document.querySelectorAll(".wh-evt-cb:checked")).map(cb => cb.value);
+    if (!url) return showToast("URL is required", "error");
+    await getJson(workspacePath("/webhooks"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ url, events, secret })
+    });
+    document.getElementById("webhookForm").style.display = "none";
+    showToast("Webhook created", "success");
+    loadWebhooks();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function testWebhook(id) {
+  try {
+    await getJson(workspacePath(`/webhooks/${id}/test`), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" }
+    });
+    showToast("Test event fired", "success");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function deleteWebhook(id) {
+  if (!confirm("Delete this webhook?")) return;
+  try {
+    await getJson(workspacePath(`/webhooks/${id}`), {
+      method: "DELETE",
+      headers: authHeaders()
+    });
+    showToast("Webhook deleted", "success");
+    loadWebhooks();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Chatbot Flows ──
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadFlows() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/flows"));
+    const list = data.flows || [];
+    const el = document.getElementById("flowList");
+    if (!el) return;
+    if (list.length === 0) { el.innerHTML = '<span class="muted">No chatbot flows. Create one to auto-respond before AI.</span>'; return; }
+    el.innerHTML = list.map(f => `
+      <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;">
+        <div style="font-weight:600;">${f.name} <span class="badge" style="font-size:10px;">${f.enabled ? 'Active' : 'Disabled'}</span></div>
+        <div class="muted" style="font-size:10px;">Trigger: "${f.trigger}" (${f.triggerMode}) | Steps: ${(f.steps || []).length}</div>
+        <div style="margin-top:4px;display:flex;gap:6px;">
+          <button class="btn" onclick="deleteFlow('${f.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function showAddFlowForm() {
+  document.getElementById("flowForm").style.display = "block";
+}
+
+async function saveFlow() {
+  try {
+    const name = document.getElementById("flowName")?.value || "";
+    const trigger = document.getElementById("flowTrigger")?.value || "";
+    const triggerMode = document.getElementById("flowTriggerMode")?.value || "contains";
+    const replyMsg = document.getElementById("flowReply")?.value || "";
+    if (!name || !trigger || !replyMsg) return showToast("Fill in all fields", "error");
+    await getJson(workspacePath("/flows"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name, trigger, triggerMode,
+        steps: [{ id: "step_1", type: "reply", message: replyMsg }]
+      })
+    });
+    document.getElementById("flowForm").style.display = "none";
+    showToast("Flow created", "success");
+    loadFlows();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function deleteFlow(id) {
+  if (!confirm("Delete this flow?")) return;
+  try {
+    await getJson(workspacePath(`/flows/${id}`), { method: "DELETE", headers: authHeaders() });
+    showToast("Flow deleted", "success");
+    loadFlows();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Custom Lead Fields ──
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadCustomFields() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/custom-fields"));
+    const fields = data.fields || [];
+    const el = document.getElementById("customFieldList");
+    if (!el) return;
+    if (fields.length === 0) { el.innerHTML = '<span class="muted">No custom fields. Add fields to track extra lead data.</span>'; return; }
+    el.innerHTML = fields.map(f => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span><b>${f.name}</b> <span class="muted">(${f.type})</span> ${f.options?.length ? '→ ' + f.options.join(', ') : ''}</span>
+        <button class="btn" onclick="deleteCustomField('${f.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+      </div>
+    `).join("");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+function showAddFieldForm() {
+  document.getElementById("customFieldForm").style.display = "block";
+  const typeSelect = document.getElementById("cfType");
+  const optWrap = document.getElementById("cfOptionsWrap");
+  typeSelect.addEventListener("change", () => {
+    optWrap.style.display = typeSelect.value === "select" ? "block" : "none";
+  });
+}
+
+async function saveCustomField() {
+  try {
+    const name = document.getElementById("cfName")?.value || "";
+    const type = document.getElementById("cfType")?.value || "text";
+    const options = type === "select" ? (document.getElementById("cfOptions")?.value || "").split(",").map(o => o.trim()).filter(Boolean) : [];
+    if (!name) return showToast("Field name required", "error");
+    await getJson(workspacePath("/custom-fields"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ name, type, options })
+    });
+    document.getElementById("customFieldForm").style.display = "none";
+    showToast("Custom field created", "success");
+    loadCustomFields();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function deleteCustomField(id) {
+  if (!confirm("Delete this custom field?")) return;
+  try {
+    await getJson(workspacePath(`/custom-fields/${id}`), { method: "DELETE", headers: authHeaders() });
+    showToast("Field deleted", "success");
+    loadCustomFields();
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Audit Log ──
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadAuditLog() {
+  if (!activeWorkspaceId) return;
+  const actionFilter = document.getElementById("auditActionFilter")?.value || "";
+  try {
+    const data = await getJson(workspacePath(`/audit-log?action=${actionFilter}&limit=100`));
+    const entries = data.entries || [];
+    const body = document.getElementById("auditLogBody");
+    if (!body) return;
+    if (entries.length === 0) { body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center;padding:16px;">No audit entries.</td></tr>'; return; }
+    body.innerHTML = entries.map(e => `
+      <tr>
+        <td class="muted" style="white-space:nowrap;">${new Date(e.timestamp).toLocaleString()}</td>
+        <td>${e.userId || '-'}</td>
+        <td><span class="badge">${e.action}</span></td>
+        <td style="max-width:300px;word-break:break-word;font-size:11px;">${JSON.stringify(e.details || {})}</td>
+      </tr>
+    `).join("");
+
+    // Populate action filter dropdown
+    const actionsRes = await getJson(workspacePath("/audit-log/actions"));
+    const select = document.getElementById("auditActionFilter");
+    if (select && actionsRes.actions) {
+      const current = select.value;
+      select.innerHTML = '<option value="">All Actions</option>' + actionsRes.actions.map(a => `<option value="${a}" ${a === current ? 'selected' : ''}>${a}</option>`).join("");
+    }
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Branding / White-Label ──
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadBranding() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/branding"));
+    const b = data.branding || {};
+    const el = (id) => document.getElementById(id);
+    if (el("brandingAppName")) el("brandingAppName").value = b.appName || "";
+    if (el("brandingLogoUrl")) el("brandingLogoUrl").value = b.logoUrl || "";
+    if (el("brandingPrimaryColor")) el("brandingPrimaryColor").value = b.primaryColor || "#6c5ce7";
+    if (el("brandingAccentColor")) el("brandingAccentColor").value = b.accentColor || "#00cec9";
+    if (el("brandingSupportEmail")) el("brandingSupportEmail").value = b.supportEmail || "";
+    if (el("brandingFooterText")) el("brandingFooterText").value = b.footerText || "";
+  } catch {}
+}
+
+async function saveBranding() {
+  try {
+    await getJson(workspacePath("/branding"), {
+      method: "PUT",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appName: document.getElementById("brandingAppName")?.value || "",
+        logoUrl: document.getElementById("brandingLogoUrl")?.value || "",
+        primaryColor: document.getElementById("brandingPrimaryColor")?.value || "",
+        accentColor: document.getElementById("brandingAccentColor")?.value || "",
+        supportEmail: document.getElementById("brandingSupportEmail")?.value || "",
+        footerText: document.getElementById("brandingFooterText")?.value || "",
+      })
+    });
+    showToast("Branding saved", "success");
+  } catch (e) { showToast(e.message, "error"); }
+}
+
+async function resetBranding() {
+  if (!confirm("Reset branding to defaults?")) return;
+  try {
+    await getJson(workspacePath("/branding/reset"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" }
+    });
+    showToast("Branding reset", "success");
+    loadBranding();
+  } catch (e) { showToast(e.message, "error"); }
+}

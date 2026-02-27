@@ -17,6 +17,7 @@ const automationRoutes = require("./automation.routes");
 const agentRoutes = require("./agent.routes");
 const billingRoutes = require("./billing.routes");
 const backupRoutes = require("./backup.routes");
+const toolsRoutes = require("./tools.routes");
 
 function mountRoutes(app) {
   // ─── Public auth endpoints ───────────────────────────────────────────────
@@ -41,6 +42,7 @@ function mountRoutes(app) {
   app.use("/api/workspaces", requireAuth, agentRoutes);
   app.use("/api/workspaces", requireAuth, billingRoutes);
   app.use("/api/workspaces", requireAuth, backupRoutes);
+  app.use("/api/workspaces", requireAuth, toolsRoutes);
 }
 
 module.exports = { mountRoutes };

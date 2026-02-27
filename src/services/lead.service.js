@@ -79,6 +79,10 @@ function updateLeadStatus(workspace, leadData) {
       lead.nextFollowUpAt = sanitizeText(leadData.nextFollowUpAt, lead.nextFollowUpAt || "");
     if (leadData.followUpCount !== undefined && Number.isFinite(Number(leadData.followUpCount)))
       lead.followUpCount = Math.max(0, Number.parseInt(String(leadData.followUpCount), 10) || 0);
+    if (leadData.language !== undefined)
+      lead.language = sanitizeText(leadData.language, lead.language || "");
+    if (leadData.name && !lead.name)
+      lead.name = leadData.name;
 
     lead.updatedAt = new Date().toISOString();
     saveStore();
