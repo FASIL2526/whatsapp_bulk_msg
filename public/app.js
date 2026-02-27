@@ -1089,6 +1089,10 @@ navItems.forEach(item => {
     if (target === "campaigns") {
       loadMediaList();
       loadSchedules();
+      loadCampaignHistory();
+      loadTemplateLibrary();
+      populateCampMediaSelect();
+      populateCampTemplateSelect();
     }
     if (target === "automation") {
       loadAutomation();
@@ -2801,3 +2805,319 @@ async function adminDeleteUser(userId, username) {
     loadAdminPanel();
   } catch (e) { alert("Error: " + e.message); }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Campaign Builder, History, Templates ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// --- Campaign History ---
+async function loadCampaignHistory() {
+  if (!activeWorkspaceId) return;
+  const tbody = document.getElementById("campaignHistoryBody");
+  const empty = document.getElementById("campaignHistoryEmpty");
+  if (!tbody) return;
+  try {
+    const data = await getJson(workspacePath("/campaigns"));
+    const list = data.campaigns || [];
+    tbody.innerHTML = "";
+    if (list.length === 0) {
+      if (empty) empty.style.display = "block";
+      return;
+    }
+    if (empty) empty.style.display = "none";
+    for (const c of list) {
+      const statusColors = {
+        draft: "var(--muted)", scheduled: "var(--accent)", sending: "var(--primary)",
+        completed: "var(--primary)", cancelled: "var(--danger)"
+      };
+      const color = statusColors[c.status] || "var(--muted)";
+      const audienceLabel = c.audience?.type === "segment" ? "Segment" : c.audience?.type === "specific" ? "Specific" : "All";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="font-weight:600;">${c.name}</td>
+        <td><span class="badge" style="color:${color};border-color:${color};">${c.status}</span></td>
+        <td class="muted">${audienceLabel}</td>
+        <td style="color:var(--primary);">${c.stats?.delivered || 0}</td>
+        <td style="color:var(--danger);">${c.stats?.failed || 0}</td>
+        <td style="color:var(--accent);">${c.stats?.replied || 0}</td>
+        <td class="muted" style="font-size:12px;">${c.sentAt ? new Date(c.sentAt).toLocaleString() : "—"}</td>
+        <td style="white-space: nowrap;">
+          ${c.status === "draft" ? `<button class="btn send-camp-btn" data-id="${c.id}" style="padding:3px 8px;font-size:11px;color:var(--primary);border-color:var(--primary);">🚀 Send</button>` : ""}
+          ${c.status === "sending" ? `<button class="btn cancel-camp-btn" data-id="${c.id}" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);">Cancel</button>` : ""}
+          <button class="btn clone-camp-btn" data-id="${c.id}" style="padding:3px 8px;font-size:11px;">Clone</button>
+          ${c.status === "draft" || c.status === "completed" || c.status === "cancelled" ? `<button class="btn del-camp-btn" data-id="${c.id}" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);">✕</button>` : ""}
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    // Wire send buttons
+    tbody.querySelectorAll(".send-camp-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Send this campaign now?")) return;
+        try {
+          const data = await getJson(workspacePath(`/campaigns/${btn.dataset.id}/send`), {
+            method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: "{}"
+          });
+          showToast(`Campaign sending to ${data.recipientCount} recipients`, "success");
+          loadCampaignHistory();
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+    // Wire cancel buttons
+    tbody.querySelectorAll(".cancel-camp-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          await getJson(workspacePath(`/campaigns/${btn.dataset.id}/cancel`), {
+            method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: "{}"
+          });
+          showToast("Campaign cancelled", "success");
+          loadCampaignHistory();
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+    // Wire clone buttons
+    tbody.querySelectorAll(".clone-camp-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          await getJson(workspacePath(`/campaigns/${btn.dataset.id}/clone`), {
+            method: "POST", headers: authHeaders()
+          });
+          showToast("Campaign cloned", "success");
+          loadCampaignHistory();
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+    // Wire delete buttons
+    tbody.querySelectorAll(".del-camp-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Delete this campaign?")) return;
+        try {
+          await getJson(workspacePath(`/campaigns/${btn.dataset.id}`), {
+            method: "DELETE", headers: authHeaders()
+          });
+          showToast("Campaign deleted", "success");
+          loadCampaignHistory();
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+  } catch (err) {
+    console.warn("Failed to load campaign history:", err.message);
+  }
+}
+
+// --- Template Library ---
+async function loadTemplateLibrary() {
+  if (!activeWorkspaceId) return;
+  const tbody = document.getElementById("templateLibraryBody");
+  const empty = document.getElementById("templateLibraryEmpty");
+  if (!tbody) return;
+  try {
+    const data = await getJson(workspacePath("/templates"));
+    const list = data.templates || [];
+    tbody.innerHTML = "";
+    if (list.length === 0) {
+      if (empty) empty.style.display = "block";
+      return;
+    }
+    if (empty) empty.style.display = "none";
+    for (const t of list) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td style="font-weight:600;">${t.name}</td>
+        <td class="muted">${t.category || "general"}</td>
+        <td class="muted" style="max-width:260px;"><div class="reason-cell">${(t.messages || []).join(" | ")}</div></td>
+        <td class="muted" style="font-size:12px;">${new Date(t.createdAt).toLocaleString()}</td>
+        <td style="white-space: nowrap;">
+          <button class="btn use-tpl-btn" data-id="${t.id}" style="padding:3px 8px;font-size:11px;color:var(--primary);border-color:var(--primary);">Use</button>
+          <button class="btn del-tpl-btn" data-id="${t.id}" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+    // Wire use buttons → populate campaign builder
+    tbody.querySelectorAll(".use-tpl-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        try {
+          const tplData = await getJson(workspacePath(`/templates`));
+          const tpl = (tplData.templates || []).find(t => t.id === btn.dataset.id);
+          if (!tpl) return showToast("Template not found", "error");
+          const campMsgA = document.getElementById("campMessageA");
+          const campMsgB = document.getElementById("campMessageB");
+          const campNameInput = document.getElementById("campName");
+          if (campMsgA && tpl.messages[0]) campMsgA.value = tpl.messages[0];
+          if (campMsgB && tpl.messages[1]) campMsgB.value = tpl.messages[1];
+          if (campNameInput) campNameInput.value = `From: ${tpl.name}`;
+          showToast("Template loaded into builder", "success");
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+    // Wire delete buttons
+    tbody.querySelectorAll(".del-tpl-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Delete this template?")) return;
+        try {
+          await getJson(workspacePath(`/templates/${btn.dataset.id}`), {
+            method: "DELETE", headers: authHeaders()
+          });
+          showToast("Template deleted", "success");
+          loadTemplateLibrary();
+          populateCampTemplateSelect();
+        } catch (e) { showToast(e.message, "error"); }
+      });
+    });
+  } catch (err) {
+    console.warn("Failed to load templates:", err.message);
+  }
+}
+
+// --- Populate campaign media select ---
+async function populateCampMediaSelect() {
+  if (!activeWorkspaceId) return;
+  const sel = document.getElementById("campMediaSelect");
+  if (!sel) return;
+  try {
+    const data = await getJson(workspacePath("/media"));
+    sel.innerHTML = '<option value="">(none)</option>';
+    for (const m of (data.media || [])) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = `${m.filename} (${m.mimeType})`;
+      sel.appendChild(opt);
+    }
+  } catch (_) {}
+}
+
+// --- Populate campaign template select ---
+async function populateCampTemplateSelect() {
+  if (!activeWorkspaceId) return;
+  const sel = document.getElementById("campTemplateSelect");
+  if (!sel) return;
+  try {
+    const data = await getJson(workspacePath("/templates"));
+    sel.innerHTML = '<option value="">(start from scratch)</option>';
+    for (const t of (data.templates || [])) {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    }
+  } catch (_) {}
+}
+
+// --- Campaign template select handler ---
+(function() {
+  const sel = document.getElementById("campTemplateSelect");
+  if (sel) {
+    sel.addEventListener("change", async () => {
+      const tplId = sel.value;
+      if (!tplId) return;
+      try {
+        const data = await getJson(workspacePath("/templates"));
+        const tpl = (data.templates || []).find(t => t.id === tplId);
+        if (!tpl) return;
+        const campMsgA = document.getElementById("campMessageA");
+        const campMsgB = document.getElementById("campMessageB");
+        if (campMsgA && tpl.messages[0]) campMsgA.value = tpl.messages[0];
+        if (campMsgB && tpl.messages[1]) campMsgB.value = tpl.messages[1];
+      } catch (_) {}
+    });
+  }
+})();
+
+// --- Audience preview ---
+(function() {
+  const btn = document.getElementById("previewAudienceBtn");
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      try {
+        const audience = buildAudienceFromForm();
+        const data = await getJson(workspacePath("/campaigns/audience-preview"), {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ audience })
+        });
+        const countEl = document.getElementById("audiencePreviewCount");
+        if (countEl) countEl.textContent = `${data.count} recipient${data.count !== 1 ? "s" : ""} matched`;
+      } catch (e) { showToast(e.message, "error"); }
+    });
+  }
+})();
+
+function buildAudienceFromForm() {
+  const type = document.getElementById("campAudienceType")?.value || "all";
+  if (type === "all") return { type: "all" };
+  const statusSel = document.getElementById("campFilterStatus");
+  const stageSel = document.getElementById("campFilterStage");
+  const statuses = statusSel ? Array.from(statusSel.selectedOptions).map(o => o.value) : [];
+  const stages = stageSel ? Array.from(stageSel.selectedOptions).map(o => o.value) : [];
+  const tagsRaw = document.getElementById("campFilterTags")?.value || "";
+  const tags = tagsRaw.split(",").map(t => t.trim()).filter(Boolean);
+  const scoreMin = Number(document.getElementById("campScoreMin")?.value) || 0;
+  const scoreMax = Number(document.getElementById("campScoreMax")?.value) || 100;
+  return { type: "segment", filters: { statuses, stages, tags, scoreMin, scoreMax } };
+}
+
+// --- Campaign builder form submit ---
+(function() {
+  const form = document.getElementById("campaignBuilderForm");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const name = document.getElementById("campName")?.value || "";
+        const msgA = document.getElementById("campMessageA")?.value || "";
+        const msgB = document.getElementById("campMessageB")?.value || "";
+        const messages = [msgA, msgB].filter(Boolean);
+        if (messages.length === 0) return showToast("At least one message is required", "error");
+
+        const audience = buildAudienceFromForm();
+        const mediaId = document.getElementById("campMediaSelect")?.value || "";
+        const mode = document.getElementById("campSendMode")?.value || "instant";
+        const abTestEnabled = document.getElementById("campAbTestToggle")?.checked || false;
+
+        const payload = { name, messages, audience, mediaId, mode, abTestEnabled };
+        const data = await getJson(workspacePath("/campaigns"), {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        showToast(`Campaign "${data.campaign.name}" saved as draft`, "success");
+        form.reset();
+        loadCampaignHistory();
+      } catch (e) { showToast(e.message, "error"); }
+    });
+  }
+})();
+
+// --- Save as template button ---
+(function() {
+  const btn = document.getElementById("saveCampAsTemplateBtn");
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      try {
+        const name = document.getElementById("campName")?.value || "Untitled Template";
+        const msgA = document.getElementById("campMessageA")?.value || "";
+        const msgB = document.getElementById("campMessageB")?.value || "";
+        const messages = [msgA, msgB].filter(Boolean);
+        if (messages.length === 0) return showToast("Add at least one message first", "error");
+
+        const data = await getJson(workspacePath("/templates"), {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ name, messages, category: "campaign" })
+        });
+        showToast(`Template "${data.template.name}" saved`, "success");
+        loadTemplateLibrary();
+        populateCampTemplateSelect();
+      } catch (e) { showToast(e.message, "error"); }
+    });
+  }
+})();
+
+// --- Refresh buttons ---
+(function() {
+  const btn1 = document.getElementById("refreshCampaignsBtn");
+  if (btn1) btn1.addEventListener("click", loadCampaignHistory);
+  const btn2 = document.getElementById("refreshTemplatesBtn");
+  if (btn2) btn2.addEventListener("click", () => { loadTemplateLibrary(); populateCampTemplateSelect(); });
+})();

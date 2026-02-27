@@ -381,7 +381,10 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
 
   try {
     await ensureSendableConnection(workspace, runtime);
-    const recipients = workspaceRecipientsChatIds(workspace);
+    // Support single-recipient override for campaign per-lead sends
+    const recipients = overrides._singleRecipient
+      ? [overrides._singleRecipient]
+      : workspaceRecipientsChatIds(workspace);
     if (recipients.length === 0) throw new Error("No recipients configured.");
 
     const options = getBulkOptions(workspace.config, overrides);

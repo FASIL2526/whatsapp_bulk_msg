@@ -16,6 +16,25 @@ const {
   setupScheduler,
   setupStatusScheduler,
 } = require("../services/whatsapp.service");
+const {
+  createCampaign,
+  getCampaign,
+  listCampaigns,
+  updateCampaign,
+  deleteCampaign,
+  cloneCampaign,
+  resolveAudience,
+  personalizeMessage,
+  recordCampaignSend,
+  completeCampaign,
+  setupCampaignAbTest,
+  pickAbVariantForRecipient,
+  createTemplate,
+  listTemplates,
+  getTemplate,
+  updateTemplate,
+  deleteTemplate,
+} = require("../services/campaign.service");
 
 const router = Router();
 
@@ -220,6 +239,217 @@ router.post("/:workspaceId/ai-data-assist", async (req, res) => {
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Campaign CRUD ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get("/:workspaceId/campaigns", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  res.json({ ok: true, campaigns: listCampaigns(workspace) });
+});
+
+router.get("/:workspaceId/campaigns/:campaignId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  const campaign = getCampaign(workspace, req.params.campaignId);
+  if (!campaign) return res.status(404).json({ ok: false, error: "Campaign not found" });
+  res.json({ ok: true, campaign });
+});
+
+router.post("/:workspaceId/campaigns", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const campaign = createCampaign(workspace, req.body);
+    res.json({ ok: true, campaign });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.put("/:workspaceId/campaigns/:campaignId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const campaign = updateCampaign(workspace, req.params.campaignId, req.body);
+    if (!campaign) return res.status(404).json({ ok: false, error: "Campaign not found" });
+    res.json({ ok: true, campaign });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.delete("/:workspaceId/campaigns/:campaignId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const ok = deleteCampaign(workspace, req.params.campaignId);
+    if (!ok) return res.status(404).json({ ok: false, error: "Campaign not found" });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.post("/:workspaceId/campaigns/:campaignId/clone", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const clone = cloneCampaign(workspace, req.params.campaignId);
+  if (!clone) return res.status(404).json({ ok: false, error: "Source campaign not found" });
+  res.json({ ok: true, campaign: clone });
+});
+
+// ─── Audience preview ──────────────────────────────────────────────────────
+
+router.post("/:workspaceId/campaigns/audience-preview", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  try {
+    const fakeCampaign = { audience: req.body.audience };
+    const chatIds = resolveAudience(workspace, fakeCampaign);
+    const leads = Array.isArray(workspace.leads) ? workspace.leads : [];
+    const preview = chatIds.map((chatId) => {
+      const lead = leads.find((l) => l.id === chatId);
+      return { chatId, name: lead?.name || chatId.split("@")[0], status: lead?.status || "", score: lead?.score || 0 };
+    });
+    res.json({ ok: true, count: preview.length, recipients: preview });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── Campaign send (with targeting + A/B + personalization) ────────────────
+
+router.post("/:workspaceId/campaigns/:campaignId/send", requirePlanFeature("bulkMessaging"), async (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const runtime = getRuntime(workspace.id);
+    const campaign = getCampaign(workspace, req.params.campaignId);
+    if (!campaign) return res.status(404).json({ ok: false, error: "Campaign not found" });
+    if (campaign.status !== "draft" && campaign.status !== "scheduled") {
+      return res.status(400).json({ ok: false, error: `Campaign is already ${campaign.status}` });
+    }
+
+    // Resolve audience
+    const chatIds = resolveAudience(workspace, campaign);
+    if (chatIds.length === 0) {
+      return res.status(400).json({ ok: false, error: "No recipients match the audience criteria" });
+    }
+
+    // Setup A/B test if enabled
+    if (campaign.abTestEnabled && campaign.messages.length >= 2) {
+      setupCampaignAbTest(workspace, campaign);
+    }
+
+    // Mark as sending
+    campaign.status = "sending";
+    campaign.sentAt = new Date().toISOString();
+    saveStore();
+
+    // Build per-recipient messages with personalization and A/B
+    const personalizedMessages = chatIds.map((chatId) => {
+      // A/B variant selection
+      const variant = campaign.abTestId ? pickAbVariantForRecipient(workspace, campaign, chatId) : null;
+      const baseMessage = variant ? variant.message : campaign.messages[0] || "";
+      // Personalize
+      return { chatId, message: personalizeMessage(baseMessage, chatId, workspace) };
+    });
+
+    // Send in background so we don't timeout the HTTP request
+    const campaignId = campaign.id;
+    setImmediate(async () => {
+      try {
+        for (let i = 0; i < personalizedMessages.length; i++) {
+          const { chatId, message } = personalizedMessages[i];
+          try {
+            const overrides = {
+              source: `campaign:${campaignId}`,
+              mode: campaign.mode,
+              delayMs: campaign.delayMs,
+              randomMinMs: campaign.randomMinMs,
+              randomMaxMs: campaign.randomMaxMs,
+              mediaId: campaign.mediaId || undefined,
+            };
+            await sendBulkMessage(workspace, runtime, [message], {
+              ...overrides,
+              _singleRecipient: chatId,
+            });
+            recordCampaignSend(workspace, campaignId, chatId, true);
+          } catch (err) {
+            recordCampaignSend(workspace, campaignId, chatId, false);
+          }
+          saveStore();
+        }
+        completeCampaign(workspace, campaignId);
+      } catch (err) {
+        console.error(`[${workspace.id}] Campaign ${campaignId} error:`, err.message);
+        const c = getCampaign(workspace, campaignId);
+        if (c) { c.status = "completed"; c.completedAt = new Date().toISOString(); }
+        saveStore();
+      }
+    });
+
+    res.json({ ok: true, campaignId: campaign.id, recipientCount: chatIds.length, status: "sending" });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ─── Cancel a sending campaign ─────────────────────────────────────────────
+
+router.post("/:workspaceId/campaigns/:campaignId/cancel", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const campaign = getCampaign(workspace, req.params.campaignId);
+  if (!campaign) return res.status(404).json({ ok: false, error: "Campaign not found" });
+  if (campaign.status === "completed" || campaign.status === "cancelled") {
+    return res.status(400).json({ ok: false, error: `Campaign is already ${campaign.status}` });
+  }
+  campaign.status = "cancelled";
+  campaign.completedAt = new Date().toISOString();
+  saveStore();
+  res.json({ ok: true, campaign });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Template CRUD ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+router.get("/:workspaceId/templates", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  res.json({ ok: true, templates: listTemplates(workspace) });
+});
+
+router.post("/:workspaceId/templates", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const template = createTemplate(workspace, req.body);
+    res.json({ ok: true, template });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.put("/:workspaceId/templates/:templateId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const template = updateTemplate(workspace, req.params.templateId, req.body);
+  if (!template) return res.status(404).json({ ok: false, error: "Template not found" });
+  res.json({ ok: true, template });
+});
+
+router.delete("/:workspaceId/templates/:templateId", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  const ok = deleteTemplate(workspace, req.params.templateId);
+  if (!ok) return res.status(404).json({ ok: false, error: "Template not found" });
+  res.json({ ok: true });
 });
 
 module.exports = router;

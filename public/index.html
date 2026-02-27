@@ -607,6 +607,184 @@
           No media uploaded yet. Use <strong>Upload Media</strong> above to add files.
         </div>
       </section>
+
+      <!-- Campaign Builder -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">🎯 Campaign Builder</h2>
+        </div>
+        <form id="campaignBuilderForm" class="form-grid">
+          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="eyebrow" style="font-size: 11px;">Campaign Name</label>
+              <input type="text" id="campName" placeholder="e.g. January Promo Blast" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="eyebrow" style="font-size: 11px;">Load from Template</label>
+              <select id="campTemplateSelect">
+                <option value="">(start from scratch)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="eyebrow" style="font-size: 11px;">Message A</label>
+              <textarea id="campMessageA" rows="5" placeholder="Main message... use {name}, {first_name}, {status}, {score} for personalization"></textarea>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="eyebrow" style="font-size: 11px; color: var(--accent);">Message B (A/B variant)</label>
+              <textarea id="campMessageB" rows="5" placeholder="Alternative message for A/B testing (optional)"></textarea>
+            </div>
+          </div>
+
+          <!-- Audience Targeting -->
+          <div class="span-2" style="border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+            <h3 style="font-size: 14px; margin: 0 0 12px 0;"><i data-lucide="users" style="width:16px;height:16px;vertical-align:middle;"></i> Audience Targeting</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Audience Type</label>
+                <select id="campAudienceType">
+                  <option value="all">All Recipients</option>
+                  <option value="segment">Filtered Segment</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Lead Status</label>
+                <select id="campFilterStatus" multiple style="height: 70px;">
+                  <option value="cold">Cold</option>
+                  <option value="warm">Warm</option>
+                  <option value="hot">Hot</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Lead Stage</label>
+                <select id="campFilterStage" multiple style="height: 70px;">
+                  <option value="new">New</option>
+                  <option value="qualified">Qualified</option>
+                  <option value="proposal">Proposal</option>
+                  <option value="negotiation">Negotiation</option>
+                  <option value="won">Won</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Min Score</label>
+                <input type="number" id="campScoreMin" min="0" max="100" value="0" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Max Score</label>
+                <input type="number" id="campScoreMax" min="0" max="100" value="100" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="eyebrow" style="font-size: 10px;">Tags (comma-separated)</label>
+                <input type="text" id="campFilterTags" placeholder="vip, interested" />
+              </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+              <button type="button" id="previewAudienceBtn" class="btn" style="padding: 6px 14px; font-size: 12px;">
+                <i data-lucide="eye" style="width:14px;height:14px;vertical-align:middle;"></i> Preview Audience
+              </button>
+              <span id="audiencePreviewCount" class="muted" style="font-size: 13px;"></span>
+            </div>
+          </div>
+
+          <!-- Options row -->
+          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="eyebrow" style="font-size: 10px;">Attach Media</label>
+              <select id="campMediaSelect">
+                <option value="">(none)</option>
+              </select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="eyebrow" style="font-size: 10px;">Send Mode</label>
+              <select id="campSendMode">
+                <option value="instant">Instant</option>
+                <option value="staggered">Staggered</option>
+                <option value="random">Random Delay</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 8px;">
+              <label style="font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="campAbTestToggle" /> Enable A/B Testing
+              </label>
+            </div>
+          </div>
+
+          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <button type="submit" class="btn accent" style="height: 50px; font-size: 16px;">
+              💾 Save Campaign (Draft)
+            </button>
+            <button type="button" id="saveCampAsTemplateBtn" class="btn" style="height: 50px; font-size: 14px;">
+              📋 Save as Template
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Campaign History -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">📊 Campaign History</h2>
+          <button id="refreshCampaignsBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Audience</th>
+                <th>Delivered</th>
+                <th>Failed</th>
+                <th>Replied</th>
+                <th>Sent At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="campaignHistoryBody">
+              <!-- Campaign rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div id="campaignHistoryEmpty" class="muted" style="text-align: center; padding: 24px; display: none;">
+          No campaigns yet. Use <strong>Campaign Builder</strong> above to create one.
+        </div>
+      </section>
+
+      <!-- Template Library -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">📋 Template Library</h2>
+          <button id="refreshTemplatesBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
+            <i data-lucide="refresh-cw"></i> Refresh
+          </button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Messages</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="templateLibraryBody">
+              <!-- Template rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div id="templateLibraryEmpty" class="muted" style="text-align: center; padding: 24px; display: none;">
+          No templates saved yet. Create a campaign and click <strong>Save as Template</strong>.
+        </div>
+      </section>
     </div>
 
     <!-- Analytics View -->

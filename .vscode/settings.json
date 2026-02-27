@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /home/fxzxill/whatsapp && node -e \"\nconst express = require\\('express'\\);\nconst app = express\\(\\);\napp\\.use\\(express\\.json\\(\\)\\);\n\n// Simulate the billing router\nconst billingRoutes = require\\('\\./src/routes/billing\\.routes'\\);\n\n// Mount the same way as index\\.js\napp\\.use\\('/api', billingRoutes\\);\napp\\.use\\('/api/workspaces', \\(req, res, next\\) => \\{\n  req\\.user = \\{ id: 'test', username: 'admin' \\};\n  next\\(\\);\n\\}, billingRoutes\\);\n\n// Test server\nconst server = app\\.listen\\(19876, \\(\\) => \\{\n  const http = require\\('http'\\);\n  \n  const testRoute = \\(method, path, body\\) => new Promise\\(\\(resolve\\) => \\{\n    const opts = \\{ hostname: '127\\.0\\.0\\.1', port: 19876, path, method, headers: \\{ 'Content-Type': 'application/json' \\} \\};\n    const req = http\\.request\\(opts, \\(res\\) => \\{\n      let data = '';\n      res\\.on\\('data', c => data \\+= c\\);\n      res\\.on\\('end', \\(\\) => \\{\n        console\\.log\\(method \\+ ' ' \\+ path \\+ ' => ' \\+ res\\.statusCode \\+ ' ' \\+ data\\.slice\\(0, 120\\)\\);\n        resolve\\(\\);\n      \\}\\);\n    \\}\\);\n    if \\(body\\) req\\.write\\(JSON\\.stringify\\(body\\)\\);\n    req\\.end\\(\\);\n  \\}\\);\n  \n  \\(async \\(\\) => \\{\n    await testRoute\\('GET', '/api/plans'\\);\n    await testRoute\\('POST', '/api/workspaces/admin/users/u_test123/plan', \\{ planId: 'pro' \\}\\);\n    await testRoute\\('POST', '/api/workspaces/admin/users/u_test123/reset-usage', \\{\\}\\);\n    server\\.close\\(\\);\n    process\\.exit\\(0\\);\n  \\}\\)\\(\\);\n\\}\\);\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

@@ -214,6 +214,8 @@ function ensureStore() {
       bookings: [],
       scheduledMessages: [],
       media: [],
+      campaigns: [],
+      templates: [],
       members: [{ userId: adminUser.id, role: "owner" }],
       createdAt: new Date().toISOString(),
     });
@@ -254,6 +256,8 @@ function ensureStore() {
           uploadedAt: sanitizeText(m.uploadedAt, new Date().toISOString()),
         }))
       : [];
+    const normalizedCampaigns = Array.isArray(workspace.campaigns) ? workspace.campaigns : [];
+    const normalizedTemplates = Array.isArray(workspace.templates) ? workspace.templates : [];
 
     if (JSON.stringify(normalizedConfig) !== JSON.stringify(workspace.config || {})) changed = true;
     if (!Array.isArray(workspace.reports)) changed = true;
@@ -262,6 +266,8 @@ function ensureStore() {
     if (!Array.isArray(workspace.bookings)) changed = true;
     if (!Array.isArray(workspace.scheduledMessages)) changed = true;
     if (!Array.isArray(workspace.media)) changed = true;
+    if (!Array.isArray(workspace.campaigns)) changed = true;
+    if (!Array.isArray(workspace.templates)) changed = true;
     if (normalizedMembers.length === 0) {
       normalizedMembers.push({ userId: adminUser.id, role: "owner" });
       changed = true;
@@ -276,6 +282,8 @@ function ensureStore() {
       bookings: normalizedBookings,
       scheduledMessages: normalizedScheduled,
       media: normalizedMedia,
+      campaigns: normalizedCampaigns,
+      templates: normalizedTemplates,
     };
   });
 
