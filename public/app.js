@@ -582,7 +582,7 @@ async function loadMediaList() {
       mediaListSelect.appendChild(opt);
     }
 
-    // Render the media library table
+    // Render the media library table with delete buttons + file sizes
     if (mediaTableBody) {
       mediaTableBody.innerHTML = "";
       if (list.length === 0) {
@@ -590,20 +590,67 @@ async function loadMediaList() {
       } else {
         if (mediaEmpty) mediaEmpty.style.display = "none";
         for (const m of list) {
+          const sizeLabel = formatFileSize(m.sizeBytes || 0);
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td style="font-weight:600;">${m.filename}</td>
             <td class="muted">${m.mimeType}</td>
+            <td class="muted" style="font-size:12px;">${sizeLabel}</td>
             <td class="muted" style="font-size:12px;">${new Date(m.uploadedAt).toLocaleString()}</td>
-            <td><code style="font-size:11px;">${m.id}</code></td>
+            <td>
+              <button class="btn del-media-btn" data-id="${m.id}" style="padding:3px 8px;font-size:11px;color:var(--danger);border-color:var(--danger);">✕ Delete</button>
+            </td>
           `;
           mediaTableBody.appendChild(tr);
         }
       }
+      // Wire delete buttons
+      mediaTableBody.querySelectorAll(".del-media-btn").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Delete this media file? This cannot be undone.")) return;
+          try {
+            await getJson(workspacePath(`/media/${btn.dataset.id}`), { method: "DELETE", headers: authHeaders() });
+            showToast("Media deleted", "success");
+            await loadMediaList();
+          } catch (e) { showToast(e.message, "error"); }
+        });
+      });
     }
+
+    // Load and display storage usage bar
+    loadStorageUsage();
   } catch (err) {
     console.warn("Failed to load media list:", err.message);
   }
+}
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return "—";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+async function loadStorageUsage() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/media/storage"));
+    const s = data.storage;
+    const barWrap = document.getElementById("storageBarWrap");
+    const barText = document.getElementById("storageBarText");
+    const barPercent = document.getElementById("storageBarPercent");
+    const barFill = document.getElementById("storageBarFill");
+    const label = document.getElementById("storageUsageLabel");
+
+    if (barWrap) barWrap.style.display = "block";
+    if (barText) barText.textContent = `${s.usedMB} MB / ${s.limitMB} MB (${s.fileCount} files)`;
+    if (barPercent) barPercent.textContent = `${s.usedPercent}%`;
+    if (barFill) {
+      barFill.style.width = `${s.usedPercent}%`;
+      barFill.style.background = s.usedPercent >= 90 ? "var(--danger)" : s.usedPercent >= 70 ? "var(--accent)" : "var(--primary)";
+    }
+    if (label) label.textContent = `${s.plan} plan · ${s.usedMB}/${s.limitMB} MB`;
+  } catch (_) {}
 }
 
 async function loadSchedules() {

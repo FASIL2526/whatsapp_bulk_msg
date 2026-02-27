@@ -253,6 +253,7 @@ function ensureStore() {
           filename: sanitizeText(m.filename, ""),
           path: sanitizeText(m.path, ""),
           mimeType: sanitizeText(m.mimeType, ""),
+          sizeBytes: Number(m.sizeBytes) || 0,
           uploadedAt: sanitizeText(m.uploadedAt, new Date().toISOString()),
         }))
       : [];

@@ -304,6 +304,15 @@ function getPlanSummary(user, workspace) {
   const scheduledCount = workspace ? (Array.isArray(workspace.scheduledMessages)
     ? workspace.scheduledMessages.filter(s => s.status === "pending").length : 0) : 0;
 
+  // Calculate media storage used (lazy-import to avoid circular dep)
+  let mediaStorageUsedMB = 0;
+  if (workspace) {
+    try {
+      const { getStorageUsedMB } = require("./media.service");
+      mediaStorageUsedMB = getStorageUsedMB(workspace);
+    } catch (_) {}
+  }
+
   return {
     plan: {
       id: plan.id,
@@ -319,6 +328,7 @@ function getPlanSummary(user, workspace) {
       leads: { used: leadsCount, limit: plan.limits.leadsMax, label: "Leads" },
       members: { used: membersCount, limit: plan.limits.membersPerWorkspace, label: "Team members" },
       scheduledMessages: { used: scheduledCount, limit: plan.limits.scheduledMessages, label: "Scheduled messages" },
+      mediaStorage: { used: mediaStorageUsedMB, limit: plan.limits.mediaStorageMB, label: "Media storage (MB)" },
     },
     features: plan.features,
     cycleResetAt: usage.cycleResetAt,

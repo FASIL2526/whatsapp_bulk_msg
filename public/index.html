@@ -584,9 +584,22 @@
       <section class="panel" style="grid-column: span 12;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="margin: 0;">📁 Media Library</h2>
-          <button id="refreshMediaBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
-            <i data-lucide="refresh-cw"></i> Refresh
-          </button>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span id="storageUsageLabel" class="muted" style="font-size: 12px;"></span>
+            <button id="refreshMediaBtn" class="btn" style="padding: 6px 12px; font-size: 12px;">
+              <i data-lucide="refresh-cw"></i> Refresh
+            </button>
+          </div>
+        </div>
+        <!-- Storage usage bar -->
+        <div id="storageBarWrap" style="margin-bottom: 14px; display: none;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px;">
+            <span id="storageBarText" class="muted">0 MB / 10 MB</span>
+            <span id="storageBarPercent" class="muted">0%</span>
+          </div>
+          <div style="height: 8px; border-radius: 4px; background: var(--border); overflow: hidden;">
+            <div id="storageBarFill" style="height: 100%; border-radius: 4px; background: var(--primary); transition: width 0.3s; width: 0%;"></div>
+          </div>
         </div>
         <div class="table-scroll">
           <table class="data-table">
@@ -594,8 +607,9 @@
               <tr>
                 <th>Filename</th>
                 <th>Type</th>
+                <th>Size</th>
                 <th>Uploaded</th>
-                <th>ID</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="mediaTableBody">
