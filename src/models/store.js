@@ -264,6 +264,9 @@ function ensureStore() {
       bookings: normalizedBookings,
       scheduledMessages: normalizedScheduled,
       media: normalizedMedia,
+      // ─── SaaS fields (safe migration) ─────────────────────────────────
+      plan: workspace.plan || { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() },
+      _usage: workspace._usage || { messagesSent: 0, aiCalls: 0, cycleStart: new Date().toISOString(), cycleResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString() },
     };
   });
 

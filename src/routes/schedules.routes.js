@@ -2,12 +2,13 @@
 
 const { Router } = require("express");
 const { requireAuth, requireWorkspace } = require("../middleware/auth");
+const { requirePlanFeature, requirePlanLimit } = require("../middleware/plan-guard");
 const { saveStore } = require("../models/store");
 const { sanitizeText, sanitizeMultilineText } = require("../utils/workspace-config");
 
 const router = Router();
 
-router.post("/:workspaceId/schedules", requireAuth, (req, res) => {
+router.post("/:workspaceId/schedules", requireAuth, requirePlanFeature("scheduling"), requirePlanLimit("scheduledMessages"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   try {

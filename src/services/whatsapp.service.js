@@ -28,6 +28,7 @@ const {
   initBookingRecord,
   bookingTimezone,
 } = require("../models/store");
+const { incrementUsage } = require("./plan.service");
 const {
   resolveChromeExecutablePath,
   clearStaleProfileLocks,
@@ -411,6 +412,7 @@ async function sendBulkMessage(workspace, runtime, messageOrMessages, overrides 
             await runtime.client.sendMessage(chatId, outgoingMessage);
           }
           results.push({ chatId, ok: true, mode: options.mode });
+          incrementUsage(workspace, "messagesSent");
           appendReport(workspace, {
             kind: "outgoing",
             source,
@@ -981,6 +983,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           const result = await model.generateContent(prompt);
           rawContent = result.response.text().trim();
           console.log(`[${workspace.id}] Google AI Raw Response: ${rawContent}`);
+          incrementUsage(workspace, "aiCalls");
         } else if (provider === "openrouter") {
           console.log(`[${workspace.id}] OpenRouter AI Request started...`);
           const response = await fetchWithRetry(
@@ -1011,6 +1014,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           console.log(`[${workspace.id}] OpenRouter AI Raw Response Received`);
           if (data.error) throw new Error(data.error.message || "OpenRouter Error");
           rawContent = data?.choices?.[0]?.message?.content || "";
+          incrementUsage(workspace, "aiCalls");
         }
 
         if (rawContent) {
@@ -1126,6 +1130,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
   if (replyText) {
     try {
       await msg.reply(replyText);
+      incrementUsage(workspace, "messagesSent");
       updateLeadStatus(workspace, {
         from: msg.from,
         message: msg.body,

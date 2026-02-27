@@ -53,6 +53,8 @@ router.post("/", (req, res) => {
       leads: [],
       bookings: [],
       members: [{ userId: req.user.id, role: "owner" }],
+      plan: { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() },
+      _usage: { messagesSent: 0, aiCalls: 0, cycleStart: new Date().toISOString(), cycleResetAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString() },
       createdAt: new Date().toISOString(),
     };
     store.workspaces.push(workspace);

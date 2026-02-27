@@ -6,6 +6,7 @@ const { saveStore, getRuntime, workspaceRecipientsChatIds } = require("../models
 const { sanitizeText, sanitizeMultilineText } = require("../utils/workspace-config");
 const { fetchWithRetry } = require("../utils/helpers");
 const { requireWorkspace } = require("../middleware/auth");
+const { requirePlanFeature, requirePlanLimit } = require("../middleware/plan-guard");
 const { statusHint } = require("../services/chrome.service");
 const { postLeadSeekingStatus, generateAiAssistDraft } = require("../services/ai.service");
 const {
@@ -77,7 +78,7 @@ router.post("/:workspaceId/stop", async (req, res) => {
   }
 });
 
-router.post("/:workspaceId/send-startup", async (req, res) => {
+router.post("/:workspaceId/send-startup", requirePlanFeature("bulkMessaging"), async (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   try {
@@ -90,7 +91,7 @@ router.post("/:workspaceId/send-startup", async (req, res) => {
   }
 });
 
-router.post("/:workspaceId/send-custom", async (req, res) => {
+router.post("/:workspaceId/send-custom", requirePlanFeature("bulkMessaging"), async (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   try {
@@ -152,7 +153,7 @@ router.post("/:workspaceId/send-custom", async (req, res) => {
   }
 });
 
-router.post("/:workspaceId/status-post-now", async (req, res) => {
+router.post("/:workspaceId/status-post-now", requirePlanFeature("statusAutopilot"), async (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   try {

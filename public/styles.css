@@ -1433,3 +1433,155 @@ input[type="checkbox"]:checked + .toggle-slider::after {
   }
   .chat-bubble { max-width: 90%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BILLING & PLANS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.badge-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+.badge-yellow {
+  background: rgba(234, 179, 8, 0.15);
+  color: #b45309;
+}
+.badge-red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+[data-theme="dark"] .badge-green {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+[data-theme="dark"] .badge-yellow {
+  background: rgba(234, 179, 8, 0.2);
+  color: #facc15;
+}
+[data-theme="dark"] .badge-red {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* Usage meter cards */
+.usage-meter-card {
+  background: var(--chip-bg);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  border: 1px solid var(--panel-border);
+}
+
+.usage-bar-track {
+  width: 100%;
+  height: 8px;
+  background: var(--progress-track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.usage-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* Plan cards */
+.plan-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.plan-card-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* Feature comparison table */
+.billing-feature-table th {
+  background: var(--chip-bg);
+  font-weight: 600;
+}
+
+.billing-feature-table td,
+.billing-feature-table th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.billing-feature-table tr:hover td {
+  background: var(--chip-bg);
+}
+
+/* Billing view responsive */
+@media (max-width: 768px) {
+  #billingPlanCards {
+    grid-template-columns: 1fr !important;
+  }
+  #billingUsageMeters {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.admin-kpi-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: transform 0.15s;
+}
+
+.admin-kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.admin-table th {
+  background: var(--chip-bg);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--panel-border);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  vertical-align: middle;
+}
+
+.admin-table tr:hover td {
+  background: var(--chip-bg);
+}
+
+/* Admin nav item special styling */
+#adminNavItem {
+  border-top: 1px solid var(--panel-border);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+@media (max-width: 768px) {
+  #adminKpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

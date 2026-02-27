@@ -110,6 +110,10 @@ let customSendInFlight = false;
 let authToken = localStorage.getItem("rx_auth_token") || "";
 let currentUser = null;
 
+function authHeaders() {
+  return { Authorization: `Bearer ${authToken}` };
+}
+
 // --- Theme Logic ---
 function setTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
@@ -261,6 +265,9 @@ function setAuth(token, user) {
   sidebar.style.display = "flex";
   document.querySelector("main.layout").style.display = "flex";
   userPill.textContent = user.username;
+  // Show admin nav if super admin (username === 'admin' by default)
+  const adminNav = document.getElementById("adminNavItem");
+  if (adminNav) adminNav.style.display = (user.username === "admin") ? "" : "none";
   syncCampaignButtonState();
   // Re-init icons since sidebar and main content are now visible
   requestAnimationFrame(() => {
@@ -1094,6 +1101,12 @@ navItems.forEach(item => {
     }
     if (target === "livechat") {
       loadLiveChat();
+    }
+    if (target === "billing") {
+      loadBilling();
+    }
+    if (target === "admin") {
+      loadAdminPanel();
     }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
@@ -2410,3 +2423,386 @@ if (liveChatReleaseBtn) {
 // Refresh live chat button
 const refreshLivechatBtn = document.getElementById("refreshLivechatBtn");
 if (refreshLivechatBtn) refreshLivechatBtn.addEventListener("click", loadLiveChat);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BILLING & PLANS
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _allPlans = [];
+
+async function loadBilling() {
+  if (!currentWorkspaceId) return;
+  try {
+    // Fetch plan list + workspace billing in parallel
+    const [plansRes, billingRes] = await Promise.all([
+      fetch("/api/plans"),
+      fetch(`/api/workspaces/${currentWorkspaceId}/billing`, { headers: authHeaders() }),
+    ]);
+    const plansData = await plansRes.json();
+    const billingData = await billingRes.json();
+
+    _allPlans = plansData.plans || [];
+    const plan = billingData.subscription || billingData.plan || {};
+    const planInfo = billingData.plan || {};
+    const usage = billingData.usage || {};
+    const features = billingData.features || {};
+    const cycleResetAt = billingData.cycleResetAt;
+
+    // Current Plan Header
+    const nameEl = document.getElementById("billingPlanName");
+    const badgeEl = document.getElementById("billingPlanBadge");
+    const priceEl = document.getElementById("billingPrice");
+    const cycleEl = document.getElementById("billingCycleReset");
+
+    if (nameEl) nameEl.textContent = planInfo.name || "Free";
+    if (badgeEl) {
+      const status = plan.status || "active";
+      badgeEl.textContent = status;
+      badgeEl.className = "status-badge " + (status === "active" ? "badge-green" : status === "trial" ? "badge-yellow" : "badge-red");
+    }
+    if (priceEl) priceEl.textContent = `$${planInfo.price || 0}`;
+    if (cycleEl) cycleEl.textContent = cycleResetAt ? new Date(cycleResetAt).toLocaleDateString() : "—";
+
+    // Trial / Cancel buttons
+    const trialBtn = document.getElementById("startTrialBtn");
+    const cancelBtn = document.getElementById("cancelPlanBtn");
+    if (trialBtn) trialBtn.style.display = (planInfo.id === "free" && plan.status !== "trial") ? "" : "none";
+    if (cancelBtn) cancelBtn.style.display = (planInfo.id !== "free") ? "" : "none";
+
+    // Usage meters
+    renderUsageMeters(usage);
+
+    // Plan cards
+    renderPlanCards(_allPlans, planInfo);
+
+    // Feature comparison table
+    renderFeatureTable(_allPlans);
+  } catch (e) {
+    console.error("Billing load error:", e);
+  }
+}
+
+function renderUsageMeters(usage) {
+  const container = document.getElementById("billingUsageMeters");
+  if (!container) return;
+
+  const meters = [
+    { key: "messagesSent", icon: "send" },
+    { key: "aiCalls",      icon: "brain" },
+    { key: "leads",        icon: "users" },
+    { key: "members",      icon: "user-plus" },
+    { key: "scheduledMessages", icon: "calendar" },
+  ];
+
+  container.innerHTML = meters.map(m => {
+    const entry = usage[m.key];
+    if (!entry) return "";
+    const used = entry.used || 0;
+    const limit = entry.limit;
+    const label = entry.label || m.key;
+    const max = limit === -1 ? "∞" : (limit || 0);
+    const pct = limit === -1 ? 5 : (limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0);
+    const color = pct >= 90 ? "var(--danger)" : pct >= 70 ? "var(--warning, orange)" : "var(--primary)";
+    return `
+      <div class="usage-meter-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <i data-lucide="${m.icon}" style="width:16px;height:16px;"></i>
+          <span style="font-weight:600;">${label}</span>
+        </div>
+        <div class="usage-bar-track">
+          <div class="usage-bar-fill" style="width:${pct}%;background:${color};"></div>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:4px;">${used.toLocaleString()} / ${max === "∞" ? "∞" : Number(max).toLocaleString()}</div>
+      </div>
+    `;
+  }).join("");
+
+  lucide.createIcons();
+}
+
+function renderPlanCards(plans, currentPlan) {
+  const container = document.getElementById("billingPlanCards");
+  if (!container) return;
+
+  container.innerHTML = plans.map(p => {
+    const isCurrent = p.id === currentPlan.id;
+    const featureList = Object.entries(p.features || {}).filter(([, v]) => v).map(([k]) => k).slice(0, 8);
+    return `
+      <div class="plan-card ${isCurrent ? 'plan-card-active' : ''}">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:18px;font-weight:700;">${p.name}</div>
+          <div style="font-size:28px;font-weight:800;margin:8px 0;">$${p.price}<span style="font-size:14px;font-weight:400;color:var(--muted-ink);">/mo</span></div>
+        </div>
+        <div style="font-size:12px;margin-bottom:12px;">
+          <div>📨 ${p.limits.messagesPerMonth === -1 ? 'Unlimited' : p.limits.messagesPerMonth.toLocaleString()} messages</div>
+          <div>🧠 ${p.limits.aiCallsPerMonth === -1 ? 'Unlimited' : p.limits.aiCallsPerMonth.toLocaleString()} AI calls</div>
+          <div>👥 ${p.limits.leadsMax === -1 ? 'Unlimited' : p.limits.leadsMax.toLocaleString()} leads</div>
+          <div>📅 ${p.limits.scheduledMessages === -1 ? 'Unlimited' : p.limits.scheduledMessages} scheduled msgs</div>
+          <div>👤 ${p.limits.membersPerWorkspace === -1 ? 'Unlimited' : p.limits.membersPerWorkspace} team members</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted-ink);margin-bottom:12px;">
+          ${featureList.map(f => `✓ ${f.replace(/([A-Z])/g, ' $1').trim()}`).join('<br>')}
+          ${Object.values(p.features).filter(v => v).length > 8 ? '<br>+ more...' : ''}
+        </div>
+        ${isCurrent
+          ? '<button class="btn" disabled style="width:100%;opacity:0.6;">Current Plan</button>'
+          : `<button class="btn primary" style="width:100%;" onclick="upgradePlan('${p.id}')">
+               ${p.price > (plans.find(x => x.id === currentPlan.id)?.price || 0) ? 'Upgrade' : 'Switch'} to ${p.name}
+             </button>`
+        }
+      </div>
+    `;
+  }).join("");
+
+  lucide.createIcons();
+}
+
+function renderFeatureTable(plans) {
+  const table = document.getElementById("billingFeatureTable");
+  if (!table) return;
+
+  // Collect all feature keys
+  const allFeatures = [...new Set(plans.flatMap(p => Object.keys(p.features || {})))];
+
+  let html = `<thead><tr>
+    <th style="text-align:left;padding:8px;border-bottom:1px solid var(--panel-border);">Feature</th>
+    ${plans.map(p => `<th style="text-align:center;padding:8px;border-bottom:1px solid var(--panel-border);">${p.name}</th>`).join("")}
+  </tr></thead><tbody>`;
+
+  allFeatures.forEach(f => {
+    const label = f.replace(/([A-Z])/g, " $1").trim();
+    html += `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--panel-border);text-transform:capitalize;">${label}</td>
+      ${plans.map(p => {
+        const has = p.features?.[f];
+        return `<td style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--panel-border);">${has ? '✅' : '—'}</td>`;
+      }).join("")}
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+async function upgradePlan(planId) {
+  if (!currentWorkspaceId) return;
+  if (!confirm(`Switch to the "${planId}" plan? In production, this would redirect to a payment page.`)) return;
+  try {
+    const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/plan`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ planId }),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Failed to change plan");
+    alert(`✅ Plan changed to ${planId}!`);
+    loadBilling();
+  } catch (e) {
+    alert("Error: " + e.message);
+  }
+}
+
+// Start Trial
+const startTrialBtn = document.getElementById("startTrialBtn");
+if (startTrialBtn) {
+  startTrialBtn.addEventListener("click", async () => {
+    if (!currentWorkspaceId) return;
+    try {
+      const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/trial`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await resp.json();
+      if (!data.ok) return alert(data.error || "Failed to start trial");
+      alert("🎉 Free trial started! Enjoy Pro features for 14 days.");
+      loadBilling();
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+}
+
+// Cancel Plan
+const cancelPlanBtn = document.getElementById("cancelPlanBtn");
+if (cancelPlanBtn) {
+  cancelPlanBtn.addEventListener("click", async () => {
+    if (!currentWorkspaceId) return;
+    if (!confirm("Are you sure you want to cancel your plan? You'll be downgraded to Free.")) return;
+    try {
+      const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/cancel`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      const data = await resp.json();
+      if (!data.ok) return alert(data.error || "Failed to cancel");
+      alert("Plan cancelled. You are now on the Free plan.");
+      loadBilling();
+    } catch (e) {
+      alert("Error: " + e.message);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SUPER ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadAdminPanel() {
+  try {
+    const [overviewRes, usersRes, plansRes] = await Promise.all([
+      fetch("/api/workspaces/admin/billing/overview", { headers: authHeaders() }),
+      fetch("/api/workspaces/admin/users", { headers: authHeaders() }),
+      fetch("/api/plans"),
+    ]);
+    const overview = await overviewRes.json();
+    const usersData = await usersRes.json();
+    const plansData = await plansRes.json();
+
+    if (!overview.ok) { console.error("Admin overview:", overview.error); return; }
+
+    renderAdminKpis(overview);
+    renderAdminWorkspaces(overview.workspaces || [], plansData.plans || []);
+    renderAdminUsers(usersData.users || []);
+  } catch (e) {
+    console.error("Admin panel load error:", e);
+  }
+}
+
+function renderAdminKpis(data) {
+  const container = document.getElementById("adminKpis");
+  if (!container) return;
+
+  const kpis = [
+    { label: "Total Workspaces", value: data.totalWorkspaces || 0, icon: "building", color: "var(--primary)" },
+    { label: "Total Users", value: data.totalUsers || 0, icon: "users", color: "var(--accent)" },
+    { label: "Monthly Revenue", value: `$${(data.monthlyRevenue || 0).toLocaleString()}`, icon: "dollar-sign", color: "#10b981" },
+    { label: "Currency", value: data.currency || "USD", icon: "banknote", color: "var(--muted)" },
+  ];
+
+  container.innerHTML = kpis.map(k => `
+    <div class="admin-kpi-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:${k.color}15;display:flex;align-items:center;justify-content:center;">
+          <i data-lucide="${k.icon}" style="width:18px;height:18px;color:${k.color};"></i>
+        </div>
+        <span class="muted" style="font-size:12px;">${k.label}</span>
+      </div>
+      <div style="font-size:24px;font-weight:800;">${k.value}</div>
+    </div>
+  `).join("");
+  lucide.createIcons();
+}
+
+function renderAdminWorkspaces(workspaces, plans) {
+  const table = document.getElementById("adminWorkspacesTable");
+  if (!table) return;
+
+  const planOptions = plans.map(p => `<option value="${p.id}">${p.name} ($${p.price})</option>`).join("");
+
+  let html = `<thead><tr>
+    <th>Workspace</th><th>Plan</th><th>Status</th>
+    <th>Messages</th><th>AI Calls</th><th>Leads</th><th>Members</th>
+    <th>Created</th><th>Actions</th>
+  </tr></thead><tbody>`;
+
+  workspaces.forEach(ws => {
+    const statusClass = ws.status === "active" ? "badge-green" : ws.status === "trial" ? "badge-yellow" : "badge-red";
+    html += `<tr>
+      <td><strong>${escapeHtml(ws.name)}</strong><br><span class="muted" style="font-size:11px;">${ws.id}</span></td>
+      <td>${ws.planName}</td>
+      <td><span class="status-badge ${statusClass}">${ws.status}</span>${ws.trialEndsAt ? '<br><span class="muted" style="font-size:10px;">ends ' + new Date(ws.trialEndsAt).toLocaleDateString() + '</span>' : ''}</td>
+      <td>${(ws.messagesSent || 0).toLocaleString()}</td>
+      <td>${(ws.aiCalls || 0).toLocaleString()}</td>
+      <td>${ws.leads}</td>
+      <td>${ws.members}</td>
+      <td style="font-size:11px;">${new Date(ws.createdAt).toLocaleDateString()}</td>
+      <td style="white-space:nowrap;">
+        <select id="adminPlan_${ws.id}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--panel-border);background:var(--input-bg);color:var(--ink);">
+          ${planOptions}
+        </select>
+        <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminChangePlan('${ws.id}')">Set</button>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--accent);color:#fff;border:none;" onclick="adminResetUsage('${ws.id}')">Reset</button>
+      </td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  table.innerHTML = html;
+
+  // Set current plan in dropdowns
+  workspaces.forEach(ws => {
+    const sel = document.getElementById(`adminPlan_${ws.id}`);
+    if (sel) sel.value = ws.plan;
+  });
+}
+
+function renderAdminUsers(users) {
+  const table = document.getElementById("adminUsersTable");
+  if (!table) return;
+
+  let html = `<thead><tr>
+    <th>Username</th><th>User ID</th><th>Workspaces</th><th>Created</th><th>Actions</th>
+  </tr></thead><tbody>`;
+
+  users.forEach(u => {
+    const wsList = (u.workspaces || []).map(w => `${escapeHtml(w.name)} (${w.role})`).join(", ") || "—";
+    html += `<tr>
+      <td><strong>${escapeHtml(u.username)}</strong></td>
+      <td class="muted" style="font-size:11px;">${u.id}</td>
+      <td style="font-size:12px;">${wsList}</td>
+      <td style="font-size:11px;">${new Date(u.createdAt).toLocaleDateString()}</td>
+      <td>
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteUser('${u.id}','${escapeHtml(u.username)}')">Delete</button>
+      </td>
+    </tr>`;
+  });
+
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+async function adminChangePlan(wsId) {
+  const sel = document.getElementById(`adminPlan_${wsId}`);
+  if (!sel) return;
+  const planId = sel.value;
+  if (!confirm(`Set workspace ${wsId} to plan "${planId}"?`)) return;
+  try {
+    const resp = await fetch(`/api/workspaces/admin/workspaces/${wsId}/plan`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ planId }),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Failed");
+    alert(`✅ ${data.message}`);
+    loadAdminPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function adminResetUsage(wsId) {
+  if (!confirm(`Reset all usage counters for workspace ${wsId}?`)) return;
+  try {
+    const resp = await fetch(`/api/workspaces/admin/workspaces/${wsId}/reset-usage`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Failed");
+    alert(`✅ ${data.message}`);
+    loadAdminPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}
+
+async function adminDeleteUser(userId, username) {
+  if (!confirm(`⚠️ Delete user "${username}"? This cannot be undone.`)) return;
+  try {
+    const resp = await fetch(`/api/workspaces/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    const data = await resp.json();
+    if (!data.ok) return alert(data.error || "Failed");
+    alert(`✅ User "${data.removed}" deleted.`);
+    loadAdminPanel();
+  } catch (e) { alert("Error: " + e.message); }
+}

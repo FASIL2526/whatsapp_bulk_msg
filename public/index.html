@@ -82,6 +82,12 @@
       <button class="nav-item" data-view="livechat">
         <i data-lucide="message-circle"></i> Live Chat
       </button>
+      <button class="nav-item" data-view="billing">
+        <i data-lucide="credit-card"></i> Billing
+      </button>
+      <button class="nav-item" data-view="admin" id="adminNavItem" style="display:none;">
+        <i data-lucide="shield"></i> Admin Panel
+      </button>
     </div>
 
     <div class="sidebar-footer">
@@ -1138,6 +1144,100 @@
             <i data-lucide="send"></i> Send
           </button>
         </form>
+      </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BILLING & PLANS VIEW                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="view-container" id="billingView">
+      <h2><i data-lucide="credit-card" style="width:22px;height:22px;vertical-align:middle;"></i> Billing & Plans</h2>
+
+      <!-- Current Plan Card -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="muted" style="font-size:12px;margin-bottom:4px;">Current Plan</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span id="billingPlanName" style="font-size:24px;font-weight:700;">—</span>
+              <span id="billingPlanBadge" class="status-badge" style="font-size:11px;">active</span>
+            </div>
+            <div class="muted" style="font-size:13px;margin-top:4px;">
+              <span id="billingPrice">$0</span>/mo &nbsp;·&nbsp; Cycle resets <span id="billingCycleReset">—</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button id="startTrialBtn" class="btn primary" style="font-size:13px;">
+              <i data-lucide="zap"></i> Start Free Trial
+            </button>
+            <button id="cancelPlanBtn" class="btn" style="font-size:13px;background:var(--danger);color:#fff;border:none;">
+              <i data-lucide="x-circle"></i> Cancel Plan
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Usage Meters -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin:0 0 16px 0;"><i data-lucide="bar-chart" style="width:16px;height:16px;vertical-align:middle;"></i> Usage This Cycle</h3>
+        <div id="billingUsageMeters" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+          <!-- rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Plan Comparison Cards -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin:0 0 16px 0;"><i data-lucide="layers"></i> Available Plans</h3>
+        <div id="billingPlanCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
+          <!-- rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Feature Matrix -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin:0 0 12px 0;"><i data-lucide="check-circle" style="width:16px;height:16px;vertical-align:middle;"></i> Feature Comparison</h3>
+        <div style="overflow-x:auto;">
+          <table id="billingFeatureTable" class="billing-feature-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <!-- rendered by JS -->
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SUPER ADMIN PANEL VIEW                                             -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="view-container" id="adminView">
+      <h2><i data-lucide="shield" style="width:22px;height:22px;vertical-align:middle;"></i> Super Admin Panel</h2>
+
+      <!-- KPI Summary Cards -->
+      <section class="panel" style="grid-column: span 12;">
+        <div id="adminKpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;">
+          <!-- rendered by JS -->
+        </div>
+      </section>
+
+      <!-- Workspaces Table -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <h3 style="margin:0;"><i data-lucide="building" style="width:16px;height:16px;vertical-align:middle;"></i> All Workspaces</h3>
+          <button class="btn" onclick="loadAdminPanel()" style="font-size:12px;"><i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Refresh</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="adminWorkspacesTable" class="admin-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <!-- rendered by JS -->
+          </table>
+        </div>
+      </section>
+
+      <!-- Users Table -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3 style="margin:0 0 12px 0;"><i data-lucide="users" style="width:16px;height:16px;vertical-align:middle;"></i> All Users</h3>
+        <div style="overflow-x:auto;">
+          <table id="adminUsersTable" class="admin-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <!-- rendered by JS -->
+          </table>
+        </div>
       </section>
     </div>
 

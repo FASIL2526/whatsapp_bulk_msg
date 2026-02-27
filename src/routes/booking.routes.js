@@ -2,6 +2,7 @@
 
 const { Router } = require("express");
 const { requireAuth } = require("../middleware/auth");
+const { requirePlanFeature } = require("../middleware/plan-guard");
 const { BOOKING_TIMEZONE, BOOKING_SLOT_MINUTES, BOOKING_REMINDER_MINUTES } = require("../config/env");
 const { sanitizeText } = require("../utils/workspace-config");
 const {
@@ -27,7 +28,7 @@ const {
 
 const router = Router();
 
-router.get("/:workspaceId/bookings", requireAuth, async (req, res) => {
+router.get("/:workspaceId/bookings", requireAuth, requirePlanFeature("bookings"), async (req, res) => {
   try {
     const workspace = getWorkspace(req.params.workspaceId);
     if (!workspace) return res.status(404).json({ ok: false, error: "Workspace not found" });

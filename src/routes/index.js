@@ -15,6 +15,7 @@ const membersRoutes = require("./members.routes");
 const debugRoutes = require("./debug.routes");
 const automationRoutes = require("./automation.routes");
 const agentRoutes = require("./agent.routes");
+const billingRoutes = require("./billing.routes");
 
 function mountRoutes(app) {
   // ─── Public auth endpoints ───────────────────────────────────────────────
@@ -22,6 +23,9 @@ function mountRoutes(app) {
 
   // ─── Debug endpoints ─────────────────────────────────────────────────────
   app.use("/api/debug", debugRoutes);
+
+  // ─── Public billing info (plan list) ─────────────────────────────────────
+  app.use("/api", billingRoutes);
 
   // ─── All workspace-scoped endpoints require auth ─────────────────────────
   app.use("/api/workspaces", requireAuth, workspaceRoutes);
@@ -34,6 +38,7 @@ function mountRoutes(app) {
   app.use("/api/workspaces", requireAuth, membersRoutes);
   app.use("/api/workspaces", requireAuth, automationRoutes);
   app.use("/api/workspaces", requireAuth, agentRoutes);
+  app.use("/api/workspaces", requireAuth, billingRoutes);
 }
 
 module.exports = { mountRoutes };

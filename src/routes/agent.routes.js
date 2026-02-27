@@ -7,6 +7,7 @@
 
 const { Router } = require("express");
 const { requireWorkspace } = require("../middleware/auth");
+const { requirePlanFeature } = require("../middleware/plan-guard");
 const { saveStore } = require("../models/store");
 const { sanitizeText } = require("../utils/workspace-config");
 
@@ -79,7 +80,7 @@ router.get("/:workspaceId/agent/config", (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // OUTBOUND PROSPECTING
 // ═══════════════════════════════════════════════════════════════════════════
-router.get("/:workspaceId/agent/outbound/queue", (req, res) => {
+router.get("/:workspaceId/agent/outbound/queue", requirePlanFeature("outboundProspecting"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   const queue = getOutboundQueue(workspace);
@@ -90,7 +91,7 @@ router.get("/:workspaceId/agent/outbound/queue", (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // GOAL PLANNER
 // ═══════════════════════════════════════════════════════════════════════════
-router.get("/:workspaceId/agent/goal", (req, res) => {
+router.get("/:workspaceId/agent/goal", requirePlanFeature("goalPlanner"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   const goal = getGoal(workspace);
@@ -99,7 +100,7 @@ router.get("/:workspaceId/agent/goal", (req, res) => {
   res.json({ ok: true, goal, plan, progress, goalTypes: Object.keys(GOAL_TYPES).map(k => ({ key: k, label: GOAL_TYPES[k].label })) });
 });
 
-router.post("/:workspaceId/agent/goal", (req, res) => {
+router.post("/:workspaceId/agent/goal", requirePlanFeature("goalPlanner"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   const type = sanitizeText(req.body?.type, "bookings");
@@ -114,7 +115,7 @@ router.post("/:workspaceId/agent/goal", (req, res) => {
   res.json({ ok: true, goal, plan });
 });
 
-router.delete("/:workspaceId/agent/goal", (req, res) => {
+router.delete("/:workspaceId/agent/goal", requirePlanFeature("goalPlanner"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   clearGoal(workspace);
@@ -124,13 +125,13 @@ router.delete("/:workspaceId/agent/goal", (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // PROMPT TUNING
 // ═══════════════════════════════════════════════════════════════════════════
-router.get("/:workspaceId/agent/tuning", (req, res) => {
+router.get("/:workspaceId/agent/tuning", requirePlanFeature("promptTuning"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   res.json({ ok: true, ...getTuningInsights(workspace) });
 });
 
-router.post("/:workspaceId/agent/tuning/apply", (req, res) => {
+router.post("/:workspaceId/agent/tuning/apply", requirePlanFeature("promptTuning"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   const result = applyTuning(workspace);
@@ -161,7 +162,7 @@ router.post("/:workspaceId/agent/revenue", (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // OFFER AUTHORITY
 // ═══════════════════════════════════════════════════════════════════════════
-router.get("/:workspaceId/agent/offers", (req, res) => {
+router.get("/:workspaceId/agent/offers", requirePlanFeature("offerAuthority"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   const stats = getOfferStats(workspace);
@@ -169,7 +170,7 @@ router.get("/:workspaceId/agent/offers", (req, res) => {
   res.json({ ok: true, stats, guardrails });
 });
 
-router.post("/:workspaceId/agent/offers/preview", (req, res) => {
+router.post("/:workspaceId/agent/offers/preview", requirePlanFeature("offerAuthority"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   const leadId = sanitizeText(req.body?.leadId, "");
@@ -184,13 +185,13 @@ router.post("/:workspaceId/agent/offers/preview", (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // SELF-HEALING
 // ═══════════════════════════════════════════════════════════════════════════
-router.get("/:workspaceId/agent/health", (req, res) => {
+router.get("/:workspaceId/agent/health", requirePlanFeature("selfHealing"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   res.json({ ok: true, ...getWorkflowHealth(workspace) });
 });
 
-router.post("/:workspaceId/agent/health/heal", (req, res) => {
+router.post("/:workspaceId/agent/health/heal", requirePlanFeature("selfHealing"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   const result = applyHealing(workspace);
@@ -201,7 +202,7 @@ router.post("/:workspaceId/agent/health/heal", (req, res) => {
 // WHATSAPP ALERTS & AUTO-REPORTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-router.get("/:workspaceId/agent/alerts/config", (req, res) => {
+router.get("/:workspaceId/agent/alerts/config", requirePlanFeature("whatsappAlerts"), (req, res) => {
   const workspace = requireWorkspace(req, res, "member");
   if (!workspace) return;
   res.json({ ok: true, ...getAlertConfig(workspace) });
@@ -249,7 +250,7 @@ router.get("/:workspaceId/agent/takeover", (req, res) => {
 });
 
 // Start takeover for a contact
-router.post("/:workspaceId/agent/takeover", (req, res) => {
+router.post("/:workspaceId/agent/takeover", requirePlanFeature("humanTakeover"), (req, res) => {
   const workspace = requireWorkspace(req, res, "admin");
   if (!workspace) return;
   const { contactId, agentName } = req.body || {};
