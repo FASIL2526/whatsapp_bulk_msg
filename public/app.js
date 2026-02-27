@@ -975,6 +975,13 @@ customForm.addEventListener("submit", async (event) => {
     if (mediaId) payload.mediaId = mediaId;
     if (sendAtVal) payload.sendAt = new Date(sendAtVal).toISOString();
 
+    // Include recipients override if numbers entered on campaign page
+    const instantRecipientsEl = document.getElementById("instantRecipients");
+    const recipientsRaw = (instantRecipientsEl?.value || "").trim();
+    if (recipientsRaw) {
+      payload.recipients = recipientsRaw.split(/[\n,]/).map(n => n.trim()).filter(Boolean);
+    }
+
     const result = await getJson(workspacePath("/send-custom"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1140,6 +1147,7 @@ navItems.forEach(item => {
       loadTemplateLibrary();
       populateCampMediaSelect();
       populateCampTemplateSelect();
+      loadAutoReplySettings();
     }
     if (target === "automation") {
       loadAutomation();
@@ -3093,6 +3101,11 @@ async function populateCampTemplateSelect() {
 function buildAudienceFromForm() {
   const type = document.getElementById("campAudienceType")?.value || "all";
   if (type === "all") return { type: "all" };
+  if (type === "specific") {
+    const numbersRaw = document.getElementById("campSpecificNumbers")?.value || "";
+    const recipients = numbersRaw.split(/[\n,]/).map(n => n.trim().replace(/[^0-9]/g, "")).filter(Boolean);
+    return { type: "specific", recipients };
+  }
   const statusSel = document.getElementById("campFilterStatus");
   const stageSel = document.getElementById("campFilterStage");
   const statuses = statusSel ? Array.from(statusSel.selectedOptions).map(o => o.value) : [];
@@ -3167,4 +3180,101 @@ function buildAudienceFromForm() {
   if (btn1) btn1.addEventListener("click", loadCampaignHistory);
   const btn2 = document.getElementById("refreshTemplatesBtn");
   if (btn2) btn2.addEventListener("click", () => { loadTemplateLibrary(); populateCampTemplateSelect(); });
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Auto-Reply Settings (on Campaigns page) ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+function loadAutoReplySettings() {
+  if (!activeWorkspaceId) return;
+  getJson(workspacePath("/config")).then(config => {
+    const el = (id) => document.getElementById(id);
+    if (el("arEnabled")) el("arEnabled").value = config.AUTO_REPLY_ENABLED || "true";
+    if (el("arMode")) el("arMode").value = config.AUTO_REPLY_MODE || "exact";
+    if (el("arTrigger")) el("arTrigger").value = config.AUTO_REPLY_TRIGGER || "";
+    if (el("arText")) el("arText").value = config.AUTO_REPLY_TEXT || "";
+    if (el("arRules")) el("arRules").value = config.AUTO_REPLY_RULES || "";
+  }).catch(_ => {});
+}
+
+(function() {
+  const saveBtn = document.getElementById("saveAutoReplyBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const resultEl = document.getElementById("autoReplySaveResult");
+      try {
+        // Load current config, merge auto-reply fields, save back
+        const config = await getJson(workspacePath("/config"));
+        config.AUTO_REPLY_ENABLED = document.getElementById("arEnabled")?.value || "true";
+        config.AUTO_REPLY_MODE = document.getElementById("arMode")?.value || "exact";
+        config.AUTO_REPLY_TRIGGER = document.getElementById("arTrigger")?.value || "";
+        config.AUTO_REPLY_TEXT = document.getElementById("arText")?.value || "";
+        config.AUTO_REPLY_RULES = document.getElementById("arRules")?.value || "";
+
+        await getJson(workspacePath("/config"), {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(config)
+        });
+        showToast("Auto-reply settings saved", "success");
+        if (resultEl) resultEl.textContent = "✅ Saved!";
+        setTimeout(() => { if (resultEl) resultEl.textContent = ""; }, 3000);
+      } catch (e) {
+        showToast(e.message, "error");
+        if (resultEl) resultEl.textContent = "❌ " + e.message;
+      }
+    });
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── Campaign Builder: Audience type toggle for specific numbers ──────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+(function() {
+  const typeSelect = document.getElementById("campAudienceType");
+  const numberWrap = document.getElementById("campSpecificNumbersWrap");
+  if (typeSelect && numberWrap) {
+    typeSelect.addEventListener("change", () => {
+      numberWrap.style.display = typeSelect.value === "specific" ? "block" : "none";
+    });
+  }
+})();
+
+// ─── Instant campaign: import recipients from Excel/CSV ───────────────────
+
+(function() {
+  const importBtn = document.getElementById("instantImportRecipientsBtn");
+  const fileInput = document.getElementById("instantRecipientsFile");
+  const resultEl = document.getElementById("instantImportResult");
+  const recipientsEl = document.getElementById("instantRecipients");
+  if (importBtn && fileInput && recipientsEl) {
+    importBtn.addEventListener("click", async () => {
+      if (!fileInput.files?.length) {
+        if (resultEl) resultEl.textContent = "Select a file first.";
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.set("file", fileInput.files[0]);
+        formData.set("mode", "append");
+        const res = await fetch(workspacePath("/recipients/import"), {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${authToken}` },
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || data.ok === false) throw new Error(data.error || "Import failed.");
+        // Append imported numbers to the textarea
+        const existing = (recipientsEl.value || "").trim();
+        const imported = data.recipients || [];
+        recipientsEl.value = existing ? existing + "\n" + imported.join("\n") : imported.join("\n");
+        if (resultEl) resultEl.textContent = `✅ ${data.importedCount || imported.length} numbers imported`;
+        fileInput.value = "";
+      } catch (err) {
+        if (resultEl) resultEl.textContent = "❌ " + err.message;
+      }
+    });
+  }
 })();

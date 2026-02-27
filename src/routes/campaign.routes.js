@@ -151,6 +151,13 @@ router.post("/:workspaceId/send-custom", requirePlanFeature("bulkMessaging"), as
       return res.json({ ok: true, scheduled: rec });
     }
 
+    // Parse optional recipients override (numbers entered directly on campaign page)
+    let recipientsOverride;
+    if (Array.isArray(req.body?.recipients) && req.body.recipients.length > 0) {
+      const { normalizeRecipients } = require("../utils/workspace-config");
+      recipientsOverride = normalizeRecipients(req.body.recipients.join(",")).map(n => `${n}@c.us`);
+    }
+
     const results = await sendBulkMessage(
       workspace,
       runtime,
@@ -164,6 +171,7 @@ router.post("/:workspaceId/send-custom", requirePlanFeature("bulkMessaging"), as
         templateMode: req.body?.templateMode,
         templateLines: req.body?.templateLines,
         mediaId: mediaId || undefined,
+        _recipients: recipientsOverride,
       }
     );
     res.json({ ok: true, messages, mediaId: mediaId || null, results });

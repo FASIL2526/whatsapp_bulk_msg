@@ -535,6 +535,22 @@
             </div>
           </div>
 
+          <!-- Recipients override -->
+          <div class="span-2" style="border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <h3 style="font-size: 14px; margin: 0;">📱 Recipients</h3>
+              <span class="muted" style="font-size: 11px;">(leave empty to use workspace recipients list)</span>
+            </div>
+            <textarea id="instantRecipients" rows="3" placeholder="Enter phone numbers, one per line or comma-separated...
+91889xxxxxxx
+91859xxxxxxx" style="width: 100%;"></textarea>
+            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+              <input type="file" id="instantRecipientsFile" accept=".xlsx,.xls,.csv" style="font-size: 12px;" />
+              <button type="button" id="instantImportRecipientsBtn" class="btn" style="padding: 4px 10px; font-size: 11px;">Import</button>
+              <span id="instantImportResult" class="muted" style="font-size: 11px;"></span>
+            </div>
+          </div>
+
           <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
               <span>Launching Campaign sequence...</span>
@@ -578,6 +594,46 @@
         <div id="schedulesEmpty" class="muted" style="text-align: center; padding: 24px; display: none;">
           No scheduled messages yet. Use <strong>Schedule send</strong> above to queue one.
         </div>
+      </section>
+
+      <!-- Auto-Reply Settings -->
+      <section class="panel" style="grid-column: span 12;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0;">💬 Auto-Reply Settings</h2>
+          <button id="saveAutoReplyBtn" class="btn primary" style="padding: 6px 14px; font-size: 13px;">💾 Save</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="eyebrow" style="font-size: 10px;">Auto-Reply</label>
+            <select id="arEnabled">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="eyebrow" style="font-size: 10px;">Match Mode</label>
+            <select id="arMode">
+              <option value="exact">Exact match</option>
+              <option value="contains">Contains keyword</option>
+              <option value="rules">Advanced rules</option>
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="eyebrow" style="font-size: 10px;">Trigger Keyword</label>
+            <input type="text" id="arTrigger" placeholder="hi" />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="eyebrow" style="font-size: 10px;">Auto-Reply Text</label>
+            <textarea id="arText" rows="3" placeholder="Hello! This is an auto-reply."></textarea>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label class="eyebrow" style="font-size: 10px;">Advanced Rules (one per line: trigger|response)</label>
+            <textarea id="arRules" rows="3" placeholder="hi|Hello! How can I help?&#10;price|Our pricing starts at $29/mo"></textarea>
+          </div>
+        </div>
+        <p id="autoReplySaveResult" class="muted" style="margin-top: 8px; font-size: 12px;"></p>
       </section>
 
       <!-- Media Library -->
@@ -661,6 +717,7 @@
                 <select id="campAudienceType">
                   <option value="all">All Recipients</option>
                   <option value="segment">Filtered Segment</option>
+                  <option value="specific">Specific Numbers</option>
                 </select>
               </div>
               <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -696,6 +753,11 @@
                 <label class="eyebrow" style="font-size: 10px;">Tags (comma-separated)</label>
                 <input type="text" id="campFilterTags" placeholder="vip, interested" />
               </div>
+            </div>
+            <!-- Specific numbers input (shown when audience type = specific) -->
+            <div id="campSpecificNumbersWrap" style="margin-top: 12px; display: none;">
+              <label class="eyebrow" style="font-size: 10px;">Phone Numbers (one per line or comma-separated)</label>
+              <textarea id="campSpecificNumbers" rows="4" placeholder="91889xxxxxxx&#10;91859xxxxxxx" style="width: 100%; margin-top: 4px;"></textarea>
             </div>
             <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
               <button type="button" id="previewAudienceBtn" class="btn" style="padding: 6px 14px; font-size: 12px;">
