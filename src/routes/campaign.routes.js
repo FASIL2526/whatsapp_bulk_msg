@@ -55,6 +55,7 @@ router.get("/:workspaceId/status", (req, res) => {
     status: runtime.status,
     ready: runtime.ready,
     authenticated: runtime.authenticated,
+    connectedPhone: runtime.connectedPhone || "",
     waState: runtime.lastWaState || "",
     connectElapsedSec,
     qrDataUrl: runtime.qrDataUrl,
@@ -92,6 +93,30 @@ router.post("/:workspaceId/stop", async (req, res) => {
   try {
     await stopWorkspaceClient(workspace.id);
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post("/:workspaceId/logout", async (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const runtime = getRuntime(workspace.id);
+    if (runtime.client) {
+      try { await runtime.client.logout(); } catch (_e) { /* may already be disconnected */ }
+      try { await runtime.client.destroy(); } catch (_e) { /* cleanup */ }
+      runtime.client = null;
+    }
+    runtime.status = "stopped";
+    runtime.ready = false;
+    runtime.authenticated = false;
+    runtime.connectedPhone = "";
+    runtime.startRequestedAt = null;
+    runtime.authenticatedAt = null;
+    runtime.qrDataUrl = "";
+    runtime.lastError = "";
+    res.json({ ok: true, message: "Logged out. Start the client again to scan a new QR for a different number." });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -195,11 +220,11 @@ router.post("/:workspaceId/status-post-now", requirePlanFeature("statusAutopilot
 router.post("/:workspaceId/validate-ai-key", async (req, res) => {
   try {
     const { apiKey, model: modelName, provider } = req.body;
-    if (!apiKey) return res.status(400).json({ ok: false, error: "API Key is required" });
+    const activeProvider = provider || "google";
+    if (!apiKey && activeProvider !== "ollama") return res.status(400).json({ ok: false, error: "API Key is required" });
 
     const selectedModel =
-      modelName || (provider === "openrouter" ? "google/gemini-2.0-flash-001" : "gemini-1.5-flash");
-    const activeProvider = provider || "google";
+      modelName || (activeProvider === "openrouter" ? "google/gemini-2.0-flash-001" : activeProvider === "ollama" ? "llama3.2" : "gemini-1.5-flash");
     console.log(`[SYSTEM] Validating API Key for provider: ${activeProvider}, model: ${selectedModel}`);
 
     if (activeProvider === "google") {
@@ -207,6 +232,22 @@ router.post("/:workspaceId/validate-ai-key", async (req, res) => {
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: selectedModel });
       await model.generateContent("hi");
+    } else if (activeProvider === "ollama") {
+      const { DEFAULT_CONFIG } = require("../config/default-config");
+      const ollamaBase = (req.body.ollamaBaseUrl || DEFAULT_CONFIG.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/+$/, "");
+      const ollamaHeaders = { "Content-Type": "application/json" };
+      if (apiKey) ollamaHeaders.Authorization = `Bearer ${apiKey}`;
+      const response = await fetchWithRetry(`${ollamaBase}/api/chat`, {
+        method: "POST",
+        headers: ollamaHeaders,
+        body: JSON.stringify({
+          model: selectedModel,
+          stream: false,
+          messages: [{ role: "user", content: "hi" }],
+        }),
+      }, { retries: 1, timeoutMs: 60000, label: "validate-key-ollama" });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error || "Ollama Error");
     } else if (activeProvider === "openrouter") {
       const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",

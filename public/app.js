@@ -9,6 +9,9 @@ const events = document.getElementById("events");
 
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
+const connectedPhoneEl = document.getElementById("connectedPhone");
+const connectedPhoneWrap = document.getElementById("connectedPhoneWrap");
+const logoutBtn2 = document.getElementById("logoutBtn2");
 
 const workspaceSelect = document.getElementById("workspaceSelect");
 const workspaceNameInput = document.getElementById("workspaceNameInput");
@@ -713,6 +716,16 @@ async function refreshStatus() {
     }
     schedulerChip.textContent = `scheduler: ${status.hasScheduler ? "on" : "off"}`;
     recipientChip.textContent = `recipients: ${status.recipientsCount}`;
+    // Connected WhatsApp number
+    if (connectedPhoneEl && connectedPhoneWrap) {
+      if (status.connectedPhone && status.ready) {
+        connectedPhoneEl.textContent = "+" + status.connectedPhone.replace(/@.*$/, "");
+        connectedPhoneWrap.style.display = "block";
+      } else {
+        connectedPhoneEl.textContent = "";
+        connectedPhoneWrap.style.display = "none";
+      }
+    }
     workspaceReady = Boolean(status.ready);
     workspaceAuthenticated = Boolean(status.authenticated);
     workspaceSendInProgress = Boolean(status.sendInProgress);
@@ -799,7 +812,7 @@ form.addEventListener("submit", async (event) => {
     const payload = formToObject(form);
 
     // API Validation for AI Sales Closer
-    if (payload.AI_SALES_ENABLED === "true" && payload.AI_API_KEY) {
+    if (payload.AI_SALES_ENABLED === "true" && (payload.AI_API_KEY || payload.AI_PROVIDER === "ollama")) {
       const provider = payload.AI_PROVIDER || "google";
       log(`[${activeWorkspaceId}] Validating AI Key for ${provider} (${payload.AI_MODEL})...`);
       try {
@@ -807,9 +820,10 @@ form.addEventListener("submit", async (event) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            apiKey: payload.AI_API_KEY,
+            apiKey: payload.AI_API_KEY || "",
             model: payload.AI_MODEL,
-            provider: provider
+            provider: provider,
+            ollamaBaseUrl: payload.OLLAMA_BASE_URL || ""
           }),
         });
         if (!validation.ok) throw new Error(validation.error);
@@ -847,6 +861,7 @@ if (generateAiAssistBtn) {
       provider: form.elements.namedItem("AI_PROVIDER")?.value || "google",
       model: form.elements.namedItem("AI_MODEL")?.value || "",
       apiKey: form.elements.namedItem("AI_API_KEY")?.value || "",
+      ollamaBaseUrl: form.elements.namedItem("OLLAMA_BASE_URL")?.value || "",
     };
     generateAiAssistBtn.disabled = true;
     if (aiAssistResult) aiAssistResult.textContent = "Generating assist data...";
@@ -930,6 +945,22 @@ stopBtn.addEventListener("click", async () => {
     log(err.message);
   }
 });
+
+if (logoutBtn2) {
+  logoutBtn2.addEventListener("click", async () => {
+    if (!activeWorkspaceId) return;
+    if (!confirm("This will log out the current WhatsApp number and clear the session.\nYou can then start the client again to scan a new QR with a different number.\n\nContinue?")) return;
+    try {
+      const result = await getJson(workspacePath("/logout"), { method: "POST" });
+      log(`[${activeWorkspaceId}] ${result.message || "Logged out successfully"}`);
+      showToast("Logged out. Start client to connect a new number.", "success");
+      await refreshStatus();
+    } catch (err) {
+      log(err.message);
+      showToast(err.message, "error");
+    }
+  });
+}
 
 function updateProgressBar(current, total) {
   if (!bulkProgress || !progressBar || !progressText) return;
@@ -1136,6 +1167,7 @@ navItems.forEach(item => {
     const target = item.getAttribute("data-view");
     if (target === "analytics") {
       refreshReports();
+      loadConversationAnalytics();
     }
     if (target === "leads") {
       loadLeads();
@@ -1170,6 +1202,9 @@ navItems.forEach(item => {
     }
     if (target === "tools") {
       loadToolsView();
+    }
+    if (target === "knowledgebase") {
+      loadKnowledgeBase();
     }
     // Update nav active state
     navItems.forEach(i => i.classList.remove("active"));
@@ -4121,3 +4156,356 @@ async function resetBranding() {
     loadBranding();
   } catch (e) { showToast(e.message, "error"); }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// KNOWLEDGE BASE (RAG)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadKnowledgeBase() {
+  if (!activeWorkspaceId) return;
+  try {
+    const data = await getJson(workspacePath("/knowledge-base"));
+    const docs = data.documents || [];
+    const stats = data.stats || {};
+
+    // Stats
+    const el = (id) => document.getElementById(id);
+    if (el("kbDocCount")) el("kbDocCount").textContent = stats.documentCount || 0;
+    if (el("kbChunkCount")) el("kbChunkCount").textContent = stats.totalChunks || 0;
+    if (el("kbCharCount")) el("kbCharCount").textContent = (stats.totalChars || 0).toLocaleString();
+    if (el("kbTotalSize")) el("kbTotalSize").textContent = `${stats.totalSizeMB || "0"} MB`;
+
+    // Document list
+    const listEl = el("kbDocumentList");
+    if (listEl) {
+      if (docs.length === 0) {
+        listEl.innerHTML = '<span class="muted">No documents uploaded yet. Upload your first document above.</span>';
+      } else {
+        listEl.innerHTML = docs.map(doc => {
+          const sizeKB = ((doc.sizeBytes || 0) / 1024).toFixed(1);
+          const uploaded = new Date(doc.uploadedAt).toLocaleString();
+          const iconMap = {
+            "application/pdf": "file-text",
+            "text/plain": "file-type",
+            "text/markdown": "file-code",
+            "text/csv": "file-spreadsheet",
+          };
+          const icon = iconMap[doc.mimeType] || "file";
+          return `<div class="kb-doc-card">
+            <div class="kb-doc-info">
+              <div class="kb-doc-icon"><i data-lucide="${icon}" style="width:20px;height:20px;"></i></div>
+              <div class="kb-doc-details">
+                <div class="kb-doc-name">${escapeHtml(doc.filename)}</div>
+                <div class="kb-doc-meta">${sizeKB} KB · ${doc.chunkCount} chunks · ${(doc.charCount || 0).toLocaleString()} chars · ${uploaded}</div>
+              </div>
+            </div>
+            <button class="btn" onclick="deleteKbDocument('${doc.id}')" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:var(--danger);">
+              <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete
+            </button>
+          </div>`;
+        }).join("");
+      }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  } catch (e) {
+    showToast("Failed to load knowledge base: " + e.message, "error");
+  }
+}
+
+// Upload document
+const kbUploadForm = document.getElementById("kbUploadForm");
+if (kbUploadForm) {
+  kbUploadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activeWorkspaceId) return;
+    const fileInput = document.getElementById("kbFileInput");
+    const resultEl = document.getElementById("kbUploadResult");
+    if (!fileInput?.files?.length) {
+      showToast("Select a file to upload", "error");
+      return;
+    }
+    try {
+      if (resultEl) resultEl.textContent = "Uploading & processing...";
+      const formData = new FormData();
+      formData.set("file", fileInput.files[0]);
+      const resp = await fetch(workspacePath("/knowledge-base"), {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${authToken}` },
+        body: formData,
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Upload failed");
+      if (resultEl) resultEl.textContent = `✅ "${data.document.filename}" — ${data.chunkCount} chunks, ${data.charCount.toLocaleString()} characters`;
+      fileInput.value = "";
+      showToast("Document uploaded successfully", "success");
+      loadKnowledgeBase();
+    } catch (err) {
+      if (resultEl) resultEl.textContent = "❌ " + err.message;
+      showToast(err.message, "error");
+    }
+  });
+}
+
+// Search KB
+const kbSearchBtn = document.getElementById("kbSearchBtn");
+if (kbSearchBtn) {
+  kbSearchBtn.addEventListener("click", async () => {
+    if (!activeWorkspaceId) return;
+    const query = document.getElementById("kbSearchInput")?.value?.trim();
+    if (!query) return showToast("Enter a search query", "error");
+    const resultEl = document.getElementById("kbSearchResult");
+    try {
+      const data = await getJson(workspacePath(`/knowledge-base/search?q=${encodeURIComponent(query)}`));
+      if (resultEl) {
+        resultEl.style.display = "block";
+        resultEl.textContent = data.hasContext
+          ? data.context
+          : "(No relevant context found for this query)";
+      }
+    } catch (e) {
+      if (resultEl) { resultEl.style.display = "block"; resultEl.textContent = "❌ " + e.message; }
+    }
+  });
+}
+
+// Also search on Enter key
+const kbSearchInput = document.getElementById("kbSearchInput");
+if (kbSearchInput) {
+  kbSearchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); kbSearchBtn?.click(); }
+  });
+}
+
+async function deleteKbDocument(docId) {
+  if (!activeWorkspaceId) return;
+  if (!confirm("Delete this document from the knowledge base?")) return;
+  try {
+    const data = await getJson(workspacePath(`/knowledge-base/${docId}`), {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    if (data.ok === false) throw new Error(data.error);
+    showToast(`Document "${data.removed}" deleted`, "success");
+    loadKnowledgeBase();
+  } catch (e) {
+    showToast(e.message, "error");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONVERSATION ANALYTICS (Enhanced)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadConversationAnalytics() {
+  if (!activeWorkspaceId) return;
+  try {
+    const fromEl = document.getElementById("reportFrom");
+    const toEl = document.getElementById("reportTo");
+    let qs = "";
+    if (fromEl?.value) qs += `from=${encodeURIComponent(new Date(fromEl.value).toISOString())}&`;
+    if (toEl?.value) qs += `to=${encodeURIComponent(new Date(toEl.value).toISOString())}&`;
+
+    const data = await getJson(workspacePath(`/conversation-analytics?${qs}`));
+
+    // Response Times
+    const rt = data.responseTimes || {};
+    const el = (id) => document.getElementById(id);
+    if (el("caAvgResponse")) el("caAvgResponse").textContent = formatSeconds(rt.avg);
+    if (el("caMedianResponse")) el("caMedianResponse").textContent = formatSeconds(rt.median);
+    if (el("caP95Response")) el("caP95Response").textContent = formatSeconds(rt.p95);
+    if (el("caResponseCount")) el("caResponseCount").textContent = rt.count || 0;
+
+    // Conversation Depth
+    const cd = data.conversationDepth || {};
+    if (el("caAvgDepth")) el("caAvgDepth").textContent = cd.avg || 0;
+    if (el("caMultiMsg")) el("caMultiMsg").textContent = cd.multiMessage || 0;
+    if (el("caSingleMsg")) el("caSingleMsg").textContent = cd.singleMessage || 0;
+
+    // Depth distribution chart
+    const distEl = el("caDepthDistribution");
+    if (distEl && cd.distribution) {
+      const entries = Object.entries(cd.distribution);
+      const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+      distEl.innerHTML = entries.map(([label, count]) => {
+        const height = Math.max(4, (count / maxVal) * 80);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <span style="font-size:10px;font-weight:600;">${count}</span>
+          <div style="width:100%;height:${height}px;background:var(--primary);border-radius:4px 4px 0 0;"></div>
+          <span style="font-size:9px;color:var(--muted-ink,var(--muted));">${label}</span>
+        </div>`;
+      }).join("");
+    }
+
+    // AI Metrics
+    const ai = data.aiMetrics || {};
+    if (el("caAiReplies")) el("caAiReplies").textContent = ai.totalAiReplies || 0;
+    if (el("caAiRatio")) el("caAiRatio").textContent = `${ai.aiToTotalRatio || 0}%`;
+    if (el("caHotRate")) el("caHotRate").textContent = `${ai.hotLeadRate || 0}%`;
+    if (el("caConvRate")) el("caConvRate").textContent = `${ai.conversionRate || 0}%`;
+
+    // Activity Heatmap
+    renderHeatmap(data.hourlyActivity);
+
+    // Source Breakdown
+    renderSourceBreakdown(data.sourceBreakdown);
+
+    if (window.lucide) window.lucide.createIcons();
+  } catch (e) {
+    console.error("Conversation analytics error:", e);
+  }
+}
+
+function formatSeconds(s) {
+  if (!s || s === 0) return "—";
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+function renderHeatmap(hourlyData) {
+  const container = document.getElementById("caHeatmap");
+  if (!container || !hourlyData) return;
+
+  const { grid, days, hours, max } = hourlyData;
+  let html = "";
+
+  // Header row with hours
+  html += `<div style="font-weight:600;font-size:10px;"></div>`;
+  for (const h of hours) {
+    html += `<div style="text-align:center;font-size:9px;font-weight:600;padding:2px 0;">${h}</div>`;
+  }
+
+  // Data rows
+  for (const day of days) {
+    html += `<div style="font-weight:600;font-size:10px;display:flex;align-items:center;">${day}</div>`;
+    for (const h of hours) {
+      const val = grid[day]?.[h] || 0;
+      const intensity = max > 0 ? val / max : 0;
+      const bg = intensity === 0
+        ? "var(--input-bg)"
+        : `rgba(108, 92, 231, ${0.15 + intensity * 0.85})`;
+      const textColor = intensity > 0.5 ? "#fff" : "var(--ink)";
+      html += `<div class="heatmap-cell" style="background:${bg};color:${textColor};" title="${day} ${h}:00 — ${val} messages">${val || ""}</div>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+function renderSourceBreakdown(sources) {
+  const container = document.getElementById("caSourceBreakdown");
+  if (!container || !sources) return;
+
+  if (sources.length === 0) {
+    container.innerHTML = '<span class="muted">No data available.</span>';
+    return;
+  }
+
+  const total = sources.reduce((s, v) => s + v.count, 0);
+  const colors = [
+    "var(--primary)", "var(--accent)", "#f59e0b", "#10b981",
+    "var(--danger)", "#8b5cf6", "#ec4899", "#14b8a6",
+  ];
+
+  container.innerHTML = sources.map((s, i) => {
+    const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+    const color = colors[i % colors.length];
+    return `<div style="
+      padding:8px 14px;
+      border-radius:var(--radius-sm);
+      border:1px solid var(--panel-border);
+      background:var(--input-bg);
+      min-width:120px;
+    ">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${color};"></div>
+        <span style="font-size:12px;font-weight:600;">${s.source}</span>
+      </div>
+      <div style="font-size:18px;font-weight:700;">${s.count}</div>
+      <div style="font-size:10px;color:var(--muted-ink,var(--muted));">${pct}% of total</div>
+    </div>`;
+  }).join("");
+}
+
+// Also refresh conversation analytics when report dates change
+const _origRefreshReportsBtn = document.getElementById("refreshReportsBtn");
+if (_origRefreshReportsBtn) {
+  _origRefreshReportsBtn.addEventListener("click", () => {
+    setTimeout(loadConversationAnalytics, 100);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SMART REPLY SUGGESTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _smartRepliesLoading = false;
+
+async function loadSmartReplies() {
+  if (!currentWorkspace || !_activeChatContactId || _smartRepliesLoading) return;
+  const section = document.getElementById("smartReplySection");
+  const container = document.getElementById("smartReplyButtons");
+  if (!section || !container) return;
+
+  section.style.display = "block";
+  _smartRepliesLoading = true;
+  container.innerHTML = '<span class="muted" style="font-size:11px;">Generating suggestions...</span>';
+
+  try {
+    const cid = encodeURIComponent(_activeChatContactId);
+    const data = await getJson(workspacePath(`/agent/takeover/suggestions/${cid}`));
+    const suggestions = data.suggestions || [];
+
+    if (suggestions.length === 0) {
+      container.innerHTML = '<span class="muted" style="font-size:11px;">No suggestions available.</span>';
+      _smartRepliesLoading = false;
+      return;
+    }
+
+    const typeIcons = {
+      informative: "💡",
+      closing: "🎯",
+      empathetic: "💬",
+      general: "✨",
+    };
+
+    container.innerHTML = suggestions.map(s => {
+      const icon = typeIcons[s.type] || "✨";
+      return `<button class="smart-reply-btn" onclick="useSmartReply(this)" data-text="${escapeAttr(s.text)}" title="${escapeAttr(s.text)}">
+        <span class="sr-type">${icon} ${s.type}</span> ${escapeHtml(s.text)}
+      </button>`;
+    }).join("");
+  } catch (e) {
+    container.innerHTML = '<span class="muted" style="font-size:11px;">Could not load suggestions.</span>';
+    console.error("Smart reply error:", e);
+  }
+  _smartRepliesLoading = false;
+}
+
+function escapeAttr(str) {
+  return String(str || "").replace(/"/g, "&quot;").replace(/'/g, "&#39;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function useSmartReply(btn) {
+  const text = btn.dataset.text || "";
+  const input = document.getElementById("liveChatInput");
+  if (input && text) {
+    input.value = text;
+    input.focus();
+  }
+}
+
+// Refresh suggestions button
+const refreshSuggestionsBtn = document.getElementById("refreshSuggestionsBtn");
+if (refreshSuggestionsBtn) {
+  refreshSuggestionsBtn.addEventListener("click", () => {
+    loadSmartReplies();
+  });
+}
+
+// Override openLiveChat to also load smart replies
+const _originalOpenLiveChat = window.openLiveChat;
+window.openLiveChat = function(contactId) {
+  _originalOpenLiveChat(contactId);
+  setTimeout(loadSmartReplies, 500);
+};

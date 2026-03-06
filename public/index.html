@@ -56,41 +56,51 @@
     </div>
 
     <div class="nav-links">
+      <div class="nav-section-label">MAIN</div>
       <button class="nav-item active" data-view="overview">
         <i data-lucide="layout-dashboard"></i> Overview
       </button>
       <button class="nav-item" data-view="workspace">
-        <i data-lucide="settings"></i> Workspace
-      </button>
-      <button class="nav-item" data-view="campaigns">
-        <i data-lucide="send"></i> Campaigns
-      </button>
-      <button class="nav-item" data-view="analytics">
-        <i data-lucide="bar-chart-3"></i> Analytics
-      </button>
-      <button class="nav-item" data-view="leads">
-        <i data-lucide="users"></i> Leads
-      </button>
-      <button class="nav-item" data-view="automation">
-        <i data-lucide="bot"></i> Automation
-      </button>
-      <button class="nav-item" data-view="agent">
-        <i data-lucide="brain"></i> Agent
-      </button>
-      <button class="nav-item" data-view="alerts">
-        <i data-lucide="bell-ring"></i> Alerts
+        <i data-lucide="settings"></i> Settings
       </button>
       <button class="nav-item" data-view="livechat">
         <i data-lucide="message-circle"></i> Live Chat
       </button>
-      <button class="nav-item" data-view="billing">
-        <i data-lucide="credit-card"></i> Billing
+
+      <div class="nav-section-label">MARKETING</div>
+      <button class="nav-item" data-view="campaigns">
+        <i data-lucide="send"></i> Campaigns
+      </button>
+      <button class="nav-item" data-view="leads">
+        <i data-lucide="users"></i> Leads
+      </button>
+      <button class="nav-item" data-view="analytics">
+        <i data-lucide="bar-chart-3"></i> Analytics
+      </button>
+
+      <div class="nav-section-label">AI & AUTOMATION</div>
+      <button class="nav-item" data-view="automation">
+        <i data-lucide="bot"></i> Automation
+      </button>
+      <button class="nav-item" data-view="agent">
+        <i data-lucide="brain"></i> AI Agent
+      </button>
+      <button class="nav-item" data-view="knowledgebase">
+        <i data-lucide="book-open"></i> Knowledge Base
+      </button>
+
+      <div class="nav-section-label">SYSTEM</div>
+      <button class="nav-item" data-view="alerts">
+        <i data-lucide="bell-ring"></i> Alerts
       </button>
       <button class="nav-item" data-view="tools">
         <i data-lucide="wrench"></i> Tools
       </button>
+      <button class="nav-item" data-view="billing">
+        <i data-lucide="credit-card"></i> Billing
+      </button>
       <button class="nav-item" data-view="admin" id="adminNavItem" style="display:none;">
-        <i data-lucide="shield"></i> Admin Panel
+        <i data-lucide="shield"></i> Admin
       </button>
     </div>
 
@@ -122,11 +132,9 @@
     <div class="view-container active" id="overviewView">
       <section class="panel hero" style="grid-column: span 12;">
         <div class="brand-section">
-          <p class="eyebrow">Dashboard / Overview</p>
+          <p class="eyebrow">Dashboard</p>
           <h1>Health & Connectivity</h1>
-          <p class="subtitle muted" style="margin-top: 8px;">Monitor your WhatsApp client status and quick stats.</p>
         </div>
-
         <div class="status-grid" style="margin-top: 0;">
           <div class="status-chip">📅 <span id="schedulerChip">scheduler: off</span></div>
           <div class="status-chip">👥 <span id="recipientChip">recipients: 0</span></div>
@@ -139,6 +147,13 @@
         <div class="qr-box" id="qrBox" style="margin: 20px 0;">
           <div class="muted">Client not started</div>
         </div>
+        <div id="connectedPhoneWrap" style="display:none; margin-bottom: 12px; padding: 10px 14px; background: var(--bg-secondary); border: 1px solid var(--panel-border); border-radius: var(--radius-sm);">
+          <span class="muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: .5px;">Connected Number</span>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <span id="connectedPhone" style="font-size: 16px; font-weight: 600; font-family: var(--font-mono);"></span>
+            <button id="logoutBtn2" class="btn danger" style="padding: 4px 12px; font-size: 11px; margin-left: auto;">Logout &amp; Change Number</button>
+          </div>
+        </div>
         <div class="action-row" style="display: flex; gap: 12px;">
           <button id="startBtn" class="btn primary" style="flex: 1; justify-content: center;">Start Client</button>
           <button id="stopBtn" class="btn danger" style="flex: 1; justify-content: center;">Stop Client</button>
@@ -149,23 +164,23 @@
 
       <section class="panel quick-stats" style="grid-column: span 7;">
         <h2>Quick Analytics</h2>
-        <div class="status-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
           <div class="status-chip"
-            style="flex: 1; padding: 24px; flex-direction: column; align-items: flex-start; gap: 4px;">
-            <span class="muted" style="font-size: 12px;">Total Sent</span>
-            <span id="overviewTotal" style="font-size: 24px; font-weight: 700;">0</span>
+            style="flex: 1; padding: 16px; flex-direction: column; align-items: flex-start; gap: 2px;">
+            <span class="muted" style="font-size: 11px;">Total Sent</span>
+            <span id="overviewTotal" style="font-size: 20px; font-weight: 700;">0</span>
           </div>
           <div class="status-chip"
-            style="flex: 1; padding: 24px; flex-direction: column; align-items: flex-start; gap: 4px;">
-            <span class="muted" style="font-size: 12px;">Success Rate</span>
-            <span id="overviewRate" style="font-size: 24px; font-weight: 700; color: var(--primary);">0%</span>
+            style="flex: 1; padding: 16px; flex-direction: column; align-items: flex-start; gap: 2px;">
+            <span class="muted" style="font-size: 11px;">Success Rate</span>
+            <span id="overviewRate" style="font-size: 20px; font-weight: 700; color: var(--primary);">0%</span>
           </div>
         </div>
 
-        <div style="margin-top: 32px;">
-          <h3 style="font-size: 14px; margin-bottom: 12px;">Recent Event Log</h3>
+        <div style="margin-top: 20px;">
+          <h3 style="font-size: 13px; margin-bottom: 8px;">Recent Events</h3>
           <pre id="events"
-            style="font-size: 11px; max-height: 200px; overflow-y: auto; background: var(--import-bg); color: var(--ink); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--panel-border);"></pre>
+            style="font-size: 11px; max-height: 180px; overflow-y: auto; background: var(--import-bg); color: var(--ink); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--panel-border);"></pre>
         </div>
       </section>
     </div>
@@ -190,38 +205,33 @@
       </section>
 
       <section class="panel config-panel" style="grid-column: span 12;">
-        <form id="configForm" class="form-grid">
-          <label>
-            Headless Browser
-            <select name="HEADLESS">
-              <option value="true">Enable (Headless)</option>
-              <option value="false">Disable (Visible)</option>
-            </select>
-          </label>
+        <form id="configForm">
 
-          <label>
-            Schedule Auto-Send
-            <select name="SCHEDULE_ENABLED">
-              <option value="false">Off</option>
-              <option value="true">On</option>
-            </select>
-          </label>
-
-          <div class="span-2"
-            style="padding: 24px; background: linear-gradient(135deg, rgba(124, 58, 237, 0.05) 0%, rgba(37, 99, 235, 0.05) 100%); border: 1px dashed var(--primary); border-radius: var(--radius-md); margin: 12px 0;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-              <div
-                style="background: var(--primary); color: white; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                <i data-lucide="bot"></i>
-              </div>
-              <div>
-                <h3 style="margin: 0; font-size: 16px;">AI Sales Closer (Beta)</h3>
-                <p class="muted" style="font-size: 12px; margin: 0;">Automate personalized sales conversations using
-                  Gemini AI.</p>
-              </div>
+          <!-- ── Section 1: General ── -->
+          <details class="settings-section" open>
+            <summary class="settings-summary"><i data-lucide="settings"></i> General</summary>
+            <div class="settings-body form-grid">
+              <label>
+                Headless Browser
+                <select name="HEADLESS">
+                  <option value="true">Enable (Headless)</option>
+                  <option value="false">Disable (Visible)</option>
+                </select>
+              </label>
+              <label>
+                Schedule Auto-Send
+                <select name="SCHEDULE_ENABLED">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
             </div>
+          </details>
 
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 16px;">
+          <!-- ── Section 2: AI Agent ── -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="bot"></i> AI Sales Agent</summary>
+            <div class="settings-body form-grid">
               <label>
                 Enable AI Sales Agent
                 <select name="AI_SALES_ENABLED">
@@ -234,10 +244,11 @@
                 <select name="AI_PROVIDER">
                   <option value="google">Google Gemini</option>
                   <option value="openrouter">OpenRouter.ai</option>
+                  <option value="ollama">Ollama (Local)</option>
                 </select>
               </label>
               <label>
-                AI Model (ID)
+                AI Model
                 <input name="AI_MODEL" list="ai-models" placeholder="e.g. gemini-1.5-flash" />
                 <datalist id="ai-models">
                   <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
@@ -247,10 +258,17 @@
                   <option value="openai/gpt-4o-mini">GPT-4o Mini (OpenRouter)</option>
                   <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (OpenRouter)</option>
                   <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (OpenRouter)</option>
+                  <option value="llama3.1">Llama 3.1 (Ollama)</option>
+                  <option value="llama3.2">Llama 3.2 (Ollama)</option>
+                  <option value="mistral">Mistral (Ollama)</option>
+                  <option value="qwen2.5">Qwen 2.5 (Ollama)</option>
+                  <option value="gemma2">Gemma 2 (Ollama)</option>
+                  <option value="deepseek-r1">DeepSeek R1 (Ollama)</option>
+                  <option value="phi3">Phi-3 (Ollama)</option>
                 </datalist>
               </label>
               <label>
-                AI Response Scope
+                Response Scope
                 <select name="AI_SALES_SCOPE">
                   <option value="not_matched">Only if keywords don't match</option>
                   <option value="all">Respond to EVERY message</option>
@@ -259,45 +277,45 @@
               <label>
                 Include Group Chats
                 <select name="AI_SALES_GROUPS">
-                  <option value="false">No (Individual chats only)</option>
-                  <option value="true">Yes (Respond in groups)</option>
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </label>
+              <label>
+                Memory Depth
+                <select name="AI_MEMORY_TURNS">
+                  <option value="5">5 turns</option>
+                  <option value="10" selected>10 turns</option>
+                  <option value="15">15 turns</option>
+                  <option value="20">20 turns</option>
                 </select>
               </label>
               <label class="span-2">
                 AI API Key
-                <input name="AI_API_KEY" type="password" placeholder="Enter your Google or OpenRouter Key..." />
+                <input name="AI_API_KEY" type="password" placeholder="Required for Google / OpenRouter" />
               </label>
-              <label>
-                Enable Call Booking
-                <select name="AI_BOOKING_ENABLED">
-                  <option value="false">Off</option>
-                  <option value="true">On</option>
-                </select>
+              <label class="span-2">
+                Ollama Base URL
+                <input name="OLLAMA_BASE_URL" type="text" placeholder="http://localhost:11434" />
               </label>
-              <label>
-                Booking Link (Calendly, etc.)
-                <input name="AI_BOOKING_LINK" type="text" placeholder="https://calendly.com/your-link" />
+              <label class="span-2">
+                Product Knowledge / Sales Script
+                <textarea name="AI_PRODUCT_KNOWLEDGE" rows="4"
+                  placeholder="Describe your product, pricing, and common questions..."></textarea>
               </label>
-              <label>
-                Memory Depth (Turns)
-                <select name="AI_MEMORY_TURNS">
-                  <option value="5">5 turns (~10 messages)</option>
-                  <option value="10" selected>10 turns (~20 messages)</option>
-                  <option value="15">15 turns (~30 messages)</option>
-                  <option value="20">20 turns (~40 messages)</option>
-                </select>
-              </label>
+            </div>
+          </details>
+
+          <!-- ── Section 3: Closing & Qualification ── -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="target"></i> Closing & Qualification</summary>
+            <div class="settings-body form-grid">
               <label>
                 Qualification Gate
                 <select name="AI_QUALIFICATION_ENABLED">
                   <option value="true">On</option>
                   <option value="false">Off</option>
                 </select>
-              </label>
-              <label class="span-2">
-                Qualification Fields
-                <input name="AI_QUALIFICATION_FIELDS" type="text"
-                  placeholder="need,budget,timeline,decision-maker" />
               </label>
               <label>
                 Closing Flow
@@ -306,6 +324,10 @@
                   <option value="direct">Direct</option>
                   <option value="consultative">Consultative</option>
                 </select>
+              </label>
+              <label class="span-2">
+                Qualification Fields
+                <input name="AI_QUALIFICATION_FIELDS" type="text" placeholder="need, budget, timeline, decision-maker" />
               </label>
               <label>
                 Close Question Mode
@@ -323,13 +345,23 @@
                   <option value="true">On</option>
                 </select>
               </label>
-              <label>
-                WhatsApp Status Features
-                <select name="AI_WHATSAPP_STATUS_FEATURES">
-                  <option value="false">Off</option>
-                  <option value="true">On</option>
-                </select>
+              <label class="span-2">
+                Story Snippet
+                <textarea name="AI_CLOSING_STORY" rows="2"
+                  placeholder="A short proof story before closing questions..."></textarea>
               </label>
+              <label class="span-2">
+                Objection Playbook
+                <textarea name="AI_OBJECTION_PLAYBOOK" rows="2"
+                  placeholder="Price objection -> compare ROI, then offer pilot..."></textarea>
+              </label>
+            </div>
+          </details>
+
+          <!-- ── Section 4: Follow-up & Booking ── -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="calendar-clock"></i> Follow-up & Booking</summary>
+            <div class="settings-body form-grid">
               <label>
                 Follow-up Automation
                 <select name="AI_FOLLOW_UP_ENABLED">
@@ -338,151 +370,155 @@
                 </select>
               </label>
               <label>
-                Follow-up Delay (Minutes)
+                Delay (Minutes)
                 <input name="AI_FOLLOW_UP_DELAY_MINUTES" type="number" min="5" max="10080" />
               </label>
               <label>
-                Max Follow-up Attempts
+                Max Attempts
                 <input name="AI_FOLLOW_UP_MAX_ATTEMPTS" type="number" min="1" max="10" />
               </label>
-              <label class="span-2">
-                Story Snippet (used before close questions)
-                <textarea name="AI_CLOSING_STORY" rows="2"
-                  placeholder="A short proof story the AI can insert before asking closing questions..."></textarea>
+              <label>
+                Enable Booking
+                <select name="AI_BOOKING_ENABLED">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
               </label>
               <label class="span-2">
-                WhatsApp Status Features Text
-                <textarea name="AI_WHATSAPP_STATUS_FEATURES_TEXT" rows="2"
-                  placeholder="Mention how WhatsApp Status features help attract inbound leads..."></textarea>
-              </label>
-              <label class="span-2">
-                Objection Playbook
-                <textarea name="AI_OBJECTION_PLAYBOOK" rows="3"
-                  placeholder="Example: Price objection -> compare ROI in 30 days, then offer a pilot..."></textarea>
+                Booking Link
+                <input name="AI_BOOKING_LINK" type="text" placeholder="https://calendly.com/your-link" />
               </label>
               <label class="span-2">
                 Follow-up Template
-                <input name="AI_FOLLOW_UP_TEMPLATE" type="text"
-                  placeholder="Quick follow-up: still interested in solving this now?" />
+                <input name="AI_FOLLOW_UP_TEMPLATE" type="text" placeholder="Quick follow-up: still interested?" />
               </label>
-              <div class="span-2"
-                style="padding: 14px; border: 1px dashed var(--panel-border); border-radius: var(--radius-md); background: var(--import-bg);">
-                <h4 style="margin: 0 0 10px 0; font-size: 13px;">Auto AI Status Lead Seeking</h4>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-                  <label>
-                    Enable Auto Status
-                    <select name="AI_STATUS_AUTOPILOT_ENABLED">
-                      <option value="false">Off</option>
-                      <option value="true">On</option>
-                    </select>
-                  </label>
-                  <label>
-                    Use AI Generation
-                    <select name="AI_STATUS_AUTOPILOT_USE_AI">
-                      <option value="true">On</option>
-                      <option value="false">Off (template only)</option>
-                    </select>
-                  </label>
-                  <label>
-                    Status Cron
-                    <input name="AI_STATUS_AUTOPILOT_CRON" type="text" placeholder="0 */6 * * *" />
-                  </label>
-                  <label>
-                    Status Tone
-                    <select name="AI_STATUS_AUTOPILOT_TONE">
-                      <option value="direct">Direct</option>
-                      <option value="friendly">Friendly</option>
-                      <option value="consultative">Consultative</option>
-                    </select>
-                  </label>
-                  <label class="span-2">
-                    Status CTA
-                    <input name="AI_STATUS_AUTOPILOT_CTA" type="text"
-                      placeholder="Reply 'START' to get full details." />
-                  </label>
-                </div>
-                <div style="display:flex;gap:10px;align-items:center;margin-top:10px;">
-                  <button type="button" id="postStatusNowBtn" class="btn accent">Post Status Now</button>
-                  <span id="statusPostResult" class="muted" style="font-size:12px;"></span>
-                </div>
-              </div>
-              <div class="span-2"
-                style="padding: 14px; border: 1px dashed var(--panel-border); border-radius: var(--radius-md); background: var(--import-bg);">
-                <h4 style="margin: 0 0 10px 0; font-size: 13px;">AI Data Assist</h4>
-                <p class="muted" style="margin: 0 0 12px 0; font-size: 12px;">Auto-create product knowledge, closing
-                  story, objection playbook, and follow-up text.</p>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
-                  <label>
-                    Business Name
-                    <input id="assistBusinessName" type="text" placeholder="RestartX" />
-                  </label>
-                  <label>
-                    Offer
-                    <input id="assistOffer" type="text" placeholder="WhatsApp automation for sales teams" />
-                  </label>
-                  <label>
-                    Target Audience
-                    <input id="assistAudience" type="text" placeholder="SMBs and outbound teams" />
-                  </label>
-                  <label>
-                    Goal
-                    <input id="assistGoal" type="text" placeholder="Book qualified demos" />
-                  </label>
-                  <label>
-                    Tone
-                    <select id="assistTone">
-                      <option value="balanced">Balanced</option>
-                      <option value="direct">Direct</option>
-                      <option value="friendly">Friendly</option>
-                      <option value="consultative">Consultative</option>
-                    </select>
-                  </label>
-                  <div style="display:flex;align-items:flex-end;">
-                    <button type="button" id="generateAiAssistBtn" class="btn accent"
-                      style="width:100%;justify-content:center;">Generate AI Assist Data</button>
-                  </div>
-                </div>
-                <p id="aiAssistResult" class="muted" style="margin: 10px 0 0 0; font-size: 12px;"></p>
-              </div>
+            </div>
+          </details>
+
+          <!-- ── Section 5: WhatsApp Status Autopilot ── -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="radio"></i> Status Autopilot</summary>
+            <div class="settings-body form-grid">
+              <label>
+                Enable Auto Status
+                <select name="AI_STATUS_AUTOPILOT_ENABLED">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
+              <label>
+                Use AI Generation
+                <select name="AI_STATUS_AUTOPILOT_USE_AI">
+                  <option value="true">On</option>
+                  <option value="false">Off (template only)</option>
+                </select>
+              </label>
+              <label>
+                Status Cron
+                <input name="AI_STATUS_AUTOPILOT_CRON" type="text" placeholder="0 */6 * * *" />
+              </label>
+              <label>
+                Tone
+                <select name="AI_STATUS_AUTOPILOT_TONE">
+                  <option value="direct">Direct</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="consultative">Consultative</option>
+                </select>
+              </label>
+              <label>
+                WhatsApp Status Features
+                <select name="AI_WHATSAPP_STATUS_FEATURES">
+                  <option value="false">Off</option>
+                  <option value="true">On</option>
+                </select>
+              </label>
               <label class="span-2">
-                Product Knowledge / Sales Script
-                <p class="muted" style="font-size: 12px; margin-bottom: 8px;">Describe your product, pricing, and common
-                  questions. The AI will use this to close sales.</p>
-                <textarea name="AI_PRODUCT_KNOWLEDGE" rows="5"
-                  placeholder="Example: Product: Eco-Bottle, Price: $25. It's BPA-free and keeps water cold for 24h..."></textarea>
+                Status CTA
+                <input name="AI_STATUS_AUTOPILOT_CTA" type="text" placeholder="Reply 'START' to get full details." />
               </label>
+              <label class="span-2">
+                Status Features Text
+                <textarea name="AI_WHATSAPP_STATUS_FEATURES_TEXT" rows="2"
+                  placeholder="How Status features help attract leads..."></textarea>
+              </label>
+              <div class="span-2" style="display:flex;gap:10px;align-items:center;">
+                <button type="button" id="postStatusNowBtn" class="btn accent">Post Status Now</button>
+                <span id="statusPostResult" class="muted" style="font-size:12px;"></span>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <label class="span-2">
-            Recipients (List)
-            <textarea name="RECIPIENTS" rows="3" placeholder="91889..., 91859..."></textarea>
-          </label>
-
-          <div class="span-2 import-box">
-            <h3 style="font-size: 14px; margin-bottom: 12px;">Import from Excel/CSV</h3>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
-              <input id="recipientsFile" type="file" accept=".xlsx,.xls,.csv" style="flex: 1; min-width: 200px;" />
-              <button type="button" id="importBtn" class="btn accent">Import Numbers</button>
+          <!-- ── Section 6: AI Data Assist ── -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="wand-2"></i> AI Data Assist</summary>
+            <div class="settings-body">
+              <p class="muted" style="font-size: 12px; margin: 0 0 12px 0;">Auto-generate product knowledge, objection playbook, and closing story.</p>
+              <div class="form-grid">
+                <label>
+                  Business Name
+                  <input id="assistBusinessName" type="text" placeholder="RestartX" />
+                </label>
+                <label>
+                  Offer
+                  <input id="assistOffer" type="text" placeholder="WhatsApp automation" />
+                </label>
+                <label>
+                  Target Audience
+                  <input id="assistAudience" type="text" placeholder="SMBs" />
+                </label>
+                <label>
+                  Goal
+                  <input id="assistGoal" type="text" placeholder="Book demos" />
+                </label>
+                <label>
+                  Tone
+                  <select id="assistTone">
+                    <option value="balanced">Balanced</option>
+                    <option value="direct">Direct</option>
+                    <option value="friendly">Friendly</option>
+                    <option value="consultative">Consultative</option>
+                  </select>
+                </label>
+                <div style="display:flex;align-items:flex-end;">
+                  <button type="button" id="generateAiAssistBtn" class="btn accent" style="width:100%;justify-content:center;">Generate</button>
+                </div>
+              </div>
+              <p id="aiAssistResult" class="muted" style="margin: 10px 0 0 0; font-size: 12px;"></p>
             </div>
-            <p id="importResult" class="muted" style="margin-top: 8px; font-size: 12px;"></p>
-          </div>
+          </details>
 
-          <label class="span-2">
-            Template Content (One per line for rotation)
-            <textarea name="BULK_TEMPLATE_LINES" id="templateInput" rows="4"
-              placeholder="Type your message templates here..."></textarea>
-          </label>
-
-          <div class="span-2">
-            <h3 style="font-size: 14px; margin-bottom: 12px;">Message Preview</h3>
-            <div class="preview-container" id="messagePreview">
-              <div class="msg-bubble sent">Your message will appear here...</div>
+          <!-- ── Section 7: Recipients & Templates ── -->
+          <details class="settings-section" open>
+            <summary class="settings-summary"><i data-lucide="users"></i> Recipients & Templates</summary>
+            <div class="settings-body">
+              <div class="form-grid">
+                <label class="span-2">
+                  Recipients (List)
+                  <textarea name="RECIPIENTS" rows="3" placeholder="91889..., 91859..."></textarea>
+                </label>
+              </div>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0;">
+                <input id="recipientsFile" type="file" accept=".xlsx,.xls,.csv" style="flex: 1; min-width: 200px;" />
+                <button type="button" id="importBtn" class="btn accent">Import</button>
+                <p id="importResult" class="muted" style="font-size: 12px;"></p>
+              </div>
+              <div class="form-grid">
+                <label class="span-2">
+                  Template Content (one per line)
+                  <textarea name="BULK_TEMPLATE_LINES" id="templateInput" rows="3"
+                    placeholder="Type your message templates here..."></textarea>
+                </label>
+              </div>
+              <div style="margin-top: 12px;">
+                <p class="muted" style="font-size: 12px; margin-bottom: 6px;">Message Preview</p>
+                <div class="preview-container" id="messagePreview">
+                  <div class="msg-bubble sent">Your message will appear here...</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <button class="btn primary span-2" type="submit" style="height: 50px; font-size: 16px;">Save Workspace
-            Configuration</button>
+          <button class="btn primary span-2" type="submit" style="height: 46px; font-size: 15px; width: 100%; margin-top: 8px;">💾 Save Configuration</button>
         </form>
       </section>
     </div>
@@ -492,72 +528,79 @@
       <section class="panel hero" style="grid-column: span 12;">
         <div class="brand-section">
           <p class="eyebrow">Marketing / Outreach</p>
-          <h1>Instant Campaigns</h1>
+          <h1>Campaigns</h1>
         </div>
-        <div class="status-chip" style="border-color: var(--primary);">Sequence Active</div>
       </section>
 
       <section class="panel custom-panel" style="grid-column: span 12;">
-        <form id="customForm" class="form-grid">
-          <div class="span-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <span class="eyebrow" style="font-size: 10px;">Message 1 (Intro)</span>
-              <textarea name="message1" id="instantMessage1" rows="6"
-                placeholder="First message to spark interest..."></textarea>
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <span class="eyebrow" style="font-size: 10px; color: var(--accent);">Message 2 (Follow-up)</span>
-              <textarea name="message2" id="instantMessage2" rows="6"
-                placeholder="Second message with more details..."></textarea>
-            </div>
-          </div>
+        <form id="customForm">
 
-          <div class="span-2 preview-section">
-            <h3 style="font-size: 14px; margin-bottom: 12px;">Live Conversation Preview</h3>
-            <div class="preview-container" id="multiMessagePreview" style="min-height: 250px;">
-              <div class="msg-bubble received">Preview will appear as you type...</div>
-            </div>
-          </div>
-
-          <div class="span-2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <label class="eyebrow" style="font-size:11px;">Upload Media (images, audio, docs)</label>
-              <input type="file" id="mediaFileInput" />
-              <div style="display:flex;gap:8px;">
-                <button id="uploadMediaBtn" class="btn">Upload</button>
-                <span id="uploadResult" class="muted" style="font-size:12px;align-self:center;"></span>
+          <!-- Messages -->
+          <details class="settings-section" open>
+            <summary class="settings-summary"><i data-lucide="message-square"></i> Messages</summary>
+            <div class="settings-body">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <span class="eyebrow" style="font-size: 10px;">Message 1 (Intro)</span>
+                  <textarea name="message1" id="instantMessage1" rows="5"
+                    placeholder="First message to spark interest..."></textarea>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <span class="eyebrow" style="font-size: 10px; color: var(--accent);">Message 2 (Follow-up)</span>
+                  <textarea name="message2" id="instantMessage2" rows="5"
+                    placeholder="Second message with more details..."></textarea>
+                </div>
+              </div>
+              <div style="margin-top: 12px;">
+                <p class="muted" style="font-size: 12px; margin-bottom: 6px;">Live Preview</p>
+                <div class="preview-container" id="multiMessagePreview" style="min-height: 180px;">
+                  <div class="msg-bubble received">Preview will appear as you type...</div>
+                </div>
               </div>
             </div>
+          </details>
 
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <label class="eyebrow" style="font-size:11px;">Select Uploaded Media</label>
-              <select id="mediaListSelect">
-                <option value="">(none)</option>
-              </select>
-              <label style="font-size:11px;margin-top:6px;">Schedule send</label>
-              <input type="datetime-local" id="sendAtInput" />
+          <!-- Media & Schedule -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="image"></i> Media & Schedule</summary>
+            <div class="settings-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <label class="eyebrow" style="font-size:11px;">Upload Media</label>
+                  <input type="file" id="mediaFileInput" />
+                  <div style="display:flex;gap:8px;">
+                    <button id="uploadMediaBtn" class="btn">Upload</button>
+                    <span id="uploadResult" class="muted" style="font-size:12px;align-self:center;"></span>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <label class="eyebrow" style="font-size:11px;">Select Media</label>
+                  <select id="mediaListSelect">
+                    <option value="">(none)</option>
+                  </select>
+                  <label class="eyebrow" style="font-size:11px;margin-top:4px;">Schedule</label>
+                  <input type="datetime-local" id="sendAtInput" />
+                </div>
+              </div>
             </div>
-          </div>
+          </details>
 
-          <!-- Recipients override -->
-          <div class="span-2" style="border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <h3 style="font-size: 14px; margin: 0;">📱 Recipients</h3>
-              <span class="muted" style="font-size: 11px;">(leave empty to use workspace recipients list)</span>
+          <!-- Recipients -->
+          <details class="settings-section">
+            <summary class="settings-summary"><i data-lucide="users"></i> Recipients <span class="muted" style="font-size:11px;margin-left:6px;">(optional — defaults to workspace list)</span></summary>
+            <div class="settings-body">
+              <textarea id="instantRecipients" rows="3" placeholder="Phone numbers, one per line or comma-separated..." style="width: 100%;"></textarea>
+              <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
+                <input type="file" id="instantRecipientsFile" accept=".xlsx,.xls,.csv" style="font-size: 12px;" />
+                <button type="button" id="instantImportRecipientsBtn" class="btn" style="padding: 4px 10px; font-size: 11px;">Import</button>
+                <span id="instantImportResult" class="muted" style="font-size: 11px;"></span>
+              </div>
             </div>
-            <textarea id="instantRecipients" rows="3" placeholder="Enter phone numbers, one per line or comma-separated...
-91889xxxxxxx
-91859xxxxxxx" style="width: 100%;"></textarea>
-            <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;">
-              <input type="file" id="instantRecipientsFile" accept=".xlsx,.xls,.csv" style="font-size: 12px;" />
-              <button type="button" id="instantImportRecipientsBtn" class="btn" style="padding: 4px 10px; font-size: 11px;">Import</button>
-              <span id="instantImportResult" class="muted" style="font-size: 11px;"></span>
-            </div>
-          </div>
+          </details>
 
           <div class="span-2 progress-section" id="bulkProgress" style="display: none;">
             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
-              <span>Launching Campaign sequence...</span>
+              <span>Launching Campaign…</span>
               <span id="progressText">0/0</span>
             </div>
             <div class="progress-wrapper">
@@ -565,8 +608,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn accent span-2" style="height: 60px; font-size: 18px; width: 100%;">🚀 Launch
-            Dual-Message Campaign</button>
+          <button type="submit" class="btn accent" style="height: 48px; font-size: 15px; width: 100%; margin-top: 8px;">🚀 Launch Campaign</button>
         </form>
       </section>
 
@@ -1035,6 +1077,95 @@
           </table>
         </div>
       </section>
+
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- CONVERSATION ANALYTICS (Enhanced)                          -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+
+      <!-- ── Response Time Metrics ───────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="clock" style="width:18px;height:18px;vertical-align:middle;"></i> Response Time Analytics</h3>
+        <div class="analytics-grid analytics-grid-4" id="responseTimeCards">
+          <div class="analytics-card">
+            <span class="analytics-card-label">Avg Response</span>
+            <span id="caAvgResponse" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Median Response</span>
+            <span id="caMedianResponse" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">95th Percentile</span>
+            <span id="caP95Response" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Measured Pairs</span>
+            <span id="caResponseCount" class="analytics-card-value">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Conversation Depth ──────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 6;">
+        <h3 class="analytics-section-title"><i data-lucide="message-square" style="width:18px;height:18px;vertical-align:middle;"></i> Conversation Depth</h3>
+        <div class="analytics-grid analytics-grid-3" style="margin-bottom:16px;">
+          <div class="analytics-card">
+            <span class="analytics-card-label">Avg Messages</span>
+            <span id="caAvgDepth" class="analytics-card-value">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Multi-turn</span>
+            <span id="caMultiMsg" class="analytics-card-value" style="color:var(--primary);">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Single-msg</span>
+            <span id="caSingleMsg" class="analytics-card-value" style="color:var(--danger);">—</span>
+          </div>
+        </div>
+        <div id="caDepthDistribution" style="display:flex;gap:4px;align-items:flex-end;height:100px;padding:8px 0;"></div>
+      </section>
+
+      <!-- ── AI Performance ──────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 6;">
+        <h3 class="analytics-section-title"><i data-lucide="brain" style="width:18px;height:18px;vertical-align:middle;"></i> AI Performance</h3>
+        <div class="analytics-grid analytics-grid-2" id="caAiMetrics">
+          <div class="analytics-card">
+            <span class="analytics-card-label">AI Replies</span>
+            <span id="caAiReplies" class="analytics-card-value" style="color:var(--primary);">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">AI / Total %</span>
+            <span id="caAiRatio" class="analytics-card-value" style="color:var(--accent);">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Hot Lead Rate</span>
+            <span id="caHotRate" class="analytics-card-value" style="color:var(--danger);">—</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Conversion Rate</span>
+            <span id="caConvRate" class="analytics-card-value" style="color:#10b981;">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Activity Heatmap ────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="flame" style="width:18px;height:18px;vertical-align:middle;"></i> Activity Heatmap (Day × Hour)</h3>
+        <div id="caHeatmapContainer" style="overflow-x:auto;">
+          <div id="caHeatmap" style="display:grid;grid-template-columns:60px repeat(24,1fr);gap:2px;font-size:10px;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;">
+          <span class="muted">Low</span>
+          <div style="width:120px;height:12px;border-radius:4px;background:linear-gradient(to right,var(--input-bg),var(--primary));"></div>
+          <span class="muted">High</span>
+        </div>
+      </section>
+
+      <!-- ── Source Breakdown ────────────────────────────────────── -->
+      <section class="panel analytics-section" style="grid-column: span 12;">
+        <h3 class="analytics-section-title"><i data-lucide="pie-chart" style="width:18px;height:18px;vertical-align:middle;"></i> Message Source Breakdown</h3>
+        <div id="caSourceBreakdown" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </section>
     </div>
     <!-- Leads View -->
     <div class="view-container" id="leadsView">
@@ -1407,6 +1538,18 @@
         ">
           <span class="muted" style="text-align:center;">Select a takeover to start chatting.</span>
         </div>
+        <!-- Smart Reply Suggestions -->
+        <div id="smartReplySection" style="margin-bottom:10px;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <span style="font-size:11px;font-weight:600;color:var(--muted-ink);">
+              <i data-lucide="sparkles" style="width:14px;height:14px;vertical-align:middle;"></i> AI Suggestions
+            </span>
+            <button id="refreshSuggestionsBtn" class="btn" style="font-size:10px;padding:2px 8px;">
+              <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i> Refresh
+            </button>
+          </div>
+          <div id="smartReplyButtons" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        </div>
         <form id="liveChatForm" style="display:flex;gap:8px;">
           <input type="text" id="liveChatInput" placeholder="Type your message…" style="
             flex:1;
@@ -1421,6 +1564,98 @@
             <i data-lucide="send"></i> Send
           </button>
         </form>
+      </section>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- KNOWLEDGE BASE VIEW                                                -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="view-container" id="knowledgebaseView">
+      <section class="panel hero" style="grid-column: span 12;">
+        <div class="brand-section">
+          <p class="eyebrow">RAG / AI Context</p>
+          <h1><i data-lucide="book-open" style="width:28px;height:28px;vertical-align:middle;"></i> Knowledge Base</h1>
+          <p class="subtitle muted" style="margin-top: 8px;">Upload documents to give your AI sales agent accurate product knowledge. Supported: PDF, TXT, Markdown, CSV</p>
+        </div>
+      </section>
+
+      <!-- KB Stats -->
+      <section class="panel" style="grid-column: span 12;">
+        <div id="kbStatsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">
+          <div class="analytics-card">
+            <span class="analytics-card-label">Documents</span>
+            <span id="kbDocCount" class="analytics-card-value">0</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Total Chunks</span>
+            <span id="kbChunkCount" class="analytics-card-value">0</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Total Characters</span>
+            <span id="kbCharCount" class="analytics-card-value">0</span>
+          </div>
+          <div class="analytics-card">
+            <span class="analytics-card-label">Total Size</span>
+            <span id="kbTotalSize" class="analytics-card-value">0 MB</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Upload Document -->
+      <section class="panel" style="grid-column: span 5;">
+        <h3><i data-lucide="upload" style="width:18px;height:18px;vertical-align:middle;"></i> Upload Document</h3>
+        <p class="muted" style="font-size:12px;margin:8px 0 16px;">Upload a file to add it to your AI's knowledge base. Text will be extracted, chunked, and used for context-aware replies.</p>
+        <form id="kbUploadForm" style="display:flex;flex-direction:column;gap:12px;">
+          <input type="file" id="kbFileInput" accept=".txt,.md,.csv,.pdf" style="
+            padding:10px;
+            border:2px dashed var(--panel-border);
+            border-radius:var(--radius-sm);
+            background:var(--input-bg);
+            color:var(--ink);
+            cursor:pointer;
+          " />
+          <button type="submit" class="btn primary" style="width:100%;">
+            <i data-lucide="plus-circle"></i> Upload & Process
+          </button>
+        </form>
+        <div id="kbUploadResult" class="muted" style="margin-top:8px;font-size:12px;"></div>
+      </section>
+
+      <!-- Search / Test KB -->
+      <section class="panel" style="grid-column: span 7;">
+        <h3><i data-lucide="search" style="width:18px;height:18px;vertical-align:middle;"></i> Test Knowledge Retrieval</h3>
+        <p class="muted" style="font-size:12px;margin:8px 0 16px;">Preview what context the AI would receive for a given query. This uses TF-IDF scoring to find the most relevant chunks.</p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="kbSearchInput" placeholder="e.g. What is your pricing?" style="
+            flex:1;padding:10px 14px;
+            border:1px solid var(--panel-border);
+            border-radius:var(--radius-sm);
+            background:var(--input-bg);
+            color:var(--ink);
+          " />
+          <button id="kbSearchBtn" class="btn primary">Search</button>
+        </div>
+        <div id="kbSearchResult" style="
+          max-height:300px;
+          overflow-y:auto;
+          padding:12px;
+          background:var(--input-bg);
+          border:1px solid var(--panel-border);
+          border-radius:var(--radius-sm);
+          font-size:12px;
+          font-family:monospace;
+          white-space:pre-wrap;
+          word-break:break-word;
+          display:none;
+        "></div>
+      </section>
+
+      <!-- Document List -->
+      <section class="panel" style="grid-column: span 12;">
+        <h3><i data-lucide="file-text" style="width:18px;height:18px;vertical-align:middle;"></i> Documents</h3>
+        <div id="kbDocumentList" style="margin-top:12px;">
+          <span class="muted">No documents uploaded yet.</span>
+        </div>
       </section>
     </div>
 

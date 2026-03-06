@@ -73,6 +73,7 @@ const { isBlacklisted, isOptOutMessage, addToBlacklist } = require("./blacklist.
 const { matchFlow, getFirstStep } = require("./flow.service");
 const { fireWebhookEvent } = require("./webhook.service");
 const { logAction } = require("./audit.service");
+const { buildKbContext } = require("./knowledge-base.service");
 
 // ─── Bulk-send helpers ─────────────────────────────────────────────────────
 function getBulkOptions(config, overrides = {}) {
@@ -218,6 +219,16 @@ function markWorkspaceReady(workspace, runtime) {
   runtime.ready = true;
   runtime.startRequestedAt = null;
   runtime.qrDataUrl = "";
+  // Capture connected WhatsApp number
+  try {
+    const wid = runtime.client?.info?.wid;
+    runtime.connectedPhone = wid ? (wid.user || wid._serialized || "") : "";
+  } catch (_e) {
+    runtime.connectedPhone = "";
+  }
+  if (runtime.connectedPhone) {
+    console.log(`[${workspace.id}] Connected WhatsApp number: ${runtime.connectedPhone}`);
+  }
   setupScheduler(workspace, runtime);
   setupStatusScheduler(workspace, runtime);
 }
@@ -620,6 +631,7 @@ async function createClientForWorkspace(workspace) {
     runtime.status = `disconnected: ${reason}`;
     runtime.ready = false;
     runtime.authenticated = false;
+    runtime.connectedPhone = "";
     runtime.startRequestedAt = null;
     runtime.qrDataUrl = "";
     runtime.authenticatedAt = null;
@@ -944,8 +956,10 @@ async function handleIncomingMessage(workspace, runtime, msg) {
 
   if (!replyText || workspace.config.AI_SALES_SCOPE === "all") {
     const isGroup = msg.from.endsWith("@g.us");
+    const aiProvider = workspace.config.AI_PROVIDER || "google";
     const allowAi =
-      workspace.config.AI_SALES_ENABLED === "true" && workspace.config.AI_API_KEY;
+      workspace.config.AI_SALES_ENABLED === "true" &&
+      (workspace.config.AI_API_KEY || aiProvider === "ollama");
     const aiGroups = workspace.config.AI_SALES_GROUPS === "true";
 
     // ── Human takeover check ──
@@ -1012,8 +1026,15 @@ async function handleIncomingMessage(workspace, runtime, msg) {
               ? "Use a consultative close: verify fit, solve objections, and offer a no-pressure next step."
               : "Use a balanced close: discovery first, value summary, then a clear next action.";
 
+        // ── RAG Knowledge Base context ──
+        let kbContextBlock = "";
+        try {
+          kbContextBlock = buildKbContext(workspace, msg.body || "", 5);
+        } catch (_kbErr) {}
+
         const prompt = `
           Context: You are a sales assistant for this product: ${knowledge}
+          ${kbContextBlock ? `\n${kbContextBlock}\nUse the Knowledge Base Context above to provide accurate, specific answers when relevant.` : ""}
           Objective: Answer the lead's question and guide them toward a purchase.
           ${contactName ? `Lead's Name: ${contactName} — Always greet them by name when starting a reply.` : ""}
           ${bookingEnabled && bookingLink ? `Call Booking: If the customer is interested or ready to talk, encourage them to book a call here: ${bookingLink}` : ""}
@@ -1069,6 +1090,40 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           console.log(`[${workspace.id}] Google AI Raw Response: ${rawContent}`);
           const _owner2 = getWorkspaceOwner(workspace);
           if (_owner2) incrementUsage(_owner2, "aiCalls");
+        } else if (provider === "ollama") {
+          const ollamaBase = sanitizeText(
+            workspace.config.OLLAMA_BASE_URL,
+            DEFAULT_CONFIG.OLLAMA_BASE_URL || "http://localhost:11434"
+          ).replace(/\/+$/, "");
+          const ollamaHeaders = { "Content-Type": "application/json" };
+          if (apiKey) ollamaHeaders.Authorization = `Bearer ${apiKey}`;
+          console.log(`[${workspace.id}] Ollama AI Request started (${ollamaBase})...`);
+          const response = await fetchWithRetry(
+            `${ollamaBase}/api/chat`,
+            {
+              method: "POST",
+              headers: ollamaHeaders,
+              body: JSON.stringify({
+                model: modelName,
+                stream: false,
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a sales assistant. IMPORTANT: You MUST respond ONLY with a valid JSON object. No extra text, no markdown, no code blocks. Just the raw JSON.",
+                  },
+                  { role: "user", content: prompt },
+                ],
+              }),
+            },
+            { retries: 2, timeoutMs: 120000, label: `${workspace.id}-ollama` }
+          );
+          const data = await response.json();
+          console.log(`[${workspace.id}] Ollama AI Raw Response Received`);
+          if (data.error) throw new Error(data.error || "Ollama Error");
+          rawContent = data?.message?.content || "";
+          const _owner2b = getWorkspaceOwner(workspace);
+          if (_owner2b) incrementUsage(_owner2b, "aiCalls");
         } else if (provider === "openrouter") {
           console.log(`[${workspace.id}] OpenRouter AI Request started...`);
           const response = await fetchWithRetry(
@@ -1270,6 +1325,7 @@ async function stopWorkspaceClient(workspaceId) {
   runtime.status = "stopped";
   runtime.ready = false;
   runtime.authenticated = false;
+  runtime.connectedPhone = "";
   runtime.startRequestedAt = null;
   runtime.authenticatedAt = null;
   runtime.recoveryAttempted = false;

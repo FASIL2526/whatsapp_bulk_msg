@@ -19,6 +19,7 @@ const DEFAULT_CONFIG = {
   AI_SALES_ENABLED: "false",
   AI_PROVIDER: "google",
   AI_MODEL: "gemini-1.5-flash",
+  OLLAMA_BASE_URL: "http://localhost:11434",
   AI_SALES_SCOPE: "not_matched",
   AI_SALES_GROUPS: "false",
   AI_BOOKING_ENABLED: "false",

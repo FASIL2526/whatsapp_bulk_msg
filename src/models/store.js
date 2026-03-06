@@ -577,6 +577,7 @@ function getRuntime(workspaceId) {
       status: "stopped",
       authenticated: false,
       ready: false,
+      connectedPhone: "",
       startRequestedAt: null,
       qrDataUrl: "",
       lastError: "",

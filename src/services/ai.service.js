@@ -200,7 +200,7 @@ async function generateAiAssistDraft(payload, workspaceConfig) {
   const baseDraft = buildLocalAiAssistDraft(payload);
   const provider = sanitizeChoice(
     sanitizeText(payload.provider || workspaceConfig.AI_PROVIDER, "google"),
-    ["google", "openrouter"],
+    ["google", "openrouter", "ollama"],
     "google"
   );
   const modelName = sanitizeText(
@@ -208,7 +208,7 @@ async function generateAiAssistDraft(payload, workspaceConfig) {
     DEFAULT_CONFIG.AI_MODEL
   );
   const apiKey = sanitizeText(payload.apiKey || workspaceConfig.AI_API_KEY, "");
-  if (!apiKey) return { draft: baseDraft, source: "local_fallback_no_key" };
+  if (!apiKey && provider !== "ollama") return { draft: baseDraft, source: "local_fallback_no_key" };
 
   const prompt = `
 Create a sales-assistant configuration JSON for WhatsApp closing.
@@ -241,6 +241,28 @@ Return JSON only:
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(prompt);
       raw = result.response.text().trim();
+    } else if (provider === "ollama") {
+      const ollamaBase = sanitizeText(
+        payload.ollamaBaseUrl || workspaceConfig.OLLAMA_BASE_URL,
+        DEFAULT_CONFIG.OLLAMA_BASE_URL
+      ).replace(/\/+$/, "");
+      const ollamaHeaders = { "Content-Type": "application/json" };
+      if (apiKey) ollamaHeaders.Authorization = `Bearer ${apiKey}`;
+      const response = await fetchWithRetry(`${ollamaBase}/api/chat`, {
+        method: "POST",
+        headers: ollamaHeaders,
+        body: JSON.stringify({
+          model: modelName,
+          stream: false,
+          messages: [
+            { role: "system", content: "You are a sales-ops assistant. Return only JSON." },
+            { role: "user", content: prompt },
+          ],
+        }),
+      }, { retries: 2, timeoutMs: 120000, label: "ai-assist-ollama" });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error || "Ollama error");
+      raw = data?.message?.content || "";
     } else {
       const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -263,7 +285,7 @@ Return JSON only:
 
     const parsed = parseAiJsonResponse(raw);
     return {
-      source: provider === "google" ? "ai_google" : "ai_openrouter",
+      source: provider === "google" ? "ai_google" : provider === "ollama" ? "ai_ollama" : "ai_openrouter",
       draft: {
         ...baseDraft,
         productKnowledge: sanitizeMultilineText(parsed.productKnowledge, baseDraft.productKnowledge),
@@ -331,11 +353,11 @@ async function generateLeadSeekingStatusContent(workspace) {
   const cfg = workspace.config || DEFAULT_CONFIG;
   const useAi = cfg.AI_STATUS_AUTOPILOT_USE_AI !== "false";
   const apiKey = sanitizeText(cfg.AI_API_KEY, "");
-  const provider = sanitizeChoice(cfg.AI_PROVIDER, ["google", "openrouter"], "google");
+  const provider = sanitizeChoice(cfg.AI_PROVIDER, ["google", "openrouter", "ollama"], "google");
   const modelName = sanitizeText(cfg.AI_MODEL, DEFAULT_CONFIG.AI_MODEL);
   const fallback = localLeadSeekingStatusText(workspace);
 
-  if (!useAi || !apiKey) return { text: fallback, source: "status_local" };
+  if (!useAi || (!apiKey && provider !== "ollama")) return { text: fallback, source: "status_local" };
 
   const prompt = `
 Create one short WhatsApp Status update to attract lead inquiries.
@@ -361,6 +383,25 @@ Return JSON only:
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(prompt);
       raw = result.response.text().trim();
+    } else if (provider === "ollama") {
+      const ollamaBase = sanitizeText(cfg.OLLAMA_BASE_URL, DEFAULT_CONFIG.OLLAMA_BASE_URL).replace(/\/+$/, "");
+      const ollamaHeaders = { "Content-Type": "application/json" };
+      if (apiKey) ollamaHeaders.Authorization = `Bearer ${apiKey}`;
+      const response = await fetchWithRetry(`${ollamaBase}/api/chat`, {
+        method: "POST",
+        headers: ollamaHeaders,
+        body: JSON.stringify({
+          model: modelName,
+          stream: false,
+          messages: [
+            { role: "system", content: "Return JSON only." },
+            { role: "user", content: prompt },
+          ],
+        }),
+      }, { retries: 2, timeoutMs: 120000, label: "status-gen-ollama" });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error || "Ollama status generation error");
+      raw = data?.message?.content || "";
     } else {
       const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -384,7 +425,7 @@ Return JSON only:
     const parsed = parseAiJsonResponse(raw);
     return {
       text: sanitizeText(parsed.status_text, fallback),
-      source: provider === "google" ? "status_ai_google" : "status_ai_openrouter",
+      source: provider === "google" ? "status_ai_google" : provider === "ollama" ? "status_ai_ollama" : "status_ai_openrouter",
     };
   } catch (err) {
     return { text: fallback, source: "status_local_fallback", warning: err.message };
