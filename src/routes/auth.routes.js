@@ -1,6 +1,7 @@
 /* ─── Auth Routes ──────────────────────────────────────────────────────────*/
 
 const { Router } = require("express");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const {
   store,
@@ -26,7 +27,7 @@ router.post("/register", (req, res) => {
       return res.status(400).json({ ok: false, error: "Username already exists." });
     }
     const user = {
-      id: `u_${Date.now().toString(36)}_${Math.floor(Math.random() * 1000)}`,
+      id: `u_${crypto.randomUUID().slice(0, 12)}`,
       username,
       passwordHash: bcrypt.hashSync(password, 10),
       plan: { id: "free", name: "Free", status: "active", startedAt: new Date().toISOString() },
@@ -42,13 +43,17 @@ router.post("/register", (req, res) => {
 });
 
 router.post("/login", (req, res) => {
-  const username = normalizeUsername(req.body?.username);
-  const password = String(req.body?.password || "");
-  const user = getUserByUsername(username);
-  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
-    return res.status(401).json({ ok: false, error: "Invalid username or password." });
+  try {
+    const username = normalizeUsername(req.body?.username);
+    const password = String(req.body?.password || "");
+    const user = getUserByUsername(username);
+    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+      return res.status(401).json({ ok: false, error: "Invalid username or password." });
+    }
+    res.json({ ok: true, ...authPayload(user) });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: "Login failed." });
   }
-  res.json({ ok: true, ...authPayload(user) });
 });
 
 router.get("/me", requireAuth, (req, res) => {

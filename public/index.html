@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -24,12 +24,13 @@
   <section class="auth-shell" id="authShell">
     <div class="panel auth-card">
       <div class="brand-logo"
-        style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px; justify-content: center;">
-        <div class="brand-mark">RX</div>
-        <h2 style="margin: 0;">RestartX Login</h2>
+        style="display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 28px;">
+        <div class="brand-mark" style="width: 52px; height: 52px; font-size: 20px; border-radius: 16px;">RX</div>
+        <div style="text-align: center;">
+          <h2 style="margin: 0; font-size: 22px; letter-spacing: -0.03em;">Welcome back</h2>
+          <p class="muted" style="margin: 6px 0 0; font-size: 13px;">Sign in to your workspace</p>
+        </div>
       </div>
-      <p class="muted" style="text-align: center; margin-bottom: 8px; font-size: 14px;">Sign in to access your
-        workspaces.</p>
       <form id="authForm" class="auth-form">
         <label>
           Username
@@ -52,7 +53,7 @@
   <nav class="sidebar" id="sidebar" style="display: none;">
     <div class="sidebar-logo">
       <div class="brand-mark">RX</div>
-      <span style="font-weight: 700; font-size: 20px;">RestartX</span>
+      <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.03em; color: var(--ink);">RestartX</span>
     </div>
 
     <div class="nav-links">
@@ -105,22 +106,22 @@
     </div>
 
     <div class="sidebar-footer">
-      <div class="status-chip" style="border-radius: var(--radius-sm); padding: 12px;">
+      <div class="status-chip" style="border-radius: var(--radius-sm); padding: 10px 14px; background: var(--chip-bg);">
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusChip" style="font-weight: 600;">stopped</span>
+        <span id="statusChip" style="font-weight: 600; font-size: 12px;">stopped</span>
       </div>
 
-      <div class="user-info" style="padding: 0 12px;">
-        <div class="muted" style="font-size: 12px;">Logged in as</div>
-        <div id="userPill" style="font-weight: 600;">-</div>
+      <div class="user-info" style="padding: 0 14px;">
+        <div class="muted" style="font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;">Logged in as</div>
+        <div id="userPill" style="font-weight: 600; font-size: 13px;">-</div>
       </div>
 
-      <div style="display: flex; gap: 8px; padding: 0 12px;">
+      <div style="display: flex; gap: 8px; padding: 0 14px; align-items: center;">
         <label class="theme-switch" style="scale: 0.8; margin-left: -5px;">
           <input type="checkbox" id="themeToggle">
           <span class="slider"></span>
         </label>
-        <button id="logoutBtn" class="btn" style="padding: 4px 8px; font-size: 12px; border: none;">
+        <button id="logoutBtn" class="btn" style="padding: 5px 10px; font-size: 11px; border: none; opacity: 0.7;">
           <i data-lucide="log-out"></i> Logout
         </button>
       </div>
@@ -1143,7 +1144,7 @@
           </div>
           <div class="analytics-card">
             <span class="analytics-card-label">Conversion Rate</span>
-            <span id="caConvRate" class="analytics-card-value" style="color:#10b981;">—</span>
+            <span id="caConvRate" class="analytics-card-value" style="color:var(--ink);">—</span>
           </div>
         </div>
       </section>
@@ -1156,7 +1157,7 @@
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11px;">
           <span class="muted">Low</span>
-          <div style="width:120px;height:12px;border-radius:4px;background:linear-gradient(to right,var(--input-bg),var(--primary));"></div>
+          <div style="width:120px;height:12px;border-radius:4px;background:linear-gradient(to right,var(--input-bg),var(--muted));"></div>
           <span class="muted">High</span>
         </div>
       </section>
@@ -1184,18 +1185,18 @@
       </section>
 
       <!-- Lead Stats -->
-      <section class="panel" style="grid-column: span 12;">
-        <div id="leadStatsCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;"></div>
+      <section class="panel" style="grid-column: span 12; padding: 24px;">
+        <div id="leadStatsCards" class="lead-stats-grid"></div>
       </section>
 
-      <!-- Lead Chart -->
-      <section class="panel" style="grid-column: span 6;">
-        <h3><i data-lucide="bar-chart-3" style="width:16px;height:16px;vertical-align:middle;"></i> Lead Status Distribution</h3>
-        <canvas id="leadStatusChart" height="200"></canvas>
+      <!-- Lead Charts -->
+      <section class="panel lead-chart-panel" style="grid-column: span 6;">
+        <h4><i data-lucide="bar-chart-3" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i>Status Distribution</h4>
+        <div style="flex:1;min-height:0;position:relative;"><canvas id="leadStatusChart"></canvas></div>
       </section>
-      <section class="panel" style="grid-column: span 6;">
-        <h3><i data-lucide="pie-chart" style="width:16px;height:16px;vertical-align:middle;"></i> Lead Stage Pipeline</h3>
-        <canvas id="leadStageChart" height="200"></canvas>
+      <section class="panel lead-chart-panel" style="grid-column: span 6;">
+        <h4><i data-lucide="pie-chart" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"></i>Stage Pipeline</h4>
+        <div style="flex:1;min-height:0;position:relative;"><canvas id="leadStageChart"></canvas></div>
       </section>
 
       <section class="panel" style="grid-column: span 12; padding: 0; overflow: hidden;">
@@ -1864,11 +1865,11 @@
           </div>
           <div>
             <label style="font-size:12px;font-weight:600;">Primary Color</label>
-            <input id="brandingPrimaryColor" type="color" value="#6c5ce7" style="width:100%;height:32px;border:1px solid var(--border);border-radius:var(--radius-sm);" />
+            <input id="brandingPrimaryColor" type="color" value="#111111" style="width:100%;height:32px;border:1px solid var(--border);border-radius:var(--radius-sm);" />
           </div>
           <div>
             <label style="font-size:12px;font-weight:600;">Accent Color</label>
-            <input id="brandingAccentColor" type="color" value="#00cec9" style="width:100%;height:32px;border:1px solid var(--border);border-radius:var(--radius-sm);" />
+            <input id="brandingAccentColor" type="color" value="#555555" style="width:100%;height:32px;border:1px solid var(--border);border-radius:var(--radius-sm);" />
           </div>
           <div>
             <label style="font-size:12px;font-weight:600;">Support Email</label>

@@ -1382,37 +1382,68 @@ async function processWorkspaceScheduledMessages(workspace) {
       if (!Array.isArray(recipients) || recipients.length === 0)
         throw new Error("No recipients configured for workspace");
 
+      let delivered = 0;
+      let failedCount = 0;
+
       if (sched.mediaId) {
         const resolved = resolveMediaPath(workspace, sched.mediaId);
         if (!resolved) throw new Error("Media not found");
         for (const chatId of recipients) {
-          const media = MessageMedia.fromFilePath(resolved.absPath);
-          await runtime.client.sendMessage(chatId, media, {
-            caption: messageText || undefined,
-          });
-          appendReport(workspace, {
-            kind: "outgoing",
-            source: "scheduled",
-            ok: true,
-            chatId,
-            message: messageText || `(media) ${resolved.filename}`,
-          });
+          try {
+            const media = MessageMedia.fromFilePath(resolved.absPath);
+            await runtime.client.sendMessage(chatId, media, {
+              caption: messageText || undefined,
+            });
+            delivered++;
+            appendReport(workspace, {
+              kind: "outgoing",
+              source: "scheduled",
+              ok: true,
+              chatId,
+              message: messageText || `(media) ${resolved.filename}`,
+            });
+          } catch (recipErr) {
+            failedCount++;
+            appendReport(workspace, {
+              kind: "outgoing",
+              source: "scheduled",
+              ok: false,
+              chatId,
+              message: messageText || `(media) ${resolved.filename}`,
+              error: recipErr.message,
+            });
+          }
         }
       } else {
         for (const chatId of recipients) {
-          await runtime.client.sendMessage(chatId, messageText);
-          appendReport(workspace, {
-            kind: "outgoing",
-            source: "scheduled",
-            ok: true,
-            chatId,
-            message: messageText,
-          });
+          try {
+            await runtime.client.sendMessage(chatId, messageText);
+            delivered++;
+            appendReport(workspace, {
+              kind: "outgoing",
+              source: "scheduled",
+              ok: true,
+              chatId,
+              message: messageText,
+            });
+          } catch (recipErr) {
+            failedCount++;
+            appendReport(workspace, {
+              kind: "outgoing",
+              source: "scheduled",
+              ok: false,
+              chatId,
+              message: messageText,
+              error: recipErr.message,
+            });
+          }
         }
       }
 
-      sched.status = "sent";
+      sched.status = failedCount === 0 ? "sent" : delivered > 0 ? "partial" : "failed";
       sched.sentAt = new Date().toISOString();
+      sched.delivered = delivered;
+      sched.failed = failedCount;
       changed = true;
     } catch (err) {
       sched.status = "failed";

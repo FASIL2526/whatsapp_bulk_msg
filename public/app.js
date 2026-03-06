@@ -142,7 +142,7 @@ function updatePreview(text) {
     return;
   }
   // Show first line as preview
-  messagePreview.innerHTML = `<div class="msg-bubble sent">${lines[0].replace(/\n/g, "<br>")}</div>`;
+  messagePreview.innerHTML = `<div class="msg-bubble sent">${escapeHtml(lines[0]).replace(/\n/g, "<br>")}</div>`;
   if (lines.length > 1) {
     messagePreview.innerHTML += `<div class="muted" style="font-size: 11px; margin-top: 4px;">+ ${lines.length - 1} more templates in rotation</div>`;
   }
@@ -160,8 +160,8 @@ function updateMultiPreview() {
   }
 
   let html = "";
-  if (m1) html += `<div class="msg-bubble sent" style="margin-bottom: 12px; border-bottom-left-radius: 0; align-self: flex-start; background: #fff; color: #333; border: 1px solid #ddd;"><b>Msg 1:</b><br>${m1.replace(/\n/g, "<br>")}</div>`;
-  if (m2) html += `<div class="msg-bubble sent" style="margin-top: 4px; align-self: flex-start; background: #dcf8c6; color: #000; border: 1px solid #c9ebae;"><b>Msg 2:</b><br>${m2.replace(/\n/g, "<br>")}</div>`;
+  if (m1) html += `<div class="msg-bubble sent" style="margin-bottom: 12px; border-bottom-left-radius: 0; align-self: flex-start; background: #fff; color: #333; border: 1px solid #ddd;"><b>Msg 1:</b><br>${escapeHtml(m1).replace(/\n/g, "<br>")}</div>`;
+  if (m2) html += `<div class="msg-bubble sent" style="margin-top: 4px; align-self: flex-start; background: #e5e5e5; color: #000; border: 1px solid #d0d0d0;"><b>Msg 2:</b><br>${escapeHtml(m2).replace(/\n/g, "<br>")}</div>`;
 
   multiMessagePreview.innerHTML = html;
   multiMessagePreview.scrollTop = multiMessagePreview.scrollHeight;
@@ -176,13 +176,14 @@ if (templateInput) {
 }
 
 function log(message) {
+  if (!events) return;
   const ts = new Date().toLocaleTimeString();
   events.textContent = `[${ts}] ${message}\n${events.textContent}`.slice(0, 9000);
 }
 
 function showToast(message, variant = "info") {
   const toast = document.createElement("div");
-  const bg = variant === "error" ? "#dc2626" : variant === "success" ? "#059669" : "#334155";
+  const bg = variant === "error" ? "#dc2626" : variant === "success" ? "#111111" : "#333333";
   toast.textContent = message;
   toast.style.position = "fixed";
   toast.style.right = "20px";
@@ -250,7 +251,13 @@ async function getJson(url, options) {
     opts.headers.Authorization = `Bearer ${authToken}`;
   }
   const res = await fetch(url, opts);
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    if (res.status === 401) { clearAuth(); }
+    throw new Error(`Server error (${res.status})`);
+  }
   if (res.status === 401) {
     clearAuth();
   }
@@ -264,10 +271,11 @@ function setAuth(token, user) {
   authToken = token;
   currentUser = user;
   localStorage.setItem("rx_auth_token", token);
-  authShell.style.display = "none";
-  sidebar.style.display = "flex";
-  document.querySelector("main.layout").style.display = "flex";
-  userPill.textContent = user.username;
+  if (authShell) authShell.style.display = "none";
+  if (sidebar) sidebar.style.display = "flex";
+  const mainLayout = document.querySelector("main.layout");
+  if (mainLayout) mainLayout.style.display = "flex";
+  if (userPill) userPill.textContent = user.username;
   // Show admin nav if super admin (username === 'admin' by default)
   const adminNav = document.getElementById("adminNavItem");
   if (adminNav) adminNav.style.display = (user.username === "admin") ? "" : "none";
@@ -282,10 +290,11 @@ function clearAuth() {
   authToken = "";
   currentUser = null;
   localStorage.removeItem("rx_auth_token");
-  authShell.style.display = "flex";
-  sidebar.style.display = "none";
-  document.querySelector("main.layout").style.display = "none";
-  userPill.textContent = "-";
+  if (authShell) authShell.style.display = "flex";
+  if (sidebar) sidebar.style.display = "none";
+  const mainLayout = document.querySelector("main.layout");
+  if (mainLayout) mainLayout.style.display = "none";
+  if (userPill) userPill.textContent = "-";
   syncCampaignButtonState();
 }
 
@@ -395,12 +404,12 @@ async function refreshReports() {
     const funnelEl = document.getElementById("leadFunnelBars");
     if (funnelEl) {
       const stages = [
-        { label: "New", value: p.new || 0, color: "#94a3b8" },
-        { label: "Qualified", value: p.qualified || 0, color: "#3b82f6" },
-        { label: "Proposal", value: p.proposal || 0, color: "#8b5cf6" },
-        { label: "Booking", value: p.booking || 0, color: "#f59e0b" },
-        { label: "Won", value: p.closedWon || 0, color: "#22c55e" },
-        { label: "Lost", value: p.closedLost || 0, color: "#ef4444" },
+        { label: "New", value: p.new || 0, color: "#111111" },
+        { label: "Qualified", value: p.qualified || 0, color: "#333333" },
+        { label: "Proposal", value: p.proposal || 0, color: "#555555" },
+        { label: "Booking", value: p.booking || 0, color: "#777777" },
+        { label: "Won", value: p.closedWon || 0, color: "#999999" },
+        { label: "Lost", value: p.closedLost || 0, color: "#bbbbbb" },
       ];
       const maxVal = Math.max(1, ...stages.map(x => x.value));
       funnelEl.innerHTML = stages.map(st => {
@@ -421,9 +430,9 @@ async function refreshReports() {
     const tempEl = document.getElementById("leadTempBars");
     if (tempEl) {
       const temps = [
-        { icon: "🔥", label: "Hot", value: p.hot || 0, color: "#ef4444" },
-        { icon: "🌡️", label: "Warm", value: p.warm || 0, color: "#f59e0b" },
-        { icon: "❄️", label: "Cold", value: p.cold || 0, color: "#3b82f6" },
+        { icon: "🔥", label: "Hot", value: p.hot || 0, color: "#111111" },
+        { icon: "🌡️", label: "Warm", value: p.warm || 0, color: "#777777" },
+        { icon: "❄️", label: "Cold", value: p.cold || 0, color: "#bbbbbb" },
       ];
       const maxT = Math.max(1, ...temps.map(x => x.value));
       tempEl.innerHTML = temps.map(t => {
@@ -447,7 +456,7 @@ async function refreshReports() {
       const insightEl = document.getElementById("anScoringInsight");
       if (insightEl && f.insight) {
         insightEl.style.display = "block";
-        insightEl.innerHTML = `<strong>💡 Insight:</strong> ${f.insight}`;
+        insightEl.innerHTML = `<strong>💡 Insight:</strong> ${escapeHtml(f.insight)}`;
       }
     } else {
       setTxt("anWinRate", "—");
@@ -466,7 +475,7 @@ async function refreshReports() {
         srcEl.innerHTML = entries.map(([source, count]) => {
           const pct = Math.max(2, Math.round((count / maxS) * 100));
           return `<div class="source-row">
-            <span class="source-label">${source}</span>
+            <span class="source-label">${escapeHtml(source)}</span>
             <div class="source-bar-bg">
               <div class="source-bar-fill" style="width:${pct}%;"><span>${count}</span></div>
             </div>
@@ -480,7 +489,7 @@ async function refreshReports() {
     if (tagsEl && f && f.topConvertingTags && f.topConvertingTags.length > 0) {
       tagsEl.innerHTML = f.topConvertingTags.map(t => {
         return `<div class="tag-row">
-          <span class="tag-badge">${t.tag}</span>
+          <span class="tag-badge">${escapeHtml(t.tag)}</span>
           <div class="tag-bar-bg"><div class="tag-bar-fill" style="width:${t.pct}%;"></div></div>
           <span class="tag-pct">${t.pct}%</span>
         </div>`;
@@ -533,10 +542,10 @@ async function refreshReports() {
             : '<span style="color:var(--danger);font-weight:700;">✗</span>';
           return `<tr>
             <td style="font-size:12px;white-space:nowrap;">${time}</td>
-            <td><span style="font-size:12px;font-family:var(--font-mono);">${kindLabel}</span></td>
-            <td style="font-size:12px;">${r.source}</td>
+            <td><span style="font-size:12px;font-family:var(--font-mono);">${escapeHtml(kindLabel)}</span></td>
+            <td style="font-size:12px;">${escapeHtml(r.source || '')}</td>
             <td>${statusDot}</td>
-            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.message || "—"}</td>
+            <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.message || '—')}</td>
           </tr>`;
         }).join("");
       }
@@ -596,8 +605,8 @@ async function loadMediaList() {
           const sizeLabel = formatFileSize(m.sizeBytes || 0);
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td style="font-weight:600;">${m.filename}</td>
-            <td class="muted">${m.mimeType}</td>
+            <td style="font-weight:600;">${escapeHtml(m.filename)}</td>
+            <td class="muted">${escapeHtml(m.mimeType)}</td>
             <td class="muted" style="font-size:12px;">${sizeLabel}</td>
             <td class="muted" style="font-size:12px;">${new Date(m.uploadedAt).toLocaleString()}</td>
             <td>
@@ -675,9 +684,9 @@ async function loadSchedules() {
       const tr = document.createElement("tr");
       const statusColor = s.status === "sent" ? "var(--primary)" : s.status === "failed" ? "var(--danger)" : s.status === "cancelled" ? "var(--muted)" : "var(--accent)";
       tr.innerHTML = `
-        <td><code style="font-size:11px;">${s.id}</code></td>
-        <td style="max-width:220px;"><div class="reason-cell">${s.message || "(media only)"}</div></td>
-        <td class="muted">${s.mediaId || "-"}</td>
+        <td><code style="font-size:11px;">${escapeHtml(s.id)}</code></td>
+        <td style="max-width:220px;"><div class="reason-cell">${escapeHtml(s.message || '(media only)')}</div></td>
+        <td class="muted">${escapeHtml(s.mediaId || '-')}</td>
         <td class="muted" style="font-size:12px;">${new Date(s.sendAt).toLocaleString()}</td>
         <td><span class="badge" style="color:${statusColor};border-color:${statusColor};">${s.status}</span></td>
         <td>${s.status === "pending" ? `<button class="btn cancel-sched-btn" data-id="${s.id}" style="padding:4px 10px;font-size:11px;color:var(--danger);border-color:var(--danger);">Cancel</button>` : "-"}</td>
@@ -759,7 +768,7 @@ async function refreshStatus() {
 setInterval(() => {
   if (!connectActive) return;
   connectElapsedSec += 1;
-  connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
+  if (connectTimer) connectTimer.textContent = `Connect timer: ${connectElapsedSec}s`;
 }, 1000);
 
 async function loadConfig() {
@@ -783,6 +792,7 @@ workspaceSelect.addEventListener("change", async () => {
   await loadSchedules();
 });
 
+if (createWorkspaceBtn) {
 createWorkspaceBtn.addEventListener("click", async () => {
   const name = workspaceNameInput.value.trim();
   if (!name) return;
@@ -805,7 +815,9 @@ createWorkspaceBtn.addEventListener("click", async () => {
     log(err.message);
   }
 });
+}
 
+if (form) {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -848,6 +860,7 @@ form.addEventListener("submit", async (event) => {
     showToast(err.message, "error");
   }
 });
+}
 
 if (generateAiAssistBtn) {
   generateAiAssistBtn.addEventListener("click", async () => {
@@ -926,6 +939,7 @@ if (postStatusNowBtn) {
   });
 }
 
+if (startBtn) {
 startBtn.addEventListener("click", async () => {
   try {
     await getJson(workspacePath("/start"), { method: "POST" });
@@ -935,7 +949,9 @@ startBtn.addEventListener("click", async () => {
     log(err.message);
   }
 });
+}
 
+if (stopBtn) {
 stopBtn.addEventListener("click", async () => {
   try {
     await getJson(workspacePath("/stop"), { method: "POST" });
@@ -945,6 +961,7 @@ stopBtn.addEventListener("click", async () => {
     log(err.message);
   }
 });
+}
 
 if (logoutBtn2) {
   logoutBtn2.addEventListener("click", async () => {
@@ -976,6 +993,7 @@ function updateProgressBar(current, total) {
   }
 }
 
+if (customForm) {
 customForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (customSendInFlight || workspaceSendInProgress) {
@@ -1057,6 +1075,7 @@ customForm.addEventListener("submit", async (event) => {
     syncCampaignButtonState();
   }
 });
+} // end customForm null guard
 
 if (refreshReportsBtn) {
   refreshReportsBtn.addEventListener("click", refreshReports);
@@ -1364,9 +1383,9 @@ function renderLeadStats(leads, summary) {
   const assigned = leads.filter(l => l.assignedTo).length;
   el.innerHTML = `
     <div class="kpi-card"><div class="kpi-value">${total}</div><div class="kpi-label">Total</div></div>
-    <div class="kpi-card" style="border-left:3px solid #e74c3c;"><div class="kpi-value">${hot}</div><div class="kpi-label">Hot</div></div>
-    <div class="kpi-card" style="border-left:3px solid #f39c12;"><div class="kpi-value">${warm}</div><div class="kpi-label">Warm</div></div>
-    <div class="kpi-card" style="border-left:3px solid #3498db;"><div class="kpi-value">${cold}</div><div class="kpi-label">Cold</div></div>
+    <div class="kpi-card"><div class="kpi-value">${hot}</div><div class="kpi-label">Hot</div></div>
+    <div class="kpi-card"><div class="kpi-value">${warm}</div><div class="kpi-label">Warm</div></div>
+    <div class="kpi-card"><div class="kpi-value">${cold}</div><div class="kpi-label">Cold</div></div>
     <div class="kpi-card"><div class="kpi-value">${avgScore}</div><div class="kpi-label">Avg Score</div></div>
     <div class="kpi-card"><div class="kpi-value">${assigned}</div><div class="kpi-label">Assigned</div></div>
   `;
@@ -1388,10 +1407,12 @@ function renderLeadCharts(leads) {
         labels: ["Hot", "Warm", "Cold"],
         datasets: [{
           data: [statusCounts.hot, statusCounts.warm, statusCounts.cold],
-          backgroundColor: ["#e74c3c", "#f39c12", "#3498db"],
+          backgroundColor: ["#111111", "#888888", "#cccccc"],
+          borderColor: ["#111111", "#888888", "#cccccc"],
+          borderWidth: 1,
         }]
       },
-      options: { responsive: true, plugins: { legend: { position: "bottom" } } }
+      options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: "bottom", labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } } } }
     });
   }
 
@@ -1410,10 +1431,12 @@ function renderLeadCharts(leads) {
         datasets: [{
           label: "Leads",
           data: stageOrder.map(s => stageCounts[s]),
-          backgroundColor: ["#9b59b6", "#3498db", "#2ecc71", "#f39c12", "#27ae60", "#e74c3c"],
+          backgroundColor: ["#111111", "#333333", "#555555", "#777777", "#999999", "#bbbbbb"],
+          borderColor: "transparent",
+          borderRadius: 4,
         }]
       },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } } }
     });
   }
 }
@@ -1442,29 +1465,29 @@ function renderLeads(leads) {
     const score = Number.isFinite(Number(lead.score)) ? Math.max(0, Math.min(100, Number(lead.score))) : 0;
     const stage = lead.stage || "new";
     const date = new Date(lead.updatedAt).toLocaleString();
-    const tags = (lead.tags || []).map(t => `<span class="badge" style="font-size:10px;padding:2px 6px;">${t}</span>`).join(" ");
-    const lang = lead.language || "";
-    const assigned = lead.assignedTo || "";
+    const tags = (lead.tags || []).map(t => `<span class="badge" style="font-size:10px;padding:2px 6px;">${escapeHtml(t)}</span>`).join(" ");
+    const lang = escapeHtml(lead.language || "");
+    const assigned = escapeHtml(lead.assignedTo || "");
 
     tr.innerHTML = `
       <td>
-        <div style="font-weight: 600;">${lead.name || lead.id}</div>
-        <div class="muted" style="font-size: 11px;">${lead.id}</div>
+        <div style="font-weight: 600;">${escapeHtml(lead.name || lead.id)}</div>
+        <div class="muted" style="font-size: 11px;">${escapeHtml(lead.id)}</div>
       </td>
-      <td><span class="badge ${statusClass}">${lead.status || 'cold'}</span></td>
-      <td><span class="badge">${stage}</span></td>
+      <td><span class="badge ${statusClass}">${escapeHtml(lead.status || 'cold')}</span></td>
+      <td><span class="badge">${escapeHtml(stage)}</span></td>
       <td style="font-weight: 700;">${score}</td>
       <td style="max-width:150px;">${tags || '<span class="muted">-</span>'}</td>
       <td class="muted" style="font-size:12px;">${assigned || '-'}</td>
       <td class="muted" style="font-size:12px;">${lang || '-'}</td>
-      <td style="max-width: 200px;"><div class="reason-cell" title="${lead.reason || ''}">${lead.reason || '-'}</div></td>
-      <td style="max-width: 200px;"><div class="reason-cell" title="${lead.lastMessage || ''}">${lead.lastMessage || '-'}</div></td>
+      <td style="max-width: 200px;"><div class="reason-cell" title="${escapeHtml(lead.reason || '')}">${escapeHtml(lead.reason || '-')}</div></td>
+      <td style="max-width: 200px;"><div class="reason-cell" title="${escapeHtml(lead.lastMessage || '')}">${escapeHtml(lead.lastMessage || '-')}</div></td>
       <td class="muted" style="font-size: 12px;">${date}</td>
       <td style="white-space:nowrap;">
-        <button class="btn view-chat-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${lead.id}">
+        <button class="btn view-chat-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${escapeHtml(lead.id)}">
           <i data-lucide="message-square" style="width:12px;height:12px;"></i>
         </button>
-        <button class="btn view-detail-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${lead.id}">
+        <button class="btn view-detail-btn" style="padding:4px 8px;font-size:11px;" data-lead-id="${escapeHtml(lead.id)}">
           <i data-lucide="eye" style="width:12px;height:12px;"></i>
         </button>
       </td>
@@ -1561,7 +1584,7 @@ function renderDripSteps(drip) {
   }
   container.innerHTML = steps.map((s, i) =>
     `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);font-size:13px;">
-      <strong>Step ${i + 1}</strong> — Day ${s.delayDays}: <span class="muted">${s.message.slice(0, 80)}${s.message.length > 80 ? "…" : ""}</span>
+      <strong>Step ${i + 1}</strong> — Day ${s.delayDays}: <span class="muted">${escapeHtml(s.message.slice(0, 80))}${s.message.length > 80 ? "…" : ""}</span>
     </div>`
   ).join("");
 }
@@ -1693,11 +1716,11 @@ async function loadAbTests() {
         const rate = v.sent > 0 ? Math.round((v.replied / v.sent) * 100) : 0;
         const isWinner = t.winnerId === v.id;
         return `<div style="padding:4px 0;${isWinner ? "font-weight:700;color:var(--success);" : ""}">
-          ${v.id}: "${v.message.slice(0,50)}${v.message.length > 50 ? "..." : ""}" — sent: ${v.sent}, replied: ${v.replied} (${rate}%)${isWinner ? " ✅ WINNER" : ""}
+          ${escapeHtml(v.id)}: "${escapeHtml(v.message.slice(0,50))}${v.message.length > 50 ? "..." : ""}" — sent: ${v.sent}, replied: ${v.replied} (${rate}%)${isWinner ? " ✅ WINNER" : ""}
         </div>`;
       }).join("");
       return `<div style="padding:8px 0;border-bottom:1px solid var(--panel-border);">
-        <strong>${t.name}</strong> <span class="muted">[${t.status}]</span>
+        <strong>${escapeHtml(t.name)}</strong> <span class="muted">[${escapeHtml(t.status)}]</span>
         ${variants}
       </div>`;
     }).join("");
@@ -1737,8 +1760,8 @@ if (checkEscalationBtn) {
       }
       container.innerHTML = data.leads.map(l =>
         `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);">
-          <strong>${l.name || l.id}</strong>
-          <span class="muted" style="font-size:12px;"> — ${l.reasons.join(", ")}</span>
+          <strong>${escapeHtml(l.name || l.id)}</strong>
+          <span class="muted" style="font-size:12px;"> — ${escapeHtml(l.reasons.join(", "))}</span>
         </div>`
       ).join("");
     } catch (e) { console.error(e); }
@@ -1757,12 +1780,12 @@ async function loadRouting() {
       container.innerHTML = '<span class="muted">No leads to route.</span>';
       return;
     }
-    const routeColors = { nurture: "#6b7280", engage: "#f59e0b", close: "#10b981", support: "#3b82f6", retain: "#8b5cf6", archive: "#9ca3af", completed: "#22c55e" };
+    const routeColors = { nurture: "#333333", engage: "#555555", close: "#111111", support: "#777777", retain: "#999999", archive: "#bbbbbb", completed: "#444444" };
     container.innerHTML = data.leads.map(l => {
-      const color = routeColors[l.route] || "#6b7280";
+      const color = routeColors[l.route] || "#555555";
       return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
-        <span>${l.name || l.id?.split("@")[0] || "?"}</span>
-        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">${l.route}</span>
+        <span>${escapeHtml(l.name || l.id?.split("@")[0] || "?")}</span>
+        <span style="background:${color};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;">${escapeHtml(l.route)}</span>
       </div>`;
     }).join("");
   } catch (e) { console.error(e); }
@@ -1782,10 +1805,10 @@ async function loadTags() {
     }
     container.innerHTML = data.leads.map(l => {
       const tags = (l.tags || []).map(t =>
-        `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;">${t}</span>`
+        `<span style="background:var(--accent);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;">${escapeHtml(t)}</span>`
       ).join(" ");
       return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);">
-        <strong style="font-size:13px;">${l.name || l.id?.split("@")[0] || "?"}</strong>
+        <strong style="font-size:13px;">${escapeHtml(l.name || l.id?.split("@")[0] || "?")}</strong>
         <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">${tags || '<span class="muted">no tags</span>'}</div>
       </div>`;
     }).join("");
@@ -1810,9 +1833,9 @@ if (objectionTestForm) {
       const container = document.getElementById("objectionResult");
       if (!container) return;
       if (data.rebuttal) {
-        container.innerHTML = `<div style="padding:8px;background:var(--success-bg,#dcfce7);border-radius:var(--radius-sm);">
-          <strong>Objection detected:</strong> ${data.objection}<br/>
-          <strong>Rebuttal:</strong> ${data.rebuttal}
+        container.innerHTML = `<div style="padding:8px;background:var(--success-bg,#f0f0f0);border-radius:var(--radius-sm);">
+          <strong>Objection detected:</strong> ${escapeHtml(data.objection)}<br/>
+          <strong>Rebuttal:</strong> ${escapeHtml(data.rebuttal)}
         </div>`;
       } else {
         container.innerHTML = `<span class="muted">No objection detected in that message.</span>`;
@@ -2004,7 +2027,7 @@ async function loadGoal() {
     `;
     if (adjEl && p.adjustments && p.adjustments.length > 0) {
       adjEl.innerHTML = '<strong style="font-size:12px;">Auto-adjustments:</strong>' +
-        p.adjustments.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="zap" style="width:12px;height:12px;vertical-align:middle;"></i> ${a.detail}</div>`).join("");
+        p.adjustments.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="zap" style="width:12px;height:12px;vertical-align:middle;"></i> ${escapeHtml(a.detail)}</div>`).join("");
       if (window.lucide) window.lucide.createIcons();
     } else if (adjEl) {
       adjEl.innerHTML = "";
@@ -2037,10 +2060,10 @@ async function loadOutbound() {
         queueEl.innerHTML = '<strong style="font-size:12px;">Next up:</strong>' +
           data.queue.slice(0, 10).map(l => `
             <div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
-              <span>${l.name}</span>
+              <span>${escapeHtml(l.name)}</span>
               <span style="display:flex;gap:6px;align-items:center;">
                 <span class="muted" style="font-size:11px;">opp: ${l.oppScore}</span>
-                <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;">${l.status}</span>
+                <span style="background:var(--primary);color:#fff;padding:2px 8px;border-radius:12px;font-size:10px;">${escapeHtml(l.status)}</span>
               </span>
             </div>
           `).join("");
@@ -2073,7 +2096,7 @@ async function loadTuning() {
         recsEl.innerHTML = '<span class="muted">✅ Performance looks good — no tuning needed.</span>';
       } else {
         recsEl.innerHTML = '<strong style="font-size:12px;">Recommendations:</strong>' +
-          data.recommendations.map(r => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="lightbulb" style="width:12px;height:12px;vertical-align:middle;"></i> ${r.reason}</div>`).join("");
+          data.recommendations.map(r => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="lightbulb" style="width:12px;height:12px;vertical-align:middle;"></i> ${escapeHtml(r.reason)}</div>`).join("");
         if (window.lucide) window.lucide.createIcons();
       }
     }
@@ -2133,7 +2156,7 @@ async function loadRevenue() {
     const leads = currentWorkspace.leads || [];
     leadSelect.innerHTML = leads
       .filter(l => !l.archived)
-      .map(l => `<option value="${l.id}">${l.name || l.id?.split("@")[0]}</option>`)
+      .map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name || l.id?.split("@")[0])}</option>`)
       .join("");
   }
   try {
@@ -2156,9 +2179,9 @@ async function loadRevenue() {
     const f = data.feedback;
     if (fbEl && f) {
       fbEl.innerHTML = `<div style="padding:8px;background:var(--import-bg);border-radius:var(--radius-sm);margin-top:8px;">
-        <strong>Scoring insight:</strong> ${f.insight}<br/>
+        <strong>Scoring insight:</strong> ${escapeHtml(f.insight)}<br/>
         <span class="muted">Win rate: ${f.winRate}% • Won avg score: ${f.wonAvgScore} • Booking rate among wins: ${f.wonBookingRate}%</span>
-        ${f.topConvertingTags.length > 0 ? '<br/><span class="muted">Top converting tags: ' + f.topConvertingTags.map(t => t.tag).join(", ") + '</span>' : ''}
+        ${f.topConvertingTags.length > 0 ? '<br/><span class="muted">Top converting tags: ' + f.topConvertingTags.map(t => escapeHtml(t.tag)).join(", ") + '</span>' : ''}
       </div>`;
     } else if (fbEl) {
       fbEl.innerHTML = '<span class="muted">Need at least 2 closed-won leads for scoring feedback.</span>';
@@ -2183,11 +2206,11 @@ async function loadOffers() {
           <div style="text-align:center;"><div style="font-size:18px;font-weight:700;color:var(--primary);">${s.acceptRate}%</div><div class="muted" style="font-size:11px;">Accept Rate</div></div>
           <div style="text-align:center;"><div style="font-size:18px;font-weight:700;">${s.currency} ${s.totalRevenue.toLocaleString()}</div><div class="muted" style="font-size:11px;">Revenue from Offers</div></div>
         </div>
-        ${s.bestStrategy ? '<div class="muted" style="font-size:12px;margin-top:8px;">Best strategy: <strong>' + s.bestStrategy.strategy.replace(/_/g, ' ') + '</strong> (' + s.bestStrategy.rate + '% accept)</div>' : ''}`;
+        ${s.bestStrategy ? '<div class="muted" style="font-size:12px;margin-top:8px;">Best strategy: <strong>' + escapeHtml(s.bestStrategy.strategy.replace(/_/g, ' ')) + '</strong> (' + s.bestStrategy.rate + '% accept)</div>' : ''}`;
     }
     const g = data.guardrails;
     if (guardEl && g) {
-      guardEl.innerHTML = `<div class="muted" style="margin-top:8px;">Guardrails: max ${g.maxDiscountPct}% off • min score ${g.minLeadScore} • base ${g.currency} ${g.basePrice} • max ${g.maxOffersPerLead} per lead${g.allowPaymentPlan ? ' • payment plans allowed' : ''}</div>`;
+      guardEl.innerHTML = `<div class="muted" style="margin-top:8px;">Guardrails: max ${g.maxDiscountPct}% off • min score ${g.minLeadScore} • base ${escapeHtml(g.currency)} ${g.basePrice} • max ${g.maxOffersPerLead} per lead${g.allowPaymentPlan ? ' • payment plans allowed' : ''}</div>`;
     }
   } catch (e) { console.error(e); }
 }
@@ -2209,7 +2232,7 @@ async function loadHealth() {
           const icon = c.healthy ? '✅' : '⚠️';
           const color = c.healthy ? 'var(--primary)' : 'var(--danger)';
           return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
-            <span>${icon} ${c.feature.replace(/_/g, ' ')}</span>
+            <span>${icon} ${escapeHtml(c.feature.replace(/_/g, ' '))}</span>
             <span style="color:${color};font-weight:600;">${(c.rate * 100).toFixed(1)}% response (${c.conversions}/${c.sent})</span>
           </div>`;
         }).join("");
@@ -2220,7 +2243,7 @@ async function loadHealth() {
         actionsEl.innerHTML = "";
       } else {
         actionsEl.innerHTML = '<strong style="font-size:12px;">Suggested fixes:</strong>' +
-          data.suggestedActions.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="wrench" style="width:12px;height:12px;vertical-align:middle;"></i> ${a.detail}</div>`).join("");
+          data.suggestedActions.map(a => `<div style="padding:3px 0;color:var(--muted);"><i data-lucide="wrench" style="width:12px;height:12px;vertical-align:middle;"></i> ${escapeHtml(a.detail)}</div>`).join("");
         if (window.lucide) window.lucide.createIcons();
       }
     }
@@ -2323,8 +2346,8 @@ async function loadAlertHistory() {
       const icon = h.ok ? "✅" : "❌";
       const msg = h.message || h.error || "";
       return `<div style="padding:6px 0;border-bottom:1px solid var(--panel-border);display:flex;justify-content:space-between;align-items:center;">
-        <span>${icon} <span class="muted">${time}</span> — ${msg}</span>
-        <span style="font-size:11px;color:var(--muted);">${h.kind || ""}</span>
+        <span>${icon} <span class="muted">${time}</span> — ${escapeHtml(msg)}</span>
+        <span style="font-size:11px;color:var(--muted);">${escapeHtml(h.kind || '')}</span>
       </div>`;
     }).join("");
   } catch (e) { console.error(e); }
@@ -2453,16 +2476,18 @@ async function loadActiveTakeovers() {
       const since = new Date(t.since).toLocaleString();
       return `<div class="takeover-card">
         <div class="takeover-info">
-          <strong>${t.name}</strong>
-          <span class="muted" style="font-size:11px;display:block;">${t.contactId}</span>
-          <span class="muted" style="font-size:11px;">Taken over by ${t.agent} · since ${since}</span>
+          <strong>${escapeHtml(t.name)}</strong>
+          <span class="muted" style="font-size:11px;display:block;">${escapeHtml(t.contactId)}</span>
+          <span class="muted" style="font-size:11px;">Taken over by ${escapeHtml(t.agent)} · since ${since}</span>
         </div>
         <div class="takeover-actions">
-          <button class="btn primary" style="font-size:12px;" onclick="openLiveChat('${t.contactId}')"><i data-lucide="message-circle"></i> Chat</button>
-          <button class="btn" style="font-size:12px;background:var(--danger);color:#fff;border:none;" onclick="releaseTakeover('${t.contactId}')"><i data-lucide="log-out"></i> Release</button>
+          <button class="btn primary takeover-chat-btn" style="font-size:12px;" data-contact="${escapeHtml(t.contactId)}"><i data-lucide="message-circle"></i> Chat</button>
+          <button class="btn takeover-release-btn" style="font-size:12px;background:var(--danger);color:#fff;border:none;" data-contact="${escapeHtml(t.contactId)}"><i data-lucide="log-out"></i> Release</button>
         </div>
       </div>`;
     }).join("");
+    container.querySelectorAll(".takeover-chat-btn").forEach(btn => btn.addEventListener("click", () => openLiveChat(btn.dataset.contact)));
+    container.querySelectorAll(".takeover-release-btn").forEach(btn => btn.addEventListener("click", () => releaseTakeover(btn.dataset.contact)));
     if (window.lucide) window.lucide.createIcons();
   } catch (e) { console.error(e); }
 }
@@ -2610,12 +2635,12 @@ if (refreshLivechatBtn) refreshLivechatBtn.addEventListener("click", loadLiveCha
 let _allPlans = [];
 
 async function loadBilling() {
-  if (!currentWorkspaceId) return;
+  if (!activeWorkspaceId) return;
   try {
     // Fetch plan list + workspace billing in parallel
     const [plansRes, billingRes] = await Promise.all([
       fetch("/api/plans"),
-      fetch(`/api/workspaces/${currentWorkspaceId}/billing`, { headers: authHeaders() }),
+      fetch(`/api/workspaces/${activeWorkspaceId}/billing`, { headers: authHeaders() }),
     ]);
     const plansData = await plansRes.json();
     const billingData = await billingRes.json();
@@ -2709,7 +2734,7 @@ function renderPlanCards(plans, currentPlan) {
     return `
       <div class="plan-card ${isCurrent ? 'plan-card-active' : ''}">
         <div style="margin-bottom:12px;">
-          <div style="font-size:18px;font-weight:700;">${p.name}</div>
+          <div style="font-size:18px;font-weight:700;">${escapeHtml(p.name)}</div>
           <div style="font-size:28px;font-weight:800;margin:8px 0;">$${p.price}<span style="font-size:14px;font-weight:400;color:var(--muted-ink);">/mo</span></div>
         </div>
         <div style="font-size:12px;margin-bottom:12px;">
@@ -2725,8 +2750,8 @@ function renderPlanCards(plans, currentPlan) {
         </div>
         ${isCurrent
           ? '<button class="btn" disabled style="width:100%;opacity:0.6;">Current Plan</button>'
-          : `<button class="btn primary" style="width:100%;" onclick="upgradePlan('${p.id}')">
-               ${p.price > (plans.find(x => x.id === currentPlan.id)?.price || 0) ? 'Upgrade' : 'Switch'} to ${p.name}
+          : `<button class="btn primary" style="width:100%;" onclick="upgradePlan('${escapeHtml(p.id)}')">
+               ${p.price > (plans.find(x => x.id === currentPlan.id)?.price || 0) ? 'Upgrade' : 'Switch'} to ${escapeHtml(p.name)}
              </button>`
         }
       </div>
@@ -2764,10 +2789,10 @@ function renderFeatureTable(plans) {
 }
 
 async function upgradePlan(planId) {
-  if (!currentWorkspaceId) return;
+  if (!activeWorkspaceId) return;
   if (!confirm(`Switch to the "${planId}" plan? In production, this would redirect to a payment page.`)) return;
   try {
-    const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/plan`, {
+    const resp = await fetch(`/api/workspaces/${activeWorkspaceId}/billing/plan`, {
       method: "POST",
       headers: { ...authHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ planId }),
@@ -2785,9 +2810,9 @@ async function upgradePlan(planId) {
 const startTrialBtn = document.getElementById("startTrialBtn");
 if (startTrialBtn) {
   startTrialBtn.addEventListener("click", async () => {
-    if (!currentWorkspaceId) return;
+    if (!activeWorkspaceId) return;
     try {
-      const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/trial`, {
+      const resp = await fetch(`/api/workspaces/${activeWorkspaceId}/billing/trial`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -2805,10 +2830,10 @@ if (startTrialBtn) {
 const cancelPlanBtn = document.getElementById("cancelPlanBtn");
 if (cancelPlanBtn) {
   cancelPlanBtn.addEventListener("click", async () => {
-    if (!currentWorkspaceId) return;
+    if (!activeWorkspaceId) return;
     if (!confirm("Are you sure you want to cancel your plan? You'll be downgraded to Free.")) return;
     try {
-      const resp = await fetch(`/api/workspaces/${currentWorkspaceId}/billing/cancel`, {
+      const resp = await fetch(`/api/workspaces/${activeWorkspaceId}/billing/cancel`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -2854,7 +2879,7 @@ function renderAdminKpis(data) {
   const kpis = [
     { label: "Total Workspaces", value: data.totalWorkspaces || 0, icon: "building", color: "var(--primary)" },
     { label: "Total Users", value: data.totalUsers || 0, icon: "users", color: "var(--accent)" },
-    { label: "Monthly Revenue", value: `$${(data.monthlyRevenue || 0).toLocaleString()}`, icon: "dollar-sign", color: "#10b981" },
+    { label: "Monthly Revenue", value: `$${(data.monthlyRevenue || 0).toLocaleString()}`, icon: "dollar-sign", color: "#111111" },
     { label: "Currency", value: data.currency || "USD", icon: "banknote", color: "var(--muted)" },
   ];
 
@@ -2898,7 +2923,7 @@ function renderAdminUsers(users, plans) {
   const table = document.getElementById("adminUsersTable");
   if (!table) return;
 
-  const planOptions = (plans || []).map(p => `<option value="${p.id}">${p.name} ($${p.price})</option>`).join("");
+  const planOptions = (plans || []).map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} ($${p.price})</option>`).join("");
 
   let html = `<thead><tr>
     <th>Username</th><th>User ID</th><th>Plan</th><th>Status</th><th>Workspaces</th><th>Created</th><th>Actions</th>
@@ -2909,18 +2934,18 @@ function renderAdminUsers(users, plans) {
     const statusClass = u.planStatus === "active" ? "badge-green" : u.planStatus === "trialing" ? "badge-yellow" : "badge-red";
     html += `<tr>
       <td><strong>${escapeHtml(u.username)}</strong></td>
-      <td class="muted" style="font-size:11px;">${u.id}</td>
-      <td>${u.planName || 'Free'}</td>
-      <td><span class="status-badge ${statusClass}">${u.planStatus || 'active'}</span></td>
+      <td class="muted" style="font-size:11px;">${escapeHtml(u.id)}</td>
+      <td>${escapeHtml(u.planName || 'Free')}</td>
+      <td><span class="status-badge ${statusClass}">${escapeHtml(u.planStatus || 'active')}</span></td>
       <td style="font-size:12px;">${wsList}</td>
       <td style="font-size:11px;">${new Date(u.createdAt).toLocaleDateString()}</td>
       <td style="white-space:nowrap;">
-        <select id="adminUserPlan_${u.id}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--panel-border);background:var(--input-bg);color:var(--ink);">
+        <select id="adminUserPlan_${escapeHtml(u.id)}" style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--panel-border);background:var(--input-bg);color:var(--ink);">
           ${planOptions}
         </select>
-        <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminChangeUserPlan('${u.id}')">Set</button>
-        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--accent);color:#fff;border:none;" onclick="adminResetUserUsage('${u.id}')">Reset</button>
-        <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteUser('${u.id}','${escapeHtml(u.username)}')">Delete</button>
+        <button class="btn admin-set-plan-btn" data-uid="${escapeHtml(u.id)}" style="font-size:11px;padding:2px 8px;">Set</button>
+        <button class="btn admin-reset-btn" data-uid="${escapeHtml(u.id)}" style="font-size:11px;padding:2px 8px;background:var(--accent);color:#fff;border:none;">Reset</button>
+        <button class="btn admin-del-btn" data-uid="${escapeHtml(u.id)}" data-uname="${escapeHtml(u.username)}" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;">Delete</button>
       </td>
     </tr>`;
   });
@@ -2933,6 +2958,11 @@ function renderAdminUsers(users, plans) {
     const sel = document.getElementById(`adminUserPlan_${u.id}`);
     if (sel) sel.value = u.plan || 'free';
   });
+
+  // Wire admin action buttons
+  table.querySelectorAll(".admin-set-plan-btn").forEach(btn => btn.addEventListener("click", () => adminChangeUserPlan(btn.dataset.uid)));
+  table.querySelectorAll(".admin-reset-btn").forEach(btn => btn.addEventListener("click", () => adminResetUserUsage(btn.dataset.uid)));
+  table.querySelectorAll(".admin-del-btn").forEach(btn => btn.addEventListener("click", () => adminDeleteUser(btn.dataset.uid, btn.dataset.uname)));
 }
 
 async function adminChangeUserPlan(userId) {
@@ -3010,9 +3040,9 @@ function renderBackupStatus(data) {
   const cards = [
     { label: "Total Backups", value: data.totalBackups || 0, icon: "archive", color: "var(--primary)" },
     { label: "Backup Size", value: `${data.totalBackupSizeMB || 0} MB`, icon: "hard-drive", color: "var(--accent)" },
-    { label: "Main File", value: `${data.mainFileSizeMB || 0} MB`, icon: "file-json", color: "#10b981" },
-    { label: "Max Kept", value: data.maxBackups || 50, icon: "layers", color: "#f59e0b" },
-    { label: "Auto Interval", value: `${data.backupIntervalMinutes || 60} min`, icon: "timer", color: "#8b5cf6" },
+    { label: "Main File", value: `${data.mainFileSizeMB || 0} MB`, icon: "file-json", color: "#111111" },
+    { label: "Max Kept", value: data.maxBackups || 50, icon: "layers", color: "#555555" },
+    { label: "Auto Interval", value: `${data.backupIntervalMinutes || 60} min`, icon: "timer", color: "#999999" },
     { label: "Saves Since Boot", value: data.savesSinceStart || 0, icon: "save", color: "var(--muted)" },
   ];
 
@@ -3033,8 +3063,8 @@ function renderBackupStatus(data) {
     container.innerHTML += `
       <div class="admin-kpi-card">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-          <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:#10b98115;display:flex;align-items:center;justify-content:center;">
-            <i data-lucide="clock" style="width:16px;height:16px;color:#10b981;"></i>
+          <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:rgba(0,0,0,0.04);display:flex;align-items:center;justify-content:center;">
+            <i data-lucide="clock" style="width:16px;height:16px;color:#555;"></i>
           </div>
           <span class="muted" style="font-size:11px;">Last Backup</span>
         </div>
@@ -3076,7 +3106,7 @@ function renderBackupList(backups) {
         <button class="btn" style="font-size:11px;padding:2px 8px;" onclick="adminDownloadBackup('${escapeHtml(b.filename)}')">
           <i data-lucide="download" style="width:12px;height:12px;"></i> Download
         </button>
-        <button class="btn" style="font-size:11px;padding:2px 8px;background:#f59e0b;color:#fff;border:none;" onclick="adminRestoreBackup('${escapeHtml(b.filename)}')">
+        <button class="btn" style="font-size:11px;padding:2px 8px;background:#333;color:#fff;border:none;" onclick="adminRestoreBackup('${escapeHtml(b.filename)}')">
           <i data-lucide="undo-2" style="width:12px;height:12px;"></i> Restore
         </button>
         <button class="btn" style="font-size:11px;padding:2px 8px;background:var(--danger);color:#fff;border:none;" onclick="adminDeleteBackup('${escapeHtml(b.filename)}')">
@@ -3180,9 +3210,9 @@ async function loadCampaignHistory() {
       const audienceLabel = c.audience?.type === "segment" ? "Segment" : c.audience?.type === "specific" ? "Specific" : "All";
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td style="font-weight:600;">${c.name}</td>
-        <td><span class="badge" style="color:${color};border-color:${color};">${c.status}</span></td>
-        <td class="muted">${audienceLabel}</td>
+        <td style="font-weight:600;">${escapeHtml(c.name)}</td>
+        <td><span class="badge" style="color:${color};border-color:${color};">${escapeHtml(c.status)}</span></td>
+        <td class="muted">${escapeHtml(audienceLabel)}</td>
         <td style="color:var(--primary);">${c.stats?.delivered || 0}</td>
         <td style="color:var(--danger);">${c.stats?.failed || 0}</td>
         <td style="color:var(--accent);">${c.stats?.replied || 0}</td>
@@ -3269,9 +3299,9 @@ async function loadTemplateLibrary() {
     for (const t of list) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td style="font-weight:600;">${t.name}</td>
-        <td class="muted">${t.category || "general"}</td>
-        <td class="muted" style="max-width:260px;"><div class="reason-cell">${(t.messages || []).join(" | ")}</div></td>
+        <td style="font-weight:600;">${escapeHtml(t.name)}</td>
+        <td class="muted">${escapeHtml(t.category || 'general')}</td>
+        <td class="muted" style="max-width:260px;"><div class="reason-cell">${escapeHtml((t.messages || []).join(' | '))}</div></td>
         <td class="muted" style="font-size:12px;">${new Date(t.createdAt).toLocaleString()}</td>
         <td style="white-space: nowrap;">
           <button class="btn use-tpl-btn" data-id="${t.id}" style="padding:3px 8px;font-size:11px;color:var(--primary);border-color:var(--primary);">Use</button>
@@ -3657,17 +3687,17 @@ async function openLeadDetail(lead) {
   const q = lead.qualification || {};
   content.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-      <div><b style="font-size:11px;">Status:</b> <span class="badge status-${lead.status || 'cold'}">${lead.status || 'cold'}</span></div>
-      <div><b style="font-size:11px;">Stage:</b> <span class="badge">${lead.stage || 'new'}</span></div>
+      <div><b style="font-size:11px;">Status:</b> <span class="badge status-${escapeHtml(lead.status || 'cold')}">${escapeHtml(lead.status || 'cold')}</span></div>
+      <div><b style="font-size:11px;">Stage:</b> <span class="badge">${escapeHtml(lead.stage || 'new')}</span></div>
       <div><b style="font-size:11px;">Score:</b> ${lead.score || 0}</div>
-      <div><b style="font-size:11px;">Language:</b> ${lead.language || '-'}</div>
-      <div><b style="font-size:11px;">Assigned:</b> ${lead.assignedTo || '<i class="muted">unassigned</i>'}</div>
-      <div><b style="font-size:11px;">Tags:</b> ${(lead.tags || []).join(", ") || '-'}</div>
-      <div><b style="font-size:11px;">Need:</b> ${q.need || '-'}</div>
-      <div><b style="font-size:11px;">Budget:</b> ${q.budget || '-'}</div>
-      <div><b style="font-size:11px;">Timeline:</b> ${q.timeline || '-'}</div>
-      <div><b style="font-size:11px;">Decision Maker:</b> ${q.decision_maker || '-'}</div>
-      <div><b style="font-size:11px;">Objection:</b> ${lead.primaryObjection || '-'}</div>
+      <div><b style="font-size:11px;">Language:</b> ${escapeHtml(lead.language || '-')}</div>
+      <div><b style="font-size:11px;">Assigned:</b> ${escapeHtml(lead.assignedTo || '') || '<i class="muted">unassigned</i>'}</div>
+      <div><b style="font-size:11px;">Tags:</b> ${escapeHtml((lead.tags || []).join(', ')) || '-'}</div>
+      <div><b style="font-size:11px;">Need:</b> ${escapeHtml(q.need || '-')}</div>
+      <div><b style="font-size:11px;">Budget:</b> ${escapeHtml(q.budget || '-')}</div>
+      <div><b style="font-size:11px;">Timeline:</b> ${escapeHtml(q.timeline || '-')}</div>
+      <div><b style="font-size:11px;">Decision Maker:</b> ${escapeHtml(q.decision_maker || '-')}</div>
+      <div><b style="font-size:11px;">Objection:</b> ${escapeHtml(lead.primaryObjection || '-')}</div>
       <div><b style="font-size:11px;">Follow-ups:</b> ${lead.followUpCount || 0}</div>
     </div>
 
@@ -3675,8 +3705,8 @@ async function openLeadDetail(lead) {
     <div style="margin-bottom:16px;">
       <b style="font-size:12px;">Assign To:</b>
       <div style="display:flex;gap:8px;margin-top:4px;">
-        <input id="assignInput" type="text" value="${lead.assignedTo || ''}" placeholder="Username or team member" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
-        <button class="btn primary" onclick="assignLead('${lead.id}')" style="font-size:11px;">Assign</button>
+        <input id="assignInput" type="text" value="${escapeHtml(lead.assignedTo || '')}" placeholder="Username or team member" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+        <button class="btn primary" onclick="assignLead('${escapeHtml(lead.id)}')" style="font-size:11px;">Assign</button>
       </div>
     </div>
 
@@ -3684,8 +3714,8 @@ async function openLeadDetail(lead) {
     <div style="margin-bottom:16px;">
       <b style="font-size:12px;">Tags:</b>
       <div style="display:flex;gap:8px;margin-top:4px;">
-        <input id="tagsInput" type="text" value="${(lead.tags || []).join(', ')}" placeholder="tag1, tag2, tag3" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
-        <button class="btn primary" onclick="updateLeadTags('${lead.id}')" style="font-size:11px;">Save Tags</button>
+        <input id="tagsInput" type="text" value="${escapeHtml((lead.tags || []).join(', '))}" placeholder="tag1, tag2, tag3" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+        <button class="btn primary" onclick="updateLeadTags('${escapeHtml(lead.id)}')" style="font-size:11px;">Save Tags</button>
       </div>
     </div>
 
@@ -3696,12 +3726,12 @@ async function openLeadDetail(lead) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
           ${customFields.map(f => `
             <div>
-              <label style="font-size:11px;">${f.name}</label>
-              <input class="cf-input" data-key="${f.key}" type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}" value="${(lead.customData || {})[f.key] || ''}" style="width:100%;padding:4px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
+              <label style="font-size:11px;">${escapeHtml(f.name)}</label>
+              <input class="cf-input" data-key="${escapeHtml(f.key)}" type="${f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}" value="${escapeHtml((lead.customData || {})[f.key] || '')}" style="width:100%;padding:4px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
             </div>
           `).join("")}
         </div>
-        <button class="btn primary" onclick="saveLeadCustomData('${lead.id}')" style="font-size:11px;margin-top:8px;">Save Custom Fields</button>
+        <button class="btn primary" onclick="saveLeadCustomData('${escapeHtml(lead.id)}')" style="font-size:11px;margin-top:8px;">Save Custom Fields</button>
       </div>
     ` : ''}
 
@@ -3710,13 +3740,13 @@ async function openLeadDetail(lead) {
       <b style="font-size:12px;">Internal Notes (${notes.length}):</b>
       <div style="display:flex;gap:8px;margin:8px 0;">
         <input id="noteInput" type="text" placeholder="Add a note..." style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-primary);" />
-        <button class="btn primary" onclick="addLeadNote('${lead.id}')" style="font-size:11px;">Add</button>
+        <button class="btn primary" onclick="addLeadNote('${escapeHtml(lead.id)}')" style="font-size:11px;">Add</button>
       </div>
       <div id="notesList" style="max-height:200px;overflow-y:auto;">
         ${notes.map(n => `
           <div style="padding:8px;border-bottom:1px solid var(--border);font-size:12px;">
-            <div>${n.text}</div>
-            <div class="muted" style="font-size:10px;margin-top:4px;">${n.author} — ${new Date(n.createdAt).toLocaleString()}</div>
+            <div>${escapeHtml(n.text)}</div>
+            <div class="muted" style="font-size:10px;margin-top:4px;">${escapeHtml(n.author)} — ${new Date(n.createdAt).toLocaleString()}</div>
           </div>
         `).join("") || '<div class="muted" style="font-size:12px;padding:8px;">No notes yet.</div>'}
       </div>
@@ -3796,9 +3826,9 @@ async function findDuplicateLeads() {
     }
     content.innerHTML = data.groups.map(g => `
       <div style="padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
-        <div style="font-weight:600;font-size:13px;">Primary: ${g.primaryId}</div>
-        <div class="muted" style="font-size:11px;">Duplicates: ${g.duplicates.map(d => d.id).join(", ")}</div>
-        <button class="btn primary" onclick="mergeDups('${g.primaryId}', ${JSON.stringify(g.duplicates.map(d => d.id))})" style="font-size:11px;margin-top:6px;">Merge</button>
+        <div style="font-weight:600;font-size:13px;">Primary: ${escapeHtml(g.primaryId)}</div>
+        <div class="muted" style="font-size:11px;">Duplicates: ${g.duplicates.map(d => escapeHtml(d.id)).join(", ")}</div>
+        <button class="btn primary" data-primary="${escapeHtml(g.primaryId)}" data-dups='${JSON.stringify(g.duplicates.map(d => d.id)).replace(/'/g, "&#39;")}' onclick="mergeDups(this.dataset.primary, JSON.parse(this.dataset.dups))" style="font-size:11px;margin-top:6px;">Merge</button>
       </div>
     `).join("");
   } catch (e) { showToast(e.message, "error"); }
@@ -3843,10 +3873,11 @@ async function loadBlacklist() {
     if (list.length === 0) { el.innerHTML = '<span class="muted">No blocked numbers.</span>'; return; }
     el.innerHTML = list.map(b => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);">
-        <span>${b.number} <span class="muted">(${b.reason || 'manual'})</span></span>
-        <button class="btn" onclick="removeFromBlacklist('${b.number}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Remove</button>
+        <span>${escapeHtml(b.number)} <span class="muted">(${escapeHtml(b.reason || 'manual')})</span></span>
+        <button class="btn bl-remove-btn" data-number="${escapeHtml(b.number)}" style="font-size:10px;padding:2px 6px;color:var(--danger);">Remove</button>
       </div>
     `).join("");
+    el.querySelectorAll(".bl-remove-btn").forEach(btn => btn.addEventListener("click", () => removeFromBlacklist(btn.dataset.number)));
   } catch (e) { showToast(e.message, "error"); }
 }
 
@@ -3893,14 +3924,16 @@ async function loadWebhooks() {
     if (list.length === 0) { el.innerHTML = '<span class="muted">No webhooks configured.</span>'; return; }
     el.innerHTML = list.map(w => `
       <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;">
-        <div style="font-weight:600;word-break:break-all;">${w.url}</div>
-        <div class="muted" style="font-size:10px;">Events: ${(w.events || []).join(", ")} | Fired: ${w.firedCount || 0} | Fails: ${w.failCount || 0}</div>
+        <div style="font-weight:600;word-break:break-all;">${escapeHtml(w.url)}</div>
+        <div class="muted" style="font-size:10px;">Events: ${escapeHtml((w.events || []).join(', '))} | Fired: ${w.firedCount || 0} | Fails: ${w.failCount || 0}</div>
         <div style="margin-top:4px;display:flex;gap:6px;">
-          <button class="btn" onclick="testWebhook('${w.id}')" style="font-size:10px;padding:2px 6px;">Test</button>
-          <button class="btn" onclick="deleteWebhook('${w.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+          <button class="btn wh-test-btn" data-wh-id="${escapeHtml(w.id)}" style="font-size:10px;padding:2px 6px;">Test</button>
+          <button class="btn wh-del-btn" data-wh-id="${escapeHtml(w.id)}" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
         </div>
       </div>
     `).join("");
+    el.querySelectorAll(".wh-test-btn").forEach(btn => btn.addEventListener("click", () => testWebhook(btn.dataset.whId)));
+    el.querySelectorAll(".wh-del-btn").forEach(btn => btn.addEventListener("click", () => deleteWebhook(btn.dataset.whId)));
   } catch (e) { showToast(e.message, "error"); }
 }
 
@@ -3979,13 +4012,14 @@ async function loadFlows() {
     if (list.length === 0) { el.innerHTML = '<span class="muted">No chatbot flows. Create one to auto-respond before AI.</span>'; return; }
     el.innerHTML = list.map(f => `
       <div style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:6px;">
-        <div style="font-weight:600;">${f.name} <span class="badge" style="font-size:10px;">${f.enabled ? 'Active' : 'Disabled'}</span></div>
-        <div class="muted" style="font-size:10px;">Trigger: "${f.trigger}" (${f.triggerMode}) | Steps: ${(f.steps || []).length}</div>
+        <div style="font-weight:600;">${escapeHtml(f.name)} <span class="badge" style="font-size:10px;">${f.enabled ? 'Active' : 'Disabled'}</span></div>
+        <div class="muted" style="font-size:10px;">Trigger: "${escapeHtml(f.trigger)}" (${escapeHtml(f.triggerMode)}) | Steps: ${(f.steps || []).length}</div>
         <div style="margin-top:4px;display:flex;gap:6px;">
-          <button class="btn" onclick="deleteFlow('${f.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+          <button class="btn flow-del-btn" data-flow-id="${escapeHtml(f.id)}" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
         </div>
       </div>
     `).join("");
+    el.querySelectorAll(".flow-del-btn").forEach(btn => btn.addEventListener("click", () => deleteFlow(btn.dataset.flowId)));
   } catch (e) { showToast(e.message, "error"); }
 }
 
@@ -4036,20 +4070,26 @@ async function loadCustomFields() {
     if (fields.length === 0) { el.innerHTML = '<span class="muted">No custom fields. Add fields to track extra lead data.</span>'; return; }
     el.innerHTML = fields.map(f => `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
-        <span><b>${f.name}</b> <span class="muted">(${f.type})</span> ${f.options?.length ? '→ ' + f.options.join(', ') : ''}</span>
-        <button class="btn" onclick="deleteCustomField('${f.id}')" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
+        <span><b>${escapeHtml(f.name)}</b> <span class="muted">(${escapeHtml(f.type)})</span> ${f.options?.length ? '→ ' + escapeHtml(f.options.join(', ')) : ''}</span>
+        <button class="btn cf-del-btn" data-cf-id="${escapeHtml(f.id)}" style="font-size:10px;padding:2px 6px;color:var(--danger);">Delete</button>
       </div>
     `).join("");
+    el.querySelectorAll(".cf-del-btn").forEach(btn => btn.addEventListener("click", () => deleteCustomField(btn.dataset.cfId)));
   } catch (e) { showToast(e.message, "error"); }
 }
 
 function showAddFieldForm() {
-  document.getElementById("customFieldForm").style.display = "block";
+  const formEl = document.getElementById("customFieldForm");
+  if (formEl) formEl.style.display = "block";
   const typeSelect = document.getElementById("cfType");
   const optWrap = document.getElementById("cfOptionsWrap");
-  typeSelect.addEventListener("change", () => {
-    optWrap.style.display = typeSelect.value === "select" ? "block" : "none";
-  });
+  if (typeSelect && optWrap) {
+    // Remove old listener before adding new one (prevent leak)
+    const handler = () => {
+      optWrap.style.display = typeSelect.value === "select" ? "block" : "none";
+    };
+    typeSelect.onchange = handler;
+  }
 }
 
 async function saveCustomField() {
@@ -4093,9 +4133,9 @@ async function loadAuditLog() {
     body.innerHTML = entries.map(e => `
       <tr>
         <td class="muted" style="white-space:nowrap;">${new Date(e.timestamp).toLocaleString()}</td>
-        <td>${e.userId || '-'}</td>
-        <td><span class="badge">${e.action}</span></td>
-        <td style="max-width:300px;word-break:break-word;font-size:11px;">${JSON.stringify(e.details || {})}</td>
+        <td>${escapeHtml(e.userId || '-')}</td>
+        <td><span class="badge">${escapeHtml(e.action)}</span></td>
+        <td style="max-width:300px;word-break:break-word;font-size:11px;">${escapeHtml(JSON.stringify(e.details || {}))}</td>
       </tr>
     `).join("");
 
@@ -4104,7 +4144,7 @@ async function loadAuditLog() {
     const select = document.getElementById("auditActionFilter");
     if (select && actionsRes.actions) {
       const current = select.value;
-      select.innerHTML = '<option value="">All Actions</option>' + actionsRes.actions.map(a => `<option value="${a}" ${a === current ? 'selected' : ''}>${a}</option>`).join("");
+      select.innerHTML = '<option value="">All Actions</option>' + actionsRes.actions.map(a => `<option value="${escapeHtml(a)}" ${a === current ? 'selected' : ''}>${escapeHtml(a)}</option>`).join("");
     }
   } catch (e) { showToast(e.message, "error"); }
 }
@@ -4120,8 +4160,8 @@ async function loadBranding() {
     const el = (id) => document.getElementById(id);
     if (el("brandingAppName")) el("brandingAppName").value = b.appName || "";
     if (el("brandingLogoUrl")) el("brandingLogoUrl").value = b.logoUrl || "";
-    if (el("brandingPrimaryColor")) el("brandingPrimaryColor").value = b.primaryColor || "#6c5ce7";
-    if (el("brandingAccentColor")) el("brandingAccentColor").value = b.accentColor || "#00cec9";
+    if (el("brandingPrimaryColor")) el("brandingPrimaryColor").value = b.primaryColor || "#111111";
+    if (el("brandingAccentColor")) el("brandingAccentColor").value = b.accentColor || "#555555";
     if (el("brandingSupportEmail")) el("brandingSupportEmail").value = b.supportEmail || "";
     if (el("brandingFooterText")) el("brandingFooterText").value = b.footerText || "";
   } catch {}
@@ -4199,7 +4239,7 @@ async function loadKnowledgeBase() {
                 <div class="kb-doc-meta">${sizeKB} KB · ${doc.chunkCount} chunks · ${(doc.charCount || 0).toLocaleString()} chars · ${uploaded}</div>
               </div>
             </div>
-            <button class="btn" onclick="deleteKbDocument('${doc.id}')" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:var(--danger);">
+            <button class="btn" onclick="deleteKbDocument('${escapeHtml(doc.id)}')" style="font-size:11px;padding:4px 10px;color:var(--danger);border-color:var(--danger);">
               <i data-lucide="trash-2" style="width:12px;height:12px;"></i> Delete
             </button>
           </div>`;
@@ -4383,7 +4423,7 @@ function renderHeatmap(hourlyData) {
       const intensity = max > 0 ? val / max : 0;
       const bg = intensity === 0
         ? "var(--input-bg)"
-        : `rgba(108, 92, 231, ${0.15 + intensity * 0.85})`;
+        : `rgba(0, 0, 0, ${0.1 + intensity * 0.85})`;
       const textColor = intensity > 0.5 ? "#fff" : "var(--ink)";
       html += `<div class="heatmap-cell" style="background:${bg};color:${textColor};" title="${day} ${h}:00 — ${val} messages">${val || ""}</div>`;
     }
@@ -4403,8 +4443,8 @@ function renderSourceBreakdown(sources) {
 
   const total = sources.reduce((s, v) => s + v.count, 0);
   const colors = [
-    "var(--primary)", "var(--accent)", "#f59e0b", "#10b981",
-    "var(--danger)", "#8b5cf6", "#ec4899", "#14b8a6",
+    "#111111", "#333333", "#555555", "#777777",
+    "#999999", "#bbbbbb", "#444444", "#666666",
   ];
 
   container.innerHTML = sources.map((s, i) => {
@@ -4419,7 +4459,7 @@ function renderSourceBreakdown(sources) {
     ">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <div style="width:10px;height:10px;border-radius:50%;background:${color};"></div>
-        <span style="font-size:12px;font-weight:600;">${s.source}</span>
+        <span style="font-size:12px;font-weight:600;">${escapeHtml(s.source)}</span>
       </div>
       <div style="font-size:18px;font-weight:700;">${s.count}</div>
       <div style="font-size:10px;color:var(--muted-ink,var(--muted));">${pct}% of total</div>

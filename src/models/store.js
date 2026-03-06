@@ -5,6 +5,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const {
   DATA_DIR,
@@ -30,6 +31,8 @@ const {
 const store = { users: [], workspaces: [] };
 const runtimeByWorkspaceId = new Map();
 let followUpSweepInProgress = false;
+let _followUpSweepStartedAt = 0;
+const SWEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 min deadman
 
 const ROLE_RANK = { member: 1, admin: 2, owner: 3 };
 
@@ -59,11 +62,14 @@ function ensureBootstrapAdmin() {
   if (!adminUsername) {
     throw new Error("Invalid ADMIN_USERNAME");
   }
+  if (!process.env.ADMIN_PASSWORD) {
+    console.warn("[SECURITY] ⚠️  Using default admin password. Set ADMIN_PASSWORD env var in production!");
+  }
   let admin = getUserByUsername(adminUsername);
   if (!admin) {
     const now = new Date();
     admin = {
-      id: `u_${Date.now().toString(36)}`,
+      id: `u_${crypto.randomUUID().slice(0, 12)}`,
       username: adminUsername,
       passwordHash: bcrypt.hashSync(adminPassword, 10),
       plan: { id: "free", name: "Free", status: "active", startedAt: now.toISOString() },
@@ -123,24 +129,38 @@ let _backupTimer = null;
  * This prevents half-written / corrupt JSON on crash.
  */
 function saveStore() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  const json = `${JSON.stringify(store, null, 2)}\n`;
-
-  // 1) Validate the JSON we're about to write (sanity check)
   try {
-    JSON.parse(json);
-  } catch {
-    console.error("[STORE] ❌ REFUSING to save — serialised JSON is invalid. This should never happen.");
-    return;
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const json = `${JSON.stringify(store, null, 2)}\n`;
+
+    // 1) Validate the JSON we're about to write (sanity check)
+    try {
+      JSON.parse(json);
+    } catch {
+      console.error("[STORE] ❌ REFUSING to save — serialised JSON is invalid. This should never happen.");
+      return;
+    }
+
+    // 2) Write to temp file first
+    fs.writeFileSync(STORE_TEMP_PATH, json, "utf8");
+
+    // 3) Atomic rename (overwrites old file safely)
+    fs.renameSync(STORE_TEMP_PATH, STORE_PATH);
+
+    _saveCounter++;
+  } catch (err) {
+    console.error("[STORE] ❌ saveStore failed:", err.message);
   }
+}
 
-  // 2) Write to temp file first
-  fs.writeFileSync(STORE_TEMP_PATH, json, "utf8");
-
-  // 3) Atomic rename (overwrites old file safely)
-  fs.renameSync(STORE_TEMP_PATH, STORE_PATH);
-
-  _saveCounter++;
+/** Debounced save — coalesces rapid mutations into one write (max 2s delay) */
+let _saveDebounceTimer = null;
+function saveStoreDebounced() {
+  if (_saveDebounceTimer) clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer = setTimeout(() => {
+    _saveDebounceTimer = null;
+    saveStore();
+  }, 2000);
 }
 
 /**
@@ -355,7 +375,7 @@ function initBookingRecord(input) {
       ? parseReminderList(input.reminderMinutes)
       : BOOKING_REMINDER_MINUTES;
   return {
-    id: input.id || `bk_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}`,
+    id: input.id || `bk_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e8)}`,
     leadId: sanitizeText(input.leadId, ""),
     leadName: sanitizeText(input.leadName, ""),
     timezone: bookingTimezone(input.timezone),
@@ -459,7 +479,7 @@ function ensureStore() {
       : [];
     const normalizedScheduled = Array.isArray(workspace.scheduledMessages)
       ? workspace.scheduledMessages.map((s) => ({
-          id: s.id || `sm_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}`,
+          id: s.id || `sm_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e8)}`,
           message: sanitizeMultilineText(s.message || "", ""),
           sendAt: sanitizeText(s.sendAt, ""),
           status: sanitizeChoice(
@@ -474,7 +494,7 @@ function ensureStore() {
       : [];
     const normalizedMedia = Array.isArray(workspace.media)
       ? workspace.media.map((m) => ({
-          id: m.id || `m_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000)}`,
+          id: m.id || `m_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e8)}`,
           filename: sanitizeText(m.filename, ""),
           path: sanitizeText(m.path, ""),
           mimeType: sanitizeText(m.mimeType, ""),
@@ -607,15 +627,22 @@ function appendReport(workspace, entry) {
 
 // ─── Follow-up sweep flag ──────────────────────────────────────────────────
 function getFollowUpSweepInProgress() {
+  // Auto-reset if stuck for more than 5 min (deadman switch)
+  if (followUpSweepInProgress && (Date.now() - _followUpSweepStartedAt > SWEEP_TIMEOUT_MS)) {
+    console.warn("[STORE] ⚠️  Follow-up sweep was stuck, auto-resetting.");
+    followUpSweepInProgress = false;
+  }
   return followUpSweepInProgress;
 }
 function setFollowUpSweepInProgress(val) {
   followUpSweepInProgress = val;
+  if (val) _followUpSweepStartedAt = Date.now();
 }
 
 module.exports = {
   store,
   saveStore,
+  saveStoreDebounced,
   ensureStore,
   getWorkspace,
   getRuntime,

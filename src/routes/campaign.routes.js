@@ -413,6 +413,12 @@ router.post("/:workspaceId/campaigns/:campaignId/send", requirePlanFeature("bulk
     setImmediate(async () => {
       try {
         for (let i = 0; i < personalizedMessages.length; i++) {
+          // Check if campaign was cancelled between sends
+          const currentCamp = getCampaign(workspace, campaignId);
+          if (!currentCamp || currentCamp.status === "cancelled") {
+            console.log(`[${workspace.id}] Campaign ${campaignId} cancelled at recipient ${i + 1}/${personalizedMessages.length}`);
+            break;
+          }
           const { chatId, message } = personalizedMessages[i];
           try {
             const overrides = {
@@ -433,7 +439,11 @@ router.post("/:workspaceId/campaigns/:campaignId/send", requirePlanFeature("bulk
           }
           saveStore();
         }
-        completeCampaign(workspace, campaignId);
+        // Only mark completed if not already cancelled
+        const finalCamp = getCampaign(workspace, campaignId);
+        if (finalCamp && finalCamp.status === "sending") {
+          completeCampaign(workspace, campaignId);
+        }
       } catch (err) {
         console.error(`[${workspace.id}] Campaign ${campaignId} error:`, err.message);
         const c = getCampaign(workspace, campaignId);

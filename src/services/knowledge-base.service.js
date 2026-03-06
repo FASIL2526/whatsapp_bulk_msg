@@ -207,7 +207,9 @@ function getAllChunksForWorkspace(workspace) {
         const chunks = chunkText(text);
         allChunks.push(...chunks);
       }
-    } catch (_e) {}
+    } catch (readErr) {
+      console.error(`[KB] Failed to read chunks for doc ${doc.id}:`, readErr.message);
+    }
   }
   return allChunks;
 }
