@@ -1,0 +1,149 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a"/>
+      <stop offset="50%" style="stop-color:#0d1b2a"/>
+      <stop offset="100%" style="stop-color:#1b2a4a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#25D366"/>
+      <stop offset="100%" style="stop-color:#128C7E"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#f7b731"/>
+      <stop offset="100%" style="stop-color:#f5a623"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative grid dots -->
+  <g opacity="0.06">
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1.5" fill="#25D366"/>
+    </pattern>
+    <rect width="1200" height="630" fill="url(#dots)"/>
+  </g>
+
+  <!-- Decorative circles -->
+  <circle cx="950" cy="120" r="200" fill="#25D366" opacity="0.04"/>
+  <circle cx="1050" cy="400" r="150" fill="#128C7E" opacity="0.05"/>
+  <circle cx="100" cy="500" r="180" fill="#25D366" opacity="0.03"/>
+
+  <!-- Top accent line -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#accent)"/>
+
+  <!-- WhatsApp icon -->
+  <g transform="translate(80, 60)">
+    <circle cx="22" cy="22" r="28" fill="#25D366" opacity="0.15"/>
+    <circle cx="22" cy="22" r="18" fill="none" stroke="#25D366" stroke-width="2.5"/>
+    <rect x="14" y="18" width="16" height="10" rx="3" fill="#25D366"/>
+    <polygon points="16,28 12,34 20,28" fill="#25D366"/>
+  </g>
+
+  <!-- Logo text -->
+  <text x="140" y="90" font-family="'Segoe UI', Arial, sans-serif" font-size="26" font-weight="700" fill="#ffffff" letter-spacing="2">
+    RestartX
+  </text>
+
+  <!-- Main headline -->
+  <text x="80" y="210" font-family="'Segoe UI', Arial, sans-serif" font-size="56" font-weight="800" fill="#ffffff">
+    Turn WhatsApp Into Your
+  </text>
+  <text x="80" y="280" font-family="'Segoe UI', Arial, sans-serif" font-size="56" font-weight="800" fill="url(#accent)">
+    24/7 Sales Machine
+  </text>
+
+  <!-- Subtitle -->
+  <text x="80" y="330" font-family="'Segoe UI', Arial, sans-serif" font-size="22" fill="#8899aa" font-weight="400">
+    AI Sales Agent · CRM · Bookings · Campaigns · 10 Automation Engines
+  </text>
+
+  <!-- Feature pills -->
+  <g transform="translate(80, 370)">
+    <rect x="0" y="0" width="160" height="42" rx="21" fill="#25D366" opacity="0.15" stroke="#25D366" stroke-width="1"/>
+    <text x="80" y="27" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#25D366" font-weight="600">🤖 AI Sales Closer</text>
+
+    <rect x="175" y="0" width="180" height="42" rx="21" fill="#25D366" opacity="0.15" stroke="#25D366" stroke-width="1"/>
+    <text x="265" y="27" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#25D366" font-weight="600">📅 Auto Bookings</text>
+
+    <rect x="370" y="0" width="170" height="42" rx="21" fill="#25D366" opacity="0.15" stroke="#25D366" stroke-width="1"/>
+    <text x="455" y="27" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#25D366" font-weight="600">📊 A/B Campaigns</text>
+
+    <rect x="555" y="0" width="160" height="42" rx="21" fill="#25D366" opacity="0.15" stroke="#25D366" stroke-width="1"/>
+    <text x="635" y="27" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#25D366" font-weight="600">🧠 Self-Healing AI</text>
+  </g>
+
+  <!-- Stats bar -->
+  <g transform="translate(80, 450)">
+    <rect x="0" y="0" width="280" height="80" rx="12" fill="#ffffff" opacity="0.05" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.1"/>
+    <text x="140" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#25D366" font-weight="800">37</text>
+    <text x="140" y="60" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#8899aa">Services &amp; Engines</text>
+
+    <rect x="300" y="0" width="280" height="80" rx="12" fill="#ffffff" opacity="0.05" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.1"/>
+    <text x="440" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#25D366" font-weight="800">6</text>
+    <text x="440" y="60" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#8899aa">AI Agents</text>
+
+    <rect x="600" y="0" width="280" height="80" rx="12" fill="#ffffff" opacity="0.05" stroke="#ffffff" stroke-width="0.5" stroke-opacity="0.1"/>
+    <text x="740" y="35" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="28" fill="#25D366" font-weight="800">∞</text>
+    <text x="740" y="60" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#8899aa">Messages on Enterprise</text>
+  </g>
+
+  <!-- CTA -->
+  <g transform="translate(80, 560)">
+    <rect x="0" y="0" width="220" height="50" rx="25" fill="url(#accent)" filter="url(#shadow)"/>
+    <text x="110" y="33" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="17" fill="#ffffff" font-weight="700">Start Free Today →</text>
+
+    <text x="250" y="33" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#667788">No credit card required · Deploy in minutes</text>
+  </g>
+
+  <!-- Right side phone mockup -->
+  <g transform="translate(850, 130)" filter="url(#shadow)">
+    <rect x="0" y="0" width="260" height="460" rx="30" fill="#1a1a2e" stroke="#333355" stroke-width="2"/>
+    <rect x="10" y="50" width="240" height="370" rx="4" fill="#0d1117"/>
+
+    <!-- Phone header -->
+    <rect x="10" y="50" width="240" height="50" rx="4" fill="#075e54"/>
+    <circle cx="40" cy="75" r="15" fill="#25D366" opacity="0.3"/>
+    <text x="42" y="80" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" fill="#ffffff">🤖</text>
+    <text x="65" y="72" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#ffffff" font-weight="600">AI Sales Agent</text>
+    <text x="65" y="88" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#88ccaa">online · auto-closing</text>
+
+    <!-- Chat bubbles -->
+    <rect x="20" y="115" width="150" height="36" rx="10" fill="#1f3044"/>
+    <text x="30" y="137" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">How much does it cost?</text>
+
+    <rect x="90" y="162" width="150" height="52" rx="10" fill="#054640"/>
+    <text x="100" y="182" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">Great question! Our Pro</text>
+    <text x="100" y="198" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">plan is $79/mo 🚀</text>
+
+    <rect x="20" y="225" width="130" height="36" rx="10" fill="#1f3044"/>
+    <text x="30" y="247" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">Can I book a demo?</text>
+
+    <rect x="90" y="272" width="150" height="68" rx="10" fill="#054640"/>
+    <text x="100" y="292" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">Absolutely! Here are</text>
+    <text x="100" y="308" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">available slots: 📅</text>
+    <text x="100" y="328" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#25D366" font-weight="600">▸ Mon 10am  ▸ Tue 2pm</text>
+
+    <rect x="20" y="352" width="100" height="36" rx="10" fill="#1f3044"/>
+    <text x="30" y="374" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#ddeeff">Mon 10am ✅</text>
+
+    <!-- AI badge -->
+    <rect x="70" y="400" width="120" height="24" rx="12" fill="#25D366" opacity="0.2"/>
+    <text x="130" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#25D366" font-weight="600">✨ Booked via AI</text>
+
+    <!-- Notch -->
+    <rect x="90" y="8" width="80" height="24" rx="12" fill="#0d1117"/>
+  </g>
+
+  <!-- Bottom accent -->
+  <rect x="0" y="626" width="1200" height="4" fill="url(#accent)"/>
+</svg>

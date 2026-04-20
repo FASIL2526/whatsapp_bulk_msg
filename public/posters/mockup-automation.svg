@@ -1,0 +1,197 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050510"/><stop offset="100%" style="stop-color:#0d2a1b"/>
+    </linearGradient>
+    <linearGradient id="accent4" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#25D366"/><stop offset="100%" style="stop-color:#14b8a6"/>
+    </linearGradient>
+    <filter id="bs4"><feDropShadow dx="0" dy="10" stdDeviation="22" flood-color="#000" flood-opacity="0.5"/></filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg4)"/>
+  <circle cx="400" cy="350" r="350" fill="#25D366" opacity="0.02"/>
+  <g opacity="0.03"><pattern id="d4" width="30" height="30" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="1" fill="#25D366"/></pattern><rect width="1200" height="630" fill="url(#d4)"/></g>
+  <rect x="0" y="0" width="1200" height="3" fill="url(#accent4)"/>
+
+  <!-- Right Text -->
+  <rect x="740" y="80" width="165" height="26" rx="13" fill="#25D366" opacity="0.12" stroke="#25D366" stroke-width="0.8"/>
+  <text x="822" y="98" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#25D366" font-weight="600">⚡ AUTONOMOUS ENGINE</text>
+
+  <text x="740" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="36" fill="#ffffff" font-weight="800">10 Automations</text>
+  <text x="740" y="192" font-family="'Segoe UI', Arial, sans-serif" font-size="36" fill="#25D366" font-weight="800">Running 24/7</text>
+
+  <text x="740" y="232" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">Toggle each engine on/off. Every feature</text>
+  <text x="740" y="252" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">runs autonomously every 60 seconds.</text>
+
+  <!-- Feature icons -->
+  <g transform="translate(740, 280)" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#c8d6e5">
+    <text y="0"><tspan fill="#25D366">●</tspan>  Nurture Drip — multi-day sequences</text>
+    <text y="24"><tspan fill="#25D366">●</tspan>  Re-engagement — win back stale leads</text>
+    <text y="48"><tspan fill="#25D366">●</tspan>  Auto Escalation — alert human operators</text>
+    <text y="72"><tspan fill="#25D366">●</tspan>  Lead Routing — auto-assign strategies</text>
+    <text y="96"><tspan fill="#25D366">●</tspan>  A/B Testing — pick winning variants</text>
+    <text y="120"><tspan fill="#25D366">●</tspan>  Daily Digest — morning pipeline summary</text>
+    <text y="144"><tspan fill="#25D366">●</tspan>  Objection Recovery — AI counter-rebuttals</text>
+    <text y="168"><tspan fill="#25D366">●</tspan>  Timezone Send — optimal delivery hours</text>
+    <text y="192"><tspan fill="#25D366">●</tspan>  Auto Tag &amp; Segment — AI labels leads</text>
+    <text y="216"><tspan fill="#25D366">●</tspan>  Conversation Cleanup — archive dead chats</text>
+  </g>
+
+  <g transform="translate(740, 540)">
+    <rect width="180" height="42" rx="21" fill="url(#accent4)"/>
+    <text x="90" y="28" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#fff" font-weight="700">Automate Now →</text>
+  </g>
+
+  <!-- ════════ BROWSER MOCKUP ════════ -->
+  <g transform="translate(30, 55)" filter="url(#bs4)">
+    <rect width="680" height="520" rx="12" fill="#1e1e2e"/>
+    <rect width="680" height="32" rx="12" fill="#2a2a3e"/>
+    <rect y="22" width="680" height="10" fill="#2a2a3e"/>
+    <circle cx="18" cy="16" r="5" fill="#ff5f57"/>
+    <circle cx="34" cy="16" r="5" fill="#ffbd2e"/>
+    <circle cx="50" cy="16" r="5" fill="#28c840"/>
+    <rect x="70" y="7" width="250" height="17" rx="4" fill="#1a1a2e"/>
+    <text x="82" y="19" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#667788">🔒 auto.accountx.app/automation</text>
+
+    <rect x="0" y="32" width="680" height="488" fill="#f9fafb"/>
+
+    <!-- Mini sidebar -->
+    <rect x="0" y="32" width="90" height="488" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <rect x="6" y="40" width="16" height="16" rx="3.5" fill="#111827"/>
+    <text x="14" y="52" text-anchor="middle" font-size="7" fill="#fff" font-weight="800" font-family="'Segoe UI', Arial, sans-serif">RX</text>
+    <!-- Active: Automation -->
+    <rect x="6" y="105" width="78" height="20" rx="5" fill="#111827"/>
+    <text x="14" y="119" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff">⚡ Automation</text>
+    <text x="14" y="78" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">⊞ Overview</text>
+    <text x="14" y="93" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">📊 Analytics</text>
+    <text x="14" y="137" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">🤖 AI Agent</text>
+    <text x="14" y="152" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">📚 Knowledge</text>
+
+    <!-- ─── Header ─── -->
+    <text x="105" y="53" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af" letter-spacing="1" font-weight="600">AUTONOMOUS ENGINE</text>
+    <text x="105" y="72" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#111827" font-weight="800">Automation Hub</text>
+    <text x="105" y="87" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">10 autonomous features that run on autopilot.</text>
+
+    <rect x="580" y="44" width="80" height="24" rx="6" fill="#111827"/>
+    <text x="620" y="60" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#fff" font-weight="600">⟳ Refresh</text>
+
+    <!-- ─── Feature Toggles Section ─── -->
+    <text x="105" y="112" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">⚙ Feature Toggles</text>
+    <text x="105" y="125" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Toggle autonomous features on/off. Changes are saved instantly.</text>
+
+    <!-- Toggle cards row 1 -->
+    <g transform="translate(105, 135)">
+      <!-- Nurture Drip -->
+      <rect width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="10" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">💧 Nurture Drip</text>
+      <text x="10" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Multi-day sequences</text>
+      <text x="44" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <!-- Re-engagement -->
+      <rect x="94" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="104" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🔄 Re-engage</text>
+      <text x="104" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Win back stale leads</text>
+      <text x="138" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <!-- Escalation -->
+      <rect x="188" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="198" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">⚠ Escalation</text>
+      <text x="198" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Alert operators</text>
+      <text x="232" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <!-- Lead Routing -->
+      <rect x="282" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="292" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🔀 Lead Route</text>
+      <text x="292" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Auto-assign</text>
+      <text x="326" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <!-- A/B Testing -->
+      <rect x="376" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="386" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🔬 A/B Test</text>
+      <text x="386" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Test variants</text>
+      <text x="420" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <!-- Daily Digest -->
+      <rect x="470" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="480" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">📋 Digest</text>
+      <text x="480" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Morning summary</text>
+      <text x="514" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+    </g>
+
+    <!-- Toggle cards row 2 -->
+    <g transform="translate(105, 205)">
+      <rect width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="10" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🗑 Cleanup</text>
+      <text x="10" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Archive dead chats</text>
+      <text x="44" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af" font-weight="700">Off</text>
+
+      <rect x="94" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="104" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🌐 Timezone</text>
+      <text x="104" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Optimal hours</text>
+      <text x="138" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <rect x="188" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="198" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">🏷 Auto Tag</text>
+      <text x="198" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">AI labels on leads</text>
+      <text x="232" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+
+      <rect x="282" width="88" height="62" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="292" y="18" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">💬 Objection</text>
+      <text x="292" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Counter rebuttals</text>
+      <text x="326" y="52" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#25D366" font-weight="700">On</text>
+    </g>
+
+    <!-- ─── Nurture Drip Section ─── -->
+    <rect x="105" y="280" width="270" height="228" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="117" y="300" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">💧 Nurture Drip</text>
+    <text x="117" y="314" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Multi-day automated sequences.</text>
+    <rect x="117" y="323" width="100" height="22" rx="5" fill="#111827"/>
+    <text x="167" y="338" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff" font-weight="600">👥 Enroll All Leads</text>
+
+    <g transform="translate(117, 352)" font-family="'Segoe UI', Arial, sans-serif" font-size="8">
+      <text y="10" fill="#ef4444" font-weight="600">Step 1 <tspan fill="#374151" font-weight="400">— Day 0: Hi {{name}}! I noticed you showed interest...</tspan></text>
+      <text y="28" fill="#f59e0b" font-weight="600">Step 2 <tspan fill="#374151" font-weight="400">— Day 1: Quick thought, {{name}}; most of our clients...</tspan></text>
+      <text y="46" fill="#3b82f6" font-weight="600">Step 3 <tspan fill="#374151" font-weight="400">— Day 3: Hey {{name}}, I put together a quick summary...</tspan></text>
+      <text y="64" fill="#a855f7" font-weight="600">Step 4 <tspan fill="#374151" font-weight="400">— Day 5: {{name}}, we have a limited-time offer...</tspan></text>
+      <text y="82" fill="#25D366" font-weight="600">Step 5 <tspan fill="#374151" font-weight="400">— Day 7: Last check-in, {{name}} — still open to...</tspan></text>
+    </g>
+
+    <!-- ─── Auto Tags Section ─── -->
+    <rect x="385" y="280" width="275" height="228" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="397" y="300" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">🏷 Auto Tags &amp; Segments</text>
+    <text x="397" y="314" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">AI-assigned tags based on conversations.</text>
+
+    <g transform="translate(397, 326)" font-family="'Segoe UI', Arial, sans-serif">
+      <!-- Contact 1 -->
+      <text y="12" font-size="9" fill="#111827" font-weight="600">918590629143</text>
+      <rect x="110" y="1" width="52" height="15" rx="7" fill="#dbeafe"/><text x="136" y="12" text-anchor="middle" font-size="6.5" fill="#1d4ed8" font-weight="600">enterprise</text>
+      <rect x="166" y="1" width="48" height="15" rx="7" fill="#fef3c7"/><text x="190" y="12" text-anchor="middle" font-size="6.5" fill="#92400e" font-weight="600">low-intent</text>
+      <rect x="218" y="1" width="44" height="15" rx="7" fill="#d1fae5"/><text x="240" y="12" text-anchor="middle" font-size="6.5" fill="#065f46" font-weight="600">returning</text>
+
+      <!-- Contact 2 -->
+      <text y="38" font-size="9" fill="#111827" font-weight="600">918137069871</text>
+      <rect x="110" y="27" width="48" height="15" rx="7" fill="#fef3c7"/><text x="134" y="38" text-anchor="middle" font-size="6.5" fill="#92400e" font-weight="600">low-intent</text>
+
+      <!-- Contact 3 -->
+      <text y="64" font-size="9" fill="#111827" font-weight="600">150891193716832</text>
+      <rect x="110" y="53" width="48" height="15" rx="7" fill="#fef3c7"/><text x="134" y="64" text-anchor="middle" font-size="6.5" fill="#92400e" font-weight="600">low-intent</text>
+      <rect x="162" y="53" width="38" height="15" rx="7" fill="#ede9fe"/><text x="181" y="64" text-anchor="middle" font-size="6.5" fill="#5b21b6" font-weight="600">referral</text>
+
+      <!-- Contact 4 -->
+      <text y="90" font-size="9" fill="#111827" font-weight="600">971567768436</text>
+      <rect x="110" y="79" width="78" height="15" rx="7" fill="#fce7f3"/><text x="149" y="90" text-anchor="middle" font-size="6.5" fill="#9d174d" font-weight="600">competitor-aware</text>
+
+      <!-- Contact 5 -->
+      <text y="116" font-size="9" fill="#111827" font-weight="600">917025369535</text>
+      <rect x="110" y="105" width="48" height="15" rx="7" fill="#fef3c7"/><text x="134" y="116" text-anchor="middle" font-size="6.5" fill="#92400e" font-weight="600">low-intent</text>
+
+      <!-- Contact 6 -->
+      <text y="142" font-size="9" fill="#111827" font-weight="600">971562016314</text>
+      <rect x="110" y="131" width="48" height="15" rx="7" fill="#fef3c7"/><text x="134" y="142" text-anchor="middle" font-size="6.5" fill="#92400e" font-weight="600">low-intent</text>
+      <rect x="162" y="131" width="62" height="15" rx="7" fill="#fce7f3"/><text x="193" y="142" text-anchor="middle" font-size="6.5" fill="#9d174d" font-weight="600">price-sensitive</text>
+    </g>
+  </g>
+
+  <rect x="0" y="627" width="1200" height="3" fill="url(#accent4)"/>
+</svg>

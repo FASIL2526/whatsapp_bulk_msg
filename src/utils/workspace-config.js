@@ -181,6 +181,12 @@ function sanitizeWorkspaceConfig(input) {
 
     // ─── Human Takeover ──────────────────────────────────────────────────
     HUMAN_TAKEOVER_TIMEOUT_HRS: sanitizeIntegerString(input.HUMAN_TAKEOVER_TIMEOUT_HRS, DEFAULT_CONFIG.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 1, 24),
+    HUMAN_TAKEOVER_MOBILE_IDLE_MINUTES: sanitizeIntegerString(
+      input.HUMAN_TAKEOVER_MOBILE_IDLE_MINUTES,
+      DEFAULT_CONFIG.HUMAN_TAKEOVER_MOBILE_IDLE_MINUTES || "15",
+      1,
+      240
+    ),
   };
 
   if (Number(clean.BULK_RANDOM_MAX_MS) < Number(clean.BULK_RANDOM_MIN_MS)) {

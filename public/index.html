@@ -304,6 +304,21 @@
                 <textarea name="AI_PRODUCT_KNOWLEDGE" rows="4"
                   placeholder="Describe your product, pricing, and common questions..."></textarea>
               </label>
+              <div class="span-2" style="border:1px solid var(--panel-border); border-radius: var(--radius-md); padding: 12px; background: var(--panel-bg);">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap: wrap;">
+                  <div>
+                    <div style="font-weight:600; font-size:13px;">Vertical Pack (Market-Fit Preset)</div>
+                    <div class="muted" style="font-size:12px; margin-top:2px;">Apply proven defaults for your business type.</div>
+                  </div>
+                  <div style="display:flex; gap:8px; align-items:center; min-width: 320px; flex: 1;">
+                    <select id="verticalPackSelect" style="flex:1; min-width: 180px;">
+                      <option value="">Select pack...</option>
+                    </select>
+                    <button type="button" id="applyVerticalPackBtn" class="btn">Apply Pack</button>
+                  </div>
+                </div>
+                <div id="verticalPackResult" class="muted" style="font-size:12px; margin-top:8px;"></div>
+              </div>
             </div>
           </details>
 

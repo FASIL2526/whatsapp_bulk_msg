@@ -18,6 +18,10 @@ const {
   setupScheduler,
   setupStatusScheduler,
 } = require("../services/whatsapp.service");
+const {
+  listVerticalPacks,
+  applyVerticalPack,
+} = require("../services/vertical-pack.service");
 const { getRuntime } = require("../models/store");
 
 const router = Router();
@@ -82,6 +86,24 @@ router.post("/:workspaceId/config", (req, res) => {
       setupStatusScheduler(workspace, runtime);
     }
     res.json({ ok: true, config: workspace.config });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+router.get("/:workspaceId/vertical-packs", (req, res) => {
+  const workspace = requireWorkspace(req, res, "member");
+  if (!workspace) return;
+  res.json({ ok: true, packs: listVerticalPacks() });
+});
+
+router.post("/:workspaceId/vertical-packs/apply", (req, res) => {
+  const workspace = requireWorkspace(req, res, "admin");
+  if (!workspace) return;
+  try {
+    const result = applyVerticalPack(workspace, req.body?.packId);
+    saveStore();
+    res.json({ ok: true, ...result });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }

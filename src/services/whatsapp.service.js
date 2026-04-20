@@ -145,6 +145,37 @@ function getInterMessageDelay(options) {
   return 0;
 }
 
+function ownMessageContactId(msg) {
+  const toId = String(msg?.to || "");
+  const fromId = String(msg?.from || "");
+  if (toId.endsWith("@c.us")) return toId;
+  if (fromId.endsWith("@c.us")) return fromId;
+  return "";
+}
+
+function markAutoOutgoing(runtime, contactId, text) {
+  if (!runtime || !contactId) return;
+  if (!runtime._autoOutgoing) runtime._autoOutgoing = {};
+  runtime._autoOutgoing[contactId] = {
+    at: Date.now(),
+    text: sanitizeText(text, "").trim(),
+  };
+}
+
+function isRecentAutoOutgoing(runtime, contactId, text, windowMs = 30000) {
+  const map = runtime?._autoOutgoing;
+  if (!map || !contactId) return false;
+  const rec = map[contactId];
+  if (!rec) return false;
+  const age = Date.now() - Number(rec.at || 0);
+  if (age > windowMs) {
+    delete map[contactId];
+    return false;
+  }
+  const normalized = sanitizeText(text, "").trim();
+  return normalized.length > 0 && normalized === String(rec.text || "").trim();
+}
+
 // ─── Scheduler helpers ─────────────────────────────────────────────────────
 function stopScheduler(runtime) {
   if (runtime.scheduler) {
@@ -566,6 +597,27 @@ async function createClientForWorkspace(workspace) {
   });
   console.log(`[DEBUG] Executable being used: ${executablePath || "default (puppeteer)"}`);
 
+  // Mark server-originated outgoing messages so mobile auto-takeover ignores them.
+  if (!runtime._sendMessageWrapped) {
+    const originalSendMessage = runtime.client.sendMessage.bind(runtime.client);
+    runtime.client.sendMessage = async (chatId, content, options) => {
+      try {
+        const contactId = String(chatId || "");
+        const trackedText =
+          typeof content === "string"
+            ? content
+            : typeof options?.caption === "string"
+              ? options.caption
+              : "";
+        if (contactId.endsWith("@c.us") && trackedText) {
+          markAutoOutgoing(runtime, contactId, trackedText);
+        }
+      } catch (_err) {}
+      return originalSendMessage(chatId, content, options);
+    };
+    runtime._sendMessageWrapped = true;
+  }
+
   // ── QR ──
   runtime.client.on("qr", async (qr) => {
     runtime.status = "qr_ready";
@@ -618,6 +670,50 @@ async function createClientForWorkspace(workspace) {
   // ── Incoming message handler ──
   runtime.client.on("message", async (msg) => {
     await handleIncomingMessage(workspace, runtime, msg);
+  });
+
+  // ── Outgoing message observer (mobile takeover auto-pause) ──
+  runtime.client.on("message_create", async (msg) => {
+    try {
+      if (!msg?.fromMe) return;
+      const deviceType = String(msg?.deviceType || "").toLowerCase();
+      const isMobile = deviceType === "android" || deviceType === "ios";
+      if (!isMobile) return;
+
+      const outgoingText = sanitizeText(msg.body, "").trim();
+      if (!outgoingText) return;
+
+      const msgType = String(msg?.type || "").toLowerCase();
+      if (msgType && msgType !== "chat") return;
+
+      const contactId = ownMessageContactId(msg);
+      if (!contactId) return;
+
+      if (isRecentAutoOutgoing(runtime, contactId, outgoingText)) {
+        return;
+      }
+
+      const existing = getHumanTakeover(workspace, contactId);
+      if (!existing) {
+        startHumanTakeover(workspace, contactId, "Mobile Agent (auto)", {
+          silent: true,
+        });
+        queueAlert(workspace.id, "human_requested", {
+          leadName: contactId.split("@")[0],
+          leadId: contactId,
+          message: outgoingText.slice(0, 200),
+          reason: "Auto takeover activated because a mobile message was sent",
+        });
+      } else {
+        touchHumanTakeover(workspace, contactId);
+      }
+
+      pushLiveChatMessage(workspace, contactId, "out", outgoingText);
+    } catch (err) {
+      console.error(
+        `[${workspace.id}] Failed to auto-activate mobile human takeover: ${err.message}`
+      );
+    }
   });
 
   // ── Auth failure ──
@@ -753,6 +849,11 @@ async function handleIncomingMessage(workspace, runtime, msg) {
 
   if (isStatusMessage || isChannelMessage) {
     console.log(`[${workspace.id}] Ignoring status/channel message from ${fromId || "unknown"}.`);
+    return;
+  }
+
+  // Skip own messages in incoming pipeline to prevent accidental AI/auto-reply loops.
+  if (msg.fromMe) {
     return;
   }
 
@@ -1126,34 +1227,67 @@ async function handleIncomingMessage(workspace, runtime, msg) {
           if (_owner2b) incrementUsage(_owner2b, "aiCalls");
         } else if (provider === "openrouter") {
           console.log(`[${workspace.id}] OpenRouter AI Request started...`);
-          const response = await fetchWithRetry(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://restartx.io",
-                "X-Title": "RestartX WhatsApp Console",
+          const openRouterModels = [
+            modelName,
+            "google/gemini-2.0-flash-001",
+            "google/gemma-3-4b-it:free",
+          ].filter(Boolean);
+          const modelCandidates = [...new Set(openRouterModels)];
+          let lastOpenRouterError = "";
+
+          for (const candidateModel of modelCandidates) {
+            const response = await fetchWithRetry(
+              "https://openrouter.ai/api/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${apiKey}`,
+                  "Content-Type": "application/json",
+                  "HTTP-Referer": "https://restartx.io",
+                  "X-Title": "RestartX WhatsApp Console",
+                },
+                body: JSON.stringify({
+                  model: candidateModel,
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are a sales assistant. IMPORTANT: You MUST respond ONLY with a valid JSON object. No extra text, no markdown, no code blocks. Just the raw JSON.",
+                    },
+                    { role: "user", content: prompt },
+                  ],
+                }),
               },
-              body: JSON.stringify({
-                model: modelName,
-                messages: [
-                  {
-                    role: "system",
-                    content:
-                      "You are a sales assistant. IMPORTANT: You MUST respond ONLY with a valid JSON object. No extra text, no markdown, no code blocks. Just the raw JSON.",
-                  },
-                  { role: "user", content: prompt },
-                ],
-              }),
-            },
-            { retries: 2, timeoutMs: 30000, label: `${workspace.id}-openrouter` }
-          );
-          const data = await response.json();
-          console.log(`[${workspace.id}] OpenRouter AI Raw Response Received`);
-          if (data.error) throw new Error(data.error.message || "OpenRouter Error");
-          rawContent = data?.choices?.[0]?.message?.content || "";
+              { retries: 2, timeoutMs: 30000, label: `${workspace.id}-openrouter` }
+            );
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data?.error) {
+              lastOpenRouterError =
+                data?.error?.message ||
+                data?.message ||
+                `OpenRouter HTTP ${response.status} (${candidateModel})`;
+              console.warn(
+                `[${workspace.id}] OpenRouter model ${candidateModel} failed: ${lastOpenRouterError}`
+              );
+              continue;
+            }
+
+            rawContent = data?.choices?.[0]?.message?.content || "";
+            if (rawContent) {
+              if (candidateModel !== modelName) {
+                console.log(
+                  `[${workspace.id}] OpenRouter fallback model used: ${candidateModel} (configured: ${modelName})`
+                );
+              }
+              console.log(`[${workspace.id}] OpenRouter AI Raw Response Received`);
+              break;
+            }
+          }
+
+          if (!rawContent) {
+            throw new Error(lastOpenRouterError || "OpenRouter Error");
+          }
           const _owner3 = getWorkspaceOwner(workspace);
           if (_owner3) incrementUsage(_owner3, "aiCalls");
         }
@@ -1271,6 +1405,7 @@ async function handleIncomingMessage(workspace, runtime, msg) {
   // ── Send reply ──
   if (replyText) {
     try {
+      markAutoOutgoing(runtime, msg.from, replyText);
       await msg.reply(replyText);
       const _owner4 = getWorkspaceOwner(workspace);
       if (_owner4) incrementUsage(_owner4, "messagesSent");
@@ -1484,13 +1619,31 @@ function _takeovers(workspace) {
   return workspace._humanTakeover;
 }
 
+function getTakeoverExpiryMs(workspace, entry) {
+  const idleMinutes =
+    parseInt(workspace.config?.HUMAN_TAKEOVER_MOBILE_IDLE_MINUTES || "", 10) || 15;
+  const generalHours =
+    parseInt(workspace.config?.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 10) || 2;
+  const isMobileAuto = String(entry?.agent || "") === "Mobile Agent (auto)";
+  if (isMobileAuto) return Math.max(1, idleMinutes) * 60 * 1000;
+  return Math.max(1, generalHours) * 60 * 60 * 1000;
+}
+
+function touchHumanTakeover(workspace, contactId) {
+  const map = _takeovers(workspace);
+  const entry = map[contactId];
+  if (!entry) return;
+  entry.lastActivityAt = new Date().toISOString();
+  saveStore();
+}
+
 function getHumanTakeover(workspace, contactId) {
   const map = _takeovers(workspace);
   const entry = map[contactId];
   if (!entry) return null;
-  // Auto-expire after configured hours (default 2h)
-  const maxMs = (parseInt(workspace.config?.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 10) || 2) * 60 * 60 * 1000;
-  if (Date.now() - new Date(entry.since).getTime() > maxMs) {
+  const maxMs = getTakeoverExpiryMs(workspace, entry);
+  const refAt = entry.lastActivityAt || entry.since;
+  if (Date.now() - new Date(refAt).getTime() > maxMs) {
     delete map[contactId];
     saveStore();
     console.log(`[${workspace.id}] Human takeover expired for ${contactId}`);
@@ -1499,10 +1652,12 @@ function getHumanTakeover(workspace, contactId) {
   return entry;
 }
 
-function startHumanTakeover(workspace, contactId, agentName) {
+function startHumanTakeover(workspace, contactId, agentName, options = {}) {
+  const silent = options?.silent === true;
   const map = _takeovers(workspace);
   map[contactId] = {
     since: new Date().toISOString(),
+    lastActivityAt: new Date().toISOString(),
     agent: agentName || "Agent",
   };
   // Initialise live chat buffer
@@ -1513,7 +1668,7 @@ function startHumanTakeover(workspace, contactId, agentName) {
 
   // Send notification message to the lead
   const runtime = getRuntime(workspace.id);
-  if (runtime.client) {
+  if (!silent && runtime.client) {
     const greeting = "👋 Hi! A human agent has joined the conversation. We'll take it from here. How can we help you?";
     runtime.client.sendMessage(contactId, greeting).then(() => {
       pushLiveChatMessage(workspace, contactId, "out", greeting);
@@ -1547,9 +1702,10 @@ function endHumanTakeover(workspace, contactId) {
 function listHumanTakeovers(workspace) {
   const map = _takeovers(workspace);
   const result = [];
-  const maxMs = (parseInt(workspace.config?.HUMAN_TAKEOVER_TIMEOUT_HRS || "2", 10) || 2) * 60 * 60 * 1000;
   for (const [contactId, entry] of Object.entries(map)) {
-    if (Date.now() - new Date(entry.since).getTime() > maxMs) {
+    const maxMs = getTakeoverExpiryMs(workspace, entry);
+    const refAt = entry.lastActivityAt || entry.since;
+    if (Date.now() - new Date(refAt).getTime() > maxMs) {
       delete map[contactId];
       continue;
     }

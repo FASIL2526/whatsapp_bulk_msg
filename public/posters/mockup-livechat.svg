@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050510"/><stop offset="100%" style="stop-color:#2a0d1b"/>
+    </linearGradient>
+    <linearGradient id="accent5" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ec4899"/><stop offset="100%" style="stop-color:#f43f5e"/>
+    </linearGradient>
+    <linearGradient id="greenBtn" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#25D366"/><stop offset="100%" style="stop-color:#128C7E"/>
+    </linearGradient>
+    <filter id="bs5"><feDropShadow dx="0" dy="10" stdDeviation="22" flood-color="#000" flood-opacity="0.5"/></filter>
+    <filter id="msgGlow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#25D366" flood-opacity="0.15"/></filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg5)"/>
+  <circle cx="800" cy="300" r="350" fill="#ec4899" opacity="0.02"/>
+  <g opacity="0.03"><pattern id="d5" width="30" height="30" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="1" fill="#ec4899"/></pattern><rect width="1200" height="630" fill="url(#d5)"/></g>
+  <rect x="0" y="0" width="1200" height="3" fill="url(#accent5)"/>
+
+  <!-- Right Text -->
+  <rect x="740" y="60" width="145" height="26" rx="13" fill="#ec4899" opacity="0.12" stroke="#ec4899" stroke-width="0.8"/>
+  <text x="812" y="78" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#f472b6" font-weight="600">🤝 HUMAN AGENT</text>
+
+  <text x="740" y="130" font-family="'Segoe UI', Arial, sans-serif" font-size="36" fill="#ffffff" font-weight="800">Seamless</text>
+  <text x="740" y="172" font-family="'Segoe UI', Arial, sans-serif" font-size="36" fill="#f472b6" font-weight="800">Human Takeover</text>
+
+  <text x="740" y="215" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">Pause AI for any contact. Chat directly.</text>
+  <text x="740" y="237" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">Get AI suggestions. Release when done.</text>
+
+  <g transform="translate(740, 270)" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#c8d6e5">
+    <text y="0"><tspan fill="#25D366">✓</tspan>  One-click AI → Human handoff</text>
+    <text y="28"><tspan fill="#25D366">✓</tspan>  Full conversation history view</text>
+    <text y="56"><tspan fill="#25D366">✓</tspan>  AI-generated smart reply suggestions</text>
+    <text y="84"><tspan fill="#25D366">✓</tspan>  Send messages as human agent</text>
+    <text y="112"><tspan fill="#25D366">✓</tspan>  Auto-release after timeout (2h default)</text>
+    <text y="140"><tspan fill="#25D366">✓</tspan>  Active takeover dashboard</text>
+    <text y="168"><tspan fill="#25D366">✓</tspan>  "Release to AI" one-click return</text>
+  </g>
+
+  <g transform="translate(740, 490)">
+    <rect width="180" height="42" rx="21" fill="url(#accent5)"/>
+    <text x="90" y="28" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#fff" font-weight="700">Try Live Chat →</text>
+  </g>
+
+  <!-- ════════ BROWSER MOCKUP ════════ -->
+  <g transform="translate(30, 40)" filter="url(#bs5)">
+    <rect width="680" height="550" rx="12" fill="#1e1e2e"/>
+    <rect width="680" height="32" rx="12" fill="#2a2a3e"/>
+    <rect y="22" width="680" height="10" fill="#2a2a3e"/>
+    <circle cx="18" cy="16" r="5" fill="#ff5f57"/>
+    <circle cx="34" cy="16" r="5" fill="#ffbd2e"/>
+    <circle cx="50" cy="16" r="5" fill="#28c840"/>
+    <rect x="70" y="7" width="250" height="17" rx="4" fill="#1a1a2e"/>
+    <text x="82" y="19" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#667788">🔒 auto.accountx.app/live-chat</text>
+
+    <rect x="0" y="32" width="680" height="518" fill="#f9fafb"/>
+
+    <!-- Mini sidebar -->
+    <rect x="0" y="32" width="90" height="518" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <rect x="6" y="40" width="16" height="16" rx="3.5" fill="#111827"/>
+    <text x="14" y="52" text-anchor="middle" font-size="7" fill="#fff" font-weight="800" font-family="'Segoe UI', Arial, sans-serif">RX</text>
+    <!-- Active: Live Chat -->
+    <rect x="6" y="93" width="78" height="20" rx="5" fill="#111827"/>
+    <text x="14" y="107" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff">💬 Live Chat</text>
+    <text x="14" y="78" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">⊞ Overview</text>
+    <text x="14" y="130" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">📣 Campaigns</text>
+    <text x="14" y="145" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">👥 Leads</text>
+    <text x="14" y="160" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">📊 Analytics</text>
+
+    <!-- ─── Header ─── -->
+    <text x="105" y="53" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af" letter-spacing="1" font-weight="600">HUMAN AGENT</text>
+    <text x="105" y="72" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#111827" font-weight="800">Live Chat</text>
+    <text x="105" y="86" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Take over conversations from AI and chat directly with leads.</text>
+
+    <rect x="580" y="44" width="80" height="24" rx="6" fill="#111827"/>
+    <text x="620" y="60" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#fff" font-weight="600">⟳ Refresh</text>
+
+    <!-- ─── Two columns ─── -->
+    <!-- Take Over Chat -->
+    <rect x="105" y="95" width="270" height="108" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="117" y="115" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">👤 Take Over Chat</text>
+    <text x="117" y="130" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Select a lead to pause AI and take control.</text>
+    <text x="117" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151" font-weight="600">Select Lead</text>
+    <rect x="117" y="155" width="240" height="18" rx="4" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="125" y="167" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">(Select a lead)  ▾</text>
+    <rect x="117" y="180" width="240" height="18" rx="4" fill="#111827"/>
+    <text x="237" y="193" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff" font-weight="600">👤 Take Over</text>
+
+    <!-- Active Takeovers -->
+    <rect x="385" y="95" width="275" height="108" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="397" y="115" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">👥 Active Takeovers</text>
+    <text x="397" y="130" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Chats currently under human control.</text>
+
+    <!-- Active contact card -->
+    <rect x="397" y="140" width="250" height="50" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="410" y="157" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#111827" font-weight="700">918590629143</text>
+    <text x="410" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">Taken over by Dashboard Agent · since 3/7/2026, 3:53 PM</text>
+    <!-- Chat + Release buttons -->
+    <rect x="550" y="146" width="40" height="18" rx="4" fill="#25D366"/>
+    <text x="570" y="159" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#fff" font-weight="600">💬 Chat</text>
+    <rect x="595" y="146" width="46" height="18" rx="4" fill="#ef4444"/>
+    <text x="618" y="159" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#fff" font-weight="600">Release</text>
+
+    <!-- ─── Chat Window ─── -->
+    <rect x="105" y="210" width="555" height="330" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+
+    <!-- Chat header -->
+    <rect x="105" y="210" width="555" height="32" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <rect x="105" y="228" width="555" height="14" fill="#fff"/>
+    <text x="117" y="231" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#111827" font-weight="700">💬 Chat with 918590629143</text>
+    <rect x="530" y="216" width="115" height="22" rx="5" fill="#ef4444"/>
+    <text x="588" y="231" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff" font-weight="600">→ Release to AI</text>
+
+    <!-- Chat messages -->
+    <!-- AI message (right) -->
+    <g filter="url(#msgGlow)">
+      <rect x="310" y="252" width="335" height="32" rx="10" fill="#111827"/>
+      <text x="320" y="272" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#ffffff">To help you best, what's the main goal you're hoping to</text>
+      <text x="620" y="280" font-family="'Segoe UI', Arial, sans-serif" font-size="6" fill="#9ca3af" text-anchor="end">7:03 AM</text>
+    </g>
+
+    <!-- AI release msg (green) -->
+    <rect x="260" y="292" width="385" height="26" rx="10" fill="#166534"/>
+    <text x="270" y="309" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#ffffff">✅ Thank you for chatting! Our AI assistant is back and ready to help!</text>
+    <text x="620" y="314" font-family="'Segoe UI', Arial, sans-serif" font-size="6" fill="#9ca3af" text-anchor="end">7:03 AM</text>
+
+    <!-- Human takeover msg (orange/yellow) -->
+    <rect x="310" y="326" width="335" height="26" rx="10" fill="#92400e"/>
+    <text x="320" y="343" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#ffffff">👋 Hi! A human agent has joined the conversation. How can we help?</text>
+    <text x="620" y="348" font-family="'Segoe UI', Arial, sans-serif" font-size="6" fill="#9ca3af" text-anchor="end">5:48 PM</text>
+
+    <!-- AI release again -->
+    <rect x="260" y="360" width="385" height="26" rx="10" fill="#166534"/>
+    <text x="270" y="377" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#ffffff">✅ Thank you for chatting! Our AI assistant is back and ready to help!</text>
+    <text x="620" y="382" font-family="'Segoe UI', Arial, sans-serif" font-size="6" fill="#9ca3af" text-anchor="end">5:49 PM</text>
+
+    <!-- Human takeover again -->
+    <rect x="310" y="394" width="335" height="26" rx="10" fill="#92400e"/>
+    <text x="320" y="411" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#ffffff">👋 Hi! A human agent has joined the conversation. We'll take it from here.</text>
+    <text x="620" y="416" font-family="'Segoe UI', Arial, sans-serif" font-size="6" fill="#9ca3af" text-anchor="end">3:53 PM</text>
+
+    <!-- AI Suggestions bar -->
+    <rect x="105" y="430" width="555" height="44" rx="0" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.5"/>
+    <text x="117" y="447" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="600">✨ AI Suggestions</text>
+    <rect x="117" y="454" width="155" height="16" rx="8" fill="#dbeafe"/>
+    <text x="194" y="465" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8">"How can I help you today?"</text>
+    <rect x="280" y="454" width="170" height="16" rx="8" fill="#dbeafe"/>
+    <text x="365" y="465" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8">"Let me check that for you..."</text>
+    <rect x="458" y="454" width="140" height="16" rx="8" fill="#dbeafe"/>
+    <text x="528" y="465" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8">"Would you like to book?"</text>
+
+    <!-- Message input -->
+    <rect x="105" y="474" width="470" height="28" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="117" y="492" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">Type a message...</text>
+    <rect x="580" y="474" width="80" height="28" rx="6" fill="#25D366"/>
+    <text x="620" y="493" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#fff" font-weight="700">Send →</text>
+
+    <!-- Status footer -->
+    <rect x="105" y="508" width="555" height="22" fill="#f3f4f6" rx="0"/>
+    <rect x="105" y="508" width="555" height="4" rx="0" fill="#f3f4f6"/>
+    <circle cx="117" cy="519" r="3.5" fill="#ef4444"/>
+    <text x="125" y="522" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#6b7280">Human mode active · AI paused for this contact · Auto-release in 1h 07m</text>
+  </g>
+
+  <rect x="0" y="627" width="1200" height="3" fill="url(#accent5)"/>
+</svg>

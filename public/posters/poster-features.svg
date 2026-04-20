@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a"/>
+      <stop offset="100%" style="stop-color:#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#25D366"/>
+      <stop offset="100%" style="stop-color:#128C7E"/>
+    </linearGradient>
+    <linearGradient id="card1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#132a13"/>
+      <stop offset="100%" style="stop-color:#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="card2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a3e"/>
+      <stop offset="100%" style="stop-color:#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="card3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2a1a0d"/>
+      <stop offset="100%" style="stop-color:#1b0d0a"/>
+    </linearGradient>
+    <filter id="cardShadow">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg2)"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.04">
+    <pattern id="grid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#25D366" stroke-width="0.5"/>
+    </pattern>
+    <rect width="1200" height="630" fill="url(#grid)"/>
+  </g>
+
+  <!-- Top bar -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#green)"/>
+
+  <!-- Header -->
+  <text x="600" y="55" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="16" fill="#25D366" font-weight="600" letter-spacing="4">RESTARTX WHATSAPP AUTOMATION</text>
+  <text x="600" y="100" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="42" fill="#ffffff" font-weight="800">Everything You Need to Scale Sales</text>
+  <text x="600" y="135" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#667788">One platform. 37 services. Zero complexity.</text>
+
+  <!-- ROW 1: 3 Feature Cards -->
+
+  <!-- Card 1: AI Sales -->
+  <g transform="translate(40, 170)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="url(#card1)" stroke="#25D366" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#25D366" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">🤖</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">AI Sales Closer</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">Qualifies leads, handles objections, detects</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">intent, and closes deals — in any language.</text>
+    <g transform="translate(25, 115)">
+      <rect width="95" height="24" rx="12" fill="#25D366" opacity="0.12"/>
+      <text x="48" y="16" text-anchor="middle" font-size="10" fill="#25D366" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Lead Scoring</text>
+      <rect x="105" width="110" height="24" rx="12" fill="#25D366" opacity="0.12"/>
+      <text x="160" y="16" text-anchor="middle" font-size="10" fill="#25D366" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Multi-Language</text>
+      <rect x="225" width="105" height="24" rx="12" fill="#25D366" opacity="0.12"/>
+      <text x="278" y="16" text-anchor="middle" font-size="10" fill="#25D366" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Auto-Close</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">3 closing modes · Objection playbook · Intent 0-100</text>
+  </g>
+
+  <!-- Card 2: Campaigns -->
+  <g transform="translate(420, 170)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="url(#card2)" stroke="#6366f1" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#6366f1" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">📊</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">Campaign Manager</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">A/B test messages, target audiences by</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">score &amp; stage, with auto winner selection.</text>
+    <g transform="translate(25, 115)">
+      <rect width="90" height="24" rx="12" fill="#6366f1" opacity="0.15"/>
+      <text x="45" y="16" text-anchor="middle" font-size="10" fill="#818cf8" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">A/B Testing</text>
+      <rect x="100" width="100" height="24" rx="12" fill="#6366f1" opacity="0.15"/>
+      <text x="150" y="16" text-anchor="middle" font-size="10" fill="#818cf8" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Drip Sequences</text>
+      <rect x="210" width="115" height="24" rx="12" fill="#6366f1" opacity="0.15"/>
+      <text x="268" y="16" text-anchor="middle" font-size="10" fill="#818cf8" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Template Library</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">Audience targeting · Media · Personalization · Clone</text>
+  </g>
+
+  <!-- Card 3: Bookings -->
+  <g transform="translate(800, 170)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="url(#card3)" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#f59e0b" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">📅</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">Auto Bookings</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">Google Calendar integration. AI detects</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">booking intent &amp; auto-confirms with link.</text>
+    <g transform="translate(25, 115)">
+      <rect width="105" height="24" rx="12" fill="#f59e0b" opacity="0.12"/>
+      <text x="53" y="16" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Google Calendar</text>
+      <rect x="115" width="95" height="24" rx="12" fill="#f59e0b" opacity="0.12"/>
+      <text x="163" y="16" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Reminders</text>
+      <rect x="220" width="110" height="24" rx="12" fill="#f59e0b" opacity="0.12"/>
+      <text x="275" y="16" text-anchor="middle" font-size="10" fill="#fbbf24" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Slot Discovery</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">Intent detection · Meeting links · Cancel/reschedule</text>
+  </g>
+
+  <!-- ROW 2: 3 Feature Cards -->
+
+  <!-- Card 4: CRM -->
+  <g transform="translate(40, 380)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="#0d1b2a" stroke="#3b82f6" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#3b82f6" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">👥</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">Lead CRM</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">Full pipeline: cold → warm → hot. Custom</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">fields, tags, notes, dedup &amp; team assign.</text>
+    <g transform="translate(25, 115)">
+      <rect width="75" height="24" rx="12" fill="#3b82f6" opacity="0.12"/>
+      <text x="38" y="16" text-anchor="middle" font-size="10" fill="#60a5fa" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Pipeline</text>
+      <rect x="85" width="95" height="24" rx="12" fill="#3b82f6" opacity="0.12"/>
+      <text x="133" y="16" text-anchor="middle" font-size="10" fill="#60a5fa" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">CSV Import</text>
+      <rect x="190" width="100" height="24" rx="12" fill="#3b82f6" opacity="0.12"/>
+      <text x="240" y="16" text-anchor="middle" font-size="10" fill="#60a5fa" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Auto-Merge</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">Revenue attribution · Custom fields · Internal notes</text>
+  </g>
+
+  <!-- Card 5: Automations -->
+  <g transform="translate(420, 380)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="#0d1b2a" stroke="#a855f7" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#a855f7" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">⚙️</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">10 Automation Engines</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">Re-engage stale leads, route by score,</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">auto-tag, drip nurture — every 60 seconds.</text>
+    <g transform="translate(25, 115)">
+      <rect width="75" height="24" rx="12" fill="#a855f7" opacity="0.12"/>
+      <text x="38" y="16" text-anchor="middle" font-size="10" fill="#c084fc" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Drip</text>
+      <rect x="85" width="95" height="24" rx="12" fill="#a855f7" opacity="0.12"/>
+      <text x="133" y="16" text-anchor="middle" font-size="10" fill="#c084fc" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Re-Engage</text>
+      <rect x="190" width="95" height="24" rx="12" fill="#a855f7" opacity="0.12"/>
+      <text x="238" y="16" text-anchor="middle" font-size="10" fill="#c084fc" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Escalation</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">Tagging · Routing · Cleanup · Digest · Timezone-aware</text>
+  </g>
+
+  <!-- Card 6: Analytics -->
+  <g transform="translate(800, 380)" filter="url(#cardShadow)">
+    <rect width="360" height="185" rx="16" fill="#0d1b2a" stroke="#ec4899" stroke-width="1" stroke-opacity="0.3"/>
+    <circle cx="40" cy="40" r="22" fill="#ec4899" opacity="0.15"/>
+    <text x="40" y="47" text-anchor="middle" font-size="22">📈</text>
+    <text x="75" y="46" font-family="'Segoe UI', Arial, sans-serif" font-size="18" fill="#ffffff" font-weight="700">Real-Time Analytics</text>
+    <text x="25" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">Charts, heatmaps, revenue tracking, AI</text>
+    <text x="25" y="98" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#99aabb">performance metrics &amp; CSV export.</text>
+    <g transform="translate(25, 115)">
+      <rect width="80" height="24" rx="12" fill="#ec4899" opacity="0.12"/>
+      <text x="40" y="16" text-anchor="middle" font-size="10" fill="#f472b6" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Charts</text>
+      <rect x="90" width="95" height="24" rx="12" fill="#ec4899" opacity="0.12"/>
+      <text x="138" y="16" text-anchor="middle" font-size="10" fill="#f472b6" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">Heatmaps</text>
+      <rect x="195" width="110" height="24" rx="12" fill="#ec4899" opacity="0.12"/>
+      <text x="250" y="16" text-anchor="middle" font-size="10" fill="#f472b6" font-weight="600" font-family="'Segoe UI', Arial, sans-serif">CSV Export</text>
+    </g>
+    <text x="25" y="165" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#556677">Response times · Funnel · Pipeline · Revenue · Daily digest</text>
+  </g>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="626" width="1200" height="4" fill="url(#green)"/>
+
+  <!-- Footer text -->
+  <text x="600" y="600" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#445566">RestartX — Deploy with Docker in minutes · No database required · From $0/month</text>
+</svg>

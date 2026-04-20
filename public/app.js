@@ -76,6 +76,9 @@ const mediaTableBody = document.getElementById("mediaTableBody");
 const mediaEmpty = document.getElementById("mediaEmpty");
 const refreshSchedulesBtn = document.getElementById("refreshSchedulesBtn");
 const refreshMediaBtn = document.getElementById("refreshMediaBtn");
+const verticalPackSelect = document.getElementById("verticalPackSelect");
+const applyVerticalPackBtn = document.getElementById("applyVerticalPackBtn");
+const verticalPackResult = document.getElementById("verticalPackResult");
 
 // --- Mobile Sidebar Logic ---
 function openSidebar() {
@@ -776,9 +779,39 @@ async function loadConfig() {
   try {
     const config = await getJson(workspacePath("/config"));
     applyConfig(config);
+    await loadVerticalPacks();
     log(`[${activeWorkspaceId}] configuration loaded`);
   } catch (err) {
     log(err.message);
+  }
+}
+
+async function loadVerticalPacks() {
+  if (!activeWorkspaceId || !verticalPackSelect) return;
+  try {
+    const result = await getJson(workspacePath("/vertical-packs"));
+    const packs = Array.isArray(result.packs) ? result.packs : [];
+
+    const prev = verticalPackSelect.value;
+    verticalPackSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select pack...";
+    verticalPackSelect.appendChild(placeholder);
+
+    for (const pack of packs) {
+      const opt = document.createElement("option");
+      opt.value = pack.id;
+      opt.textContent = pack.name;
+      opt.title = pack.description || "";
+      verticalPackSelect.appendChild(opt);
+    }
+
+    if (prev && packs.some((p) => p.id === prev)) {
+      verticalPackSelect.value = prev;
+    }
+  } catch (err) {
+    if (verticalPackResult) verticalPackResult.textContent = err.message;
   }
 }
 
@@ -840,6 +873,10 @@ form.addEventListener("submit", async (event) => {
         });
         if (!validation.ok) throw new Error(validation.error);
         log(`[${activeWorkspaceId}] AI API Key validated successfully.`);
+        if (validation.warning) {
+          log(`[${activeWorkspaceId}] AI validation warning: ${validation.warning}`);
+          showToast(`AI warning: ${validation.warning}`, "warn");
+        }
       } catch (err) {
         log(`[${activeWorkspaceId}] AI API Key validation failed: ${err.message}`);
         showToast(`AI Key Error: ${err.message}`, "error");
@@ -860,6 +897,40 @@ form.addEventListener("submit", async (event) => {
     showToast(err.message, "error");
   }
 });
+}
+
+if (applyVerticalPackBtn) {
+  applyVerticalPackBtn.addEventListener("click", async () => {
+    if (!activeWorkspaceId) return;
+    const packId = verticalPackSelect?.value || "";
+    if (!packId) {
+      showToast("Please select a vertical pack first", "error");
+      return;
+    }
+
+    applyVerticalPackBtn.disabled = true;
+    if (verticalPackResult) verticalPackResult.textContent = "Applying preset...";
+
+    try {
+      const result = await getJson(workspacePath("/vertical-packs/apply"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId }),
+      });
+      if (result.config) applyConfig(result.config);
+      const name = result.pack?.name || packId;
+      if (verticalPackResult) {
+        verticalPackResult.textContent = `${name} preset applied. Review values, then click Save Workspace Configuration.`;
+      }
+      log(`[${activeWorkspaceId}] vertical pack applied: ${name}`);
+      showToast(`Applied ${name} preset`, "success");
+    } catch (err) {
+      if (verticalPackResult) verticalPackResult.textContent = err.message;
+      showToast(err.message, "error");
+    } finally {
+      applyVerticalPackBtn.disabled = false;
+    }
+  });
 }
 
 if (generateAiAssistBtn) {

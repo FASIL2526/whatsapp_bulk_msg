@@ -93,20 +93,39 @@ RESPONSE FORMAT (JSON ONLY, no markdown):
       rawContent = data?.message?.content || "";
     } else {
       // OpenRouter
-      const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      if (!resp.ok) throw new Error(`OpenRouter error: ${resp.status}`);
-      const data = await resp.json();
-      rawContent = data.choices?.[0]?.message?.content || "";
+      const modelCandidates = [
+        modelName,
+        "google/gemini-2.0-flash-001",
+        "google/gemma-3-4b-it:free",
+      ].filter(Boolean);
+      let lastOpenRouterError = "OpenRouter error";
+
+      for (const candidateModel of [...new Set(modelCandidates)]) {
+        const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://restartx.io",
+            "X-Title": "RestartX WhatsApp Console",
+          },
+          body: JSON.stringify({
+            model: candidateModel,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.error) {
+          lastOpenRouterError = data?.error?.message || data?.message || `OpenRouter error: ${resp.status}`;
+          continue;
+        }
+
+        rawContent = data?.choices?.[0]?.message?.content || "";
+        if (rawContent) break;
+      }
+
+      if (!rawContent) throw new Error(lastOpenRouterError);
     }
 
     // Parse JSON from response

@@ -264,23 +264,42 @@ Return JSON only:
       if (data.error) throw new Error(data.error || "Ollama error");
       raw = data?.message?.content || "";
     } else {
-      const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [
-            { role: "system", content: "You are a sales-ops assistant. Return only JSON." },
-            { role: "user", content: prompt },
-          ],
-        }),
-      }, { retries: 2, timeoutMs: 30000, label: "ai-assist" });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message || "OpenRouter error");
-      raw = data?.choices?.[0]?.message?.content || "";
+      const modelCandidates = [
+        modelName,
+        "google/gemini-2.0-flash-001",
+        "google/gemma-3-4b-it:free",
+      ].filter(Boolean);
+      let lastOpenRouterError = "OpenRouter error";
+
+      for (const candidateModel of [...new Set(modelCandidates)]) {
+        const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://restartx.io",
+            "X-Title": "RestartX WhatsApp Console",
+          },
+          body: JSON.stringify({
+            model: candidateModel,
+            messages: [
+              { role: "system", content: "You are a sales-ops assistant. Return only JSON." },
+              { role: "user", content: prompt },
+            ],
+          }),
+        }, { retries: 2, timeoutMs: 30000, label: "ai-assist" });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) {
+          lastOpenRouterError = data?.error?.message || data?.message || `OpenRouter HTTP ${response.status}`;
+          continue;
+        }
+
+        raw = data?.choices?.[0]?.message?.content || "";
+        if (raw) break;
+      }
+
+      if (!raw) throw new Error(lastOpenRouterError);
     }
 
     const parsed = parseAiJsonResponse(raw);
@@ -403,23 +422,42 @@ Return JSON only:
       if (data.error) throw new Error(data.error || "Ollama status generation error");
       raw = data?.message?.content || "";
     } else {
-      const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [
-            { role: "system", content: "Return JSON only." },
-            { role: "user", content: prompt },
-          ],
-        }),
-      }, { retries: 2, timeoutMs: 30000, label: "status-gen" });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message || "OpenRouter status generation error");
-      raw = data?.choices?.[0]?.message?.content || "";
+      const modelCandidates = [
+        modelName,
+        "google/gemini-2.0-flash-001",
+        "google/gemma-3-4b-it:free",
+      ].filter(Boolean);
+      let lastOpenRouterError = "OpenRouter status generation error";
+
+      for (const candidateModel of [...new Set(modelCandidates)]) {
+        const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://restartx.io",
+            "X-Title": "RestartX WhatsApp Console",
+          },
+          body: JSON.stringify({
+            model: candidateModel,
+            messages: [
+              { role: "system", content: "Return JSON only." },
+              { role: "user", content: prompt },
+            ],
+          }),
+        }, { retries: 2, timeoutMs: 30000, label: "status-gen" });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.error) {
+          lastOpenRouterError = data?.error?.message || data?.message || `OpenRouter HTTP ${response.status}`;
+          continue;
+        }
+
+        raw = data?.choices?.[0]?.message?.content || "";
+        if (raw) break;
+      }
+
+      if (!raw) throw new Error(lastOpenRouterError);
     }
 
     const parsed = parseAiJsonResponse(raw);

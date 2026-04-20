@@ -249,17 +249,58 @@ router.post("/:workspaceId/validate-ai-key", async (req, res) => {
       const data = await response.json();
       if (data.error) throw new Error(data.error || "Ollama Error");
     } else if (activeProvider === "openrouter") {
-      const response = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [{ role: "user", content: "hi" }],
-          max_tokens: 5,
-        }),
-      }, { retries: 1, timeoutMs: 15000, label: "validate-key" });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error.message || "OpenRouter Error");
+      // Validate the key directly to avoid false negatives from model/provider availability.
+      const response = await fetchWithRetry("https://openrouter.ai/api/v1/key", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://restartx.io",
+          "X-Title": "RestartX WhatsApp Console",
+        },
+      }, { retries: 1, timeoutMs: 15000, label: "validate-key-openrouter" });
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (_err) {
+        data = null;
+      }
+
+      if (!response.ok) {
+        const msg =
+          data?.error?.message ||
+          data?.message ||
+          `OpenRouter validation failed (${response.status})`;
+        throw new Error(msg);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error.message || "OpenRouter validation failed");
+      }
+
+      // Optional model compatibility warning check (does not fail key validation).
+      if (selectedModel) {
+        const modelProbe = await fetchWithRetry("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://restartx.io",
+            "X-Title": "RestartX WhatsApp Console",
+          },
+          body: JSON.stringify({
+            model: selectedModel,
+            messages: [{ role: "user", content: "hi" }],
+            max_tokens: 5,
+          }),
+        }, { retries: 0, timeoutMs: 15000, label: "validate-model-openrouter" });
+        if (!modelProbe.ok) {
+          const probeData = await modelProbe.json().catch(() => ({}));
+          const warning = probeData?.error?.message || `Model may be unavailable (${modelProbe.status})`;
+          return res.json({ ok: true, message: "API Key is valid", warning });
+        }
+      }
     }
     res.json({ ok: true, message: "API Key is valid" });
   } catch (err) {

@@ -112,6 +112,7 @@ const DEFAULT_CONFIG = {
 
   // ─── Human Takeover ──────────────────────────────────────────────────
   HUMAN_TAKEOVER_TIMEOUT_HRS: "2",
+  HUMAN_TAKEOVER_MOBILE_IDLE_MINUTES: "15",
 };
 
 module.exports = {

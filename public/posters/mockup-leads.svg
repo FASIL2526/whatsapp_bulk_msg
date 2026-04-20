@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#050510"/>
+      <stop offset="100%" style="stop-color:#0d1b2a"/>
+    </linearGradient>
+    <linearGradient id="accent2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <filter id="bs2">
+      <feDropShadow dx="0" dy="10" stdDeviation="24" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg2)"/>
+  <circle cx="900" cy="300" r="400" fill="#3b82f6" opacity="0.02"/>
+  <g opacity="0.04"><pattern id="d2" width="30" height="30" patternUnits="userSpaceOnUse"><circle cx="15" cy="15" r="1" fill="#3b82f6"/></pattern><rect width="1200" height="630" fill="url(#d2)"/></g>
+  <rect x="0" y="0" width="1200" height="3" fill="url(#accent2)"/>
+
+  <!-- Left Text -->
+  <rect x="60" y="80" width="130" height="26" rx="13" fill="#3b82f6" opacity="0.12" stroke="#3b82f6" stroke-width="0.8"/>
+  <text x="125" y="98" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#60a5fa" font-weight="600">👥 CRM / AI INSIGHTS</text>
+
+  <text x="60" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="38" fill="#ffffff" font-weight="800">AI-Powered</text>
+  <text x="60" y="195" font-family="'Segoe UI', Arial, sans-serif" font-size="38" fill="#60a5fa" font-weight="800">Lead Management</text>
+
+  <text x="60" y="238" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">Every WhatsApp contact automatically tracked,</text>
+  <text x="60" y="258" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#7b8ca3">scored, and qualified by AI in real time.</text>
+
+  <!-- Feature list -->
+  <g transform="translate(60, 290)" font-family="'Segoe UI', Arial, sans-serif" font-size="13" fill="#c8d6e5">
+    <text y="0"><tspan fill="#25D366">✓</tspan>  Auto lead scoring (0-100)</text>
+    <text y="26"><tspan fill="#25D366">✓</tspan>  Status: cold / warm / hot</text>
+    <text y="52"><tspan fill="#25D366">✓</tspan>  Pipeline stages: new → closed won</text>
+    <text y="78"><tspan fill="#25D366">✓</tspan>  AI reasoning per lead</text>
+    <text y="104"><tspan fill="#25D366">✓</tspan>  Auto-tagging &amp; segmentation</text>
+    <text y="130"><tspan fill="#25D366">✓</tspan>  CSV import/export &amp; dedup</text>
+    <text y="156"><tspan fill="#25D366">✓</tspan>  Custom fields &amp; team assign</text>
+    <text y="182"><tspan fill="#25D366">✓</tspan>  Language detection</text>
+  </g>
+
+  <g transform="translate(60, 520)">
+    <rect width="180" height="42" rx="21" fill="url(#accent2)"/>
+    <text x="90" y="28" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="14" fill="#fff" font-weight="700">Try It Free →</text>
+  </g>
+
+  <!-- ════════ BROWSER MOCKUP: LEADS DASHBOARD ════════ -->
+  <g transform="translate(430, 50)" filter="url(#bs2)">
+    <!-- Browser frame -->
+    <rect width="740" height="530" rx="12" fill="#1e1e2e"/>
+    <rect y="0" width="740" height="34" rx="12" fill="#2a2a3e"/>
+    <rect y="22" width="740" height="12" fill="#2a2a3e"/>
+    <circle cx="20" cy="17" r="5.5" fill="#ff5f57"/>
+    <circle cx="38" cy="17" r="5.5" fill="#ffbd2e"/>
+    <circle cx="56" cy="17" r="5.5" fill="#28c840"/>
+    <rect x="80" y="8" width="260" height="18" rx="4" fill="#1a1a2e"/>
+    <text x="95" y="21" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#667788">🔒 auto.accountx.app/leads</text>
+
+    <!-- Content -->
+    <rect x="0" y="34" width="740" height="496" fill="#f9fafb"/>
+
+    <!-- Sidebar mini -->
+    <rect x="0" y="34" width="105" height="496" fill="#ffffff" stroke="#e5e7eb" stroke-width="0.5"/>
+    <rect x="8" y="44" width="18" height="18" rx="4" fill="#111827"/>
+    <text x="17" y="57" text-anchor="middle" font-size="8" fill="#fff" font-weight="800" font-family="'Segoe UI', Arial, sans-serif">RX</text>
+    <text x="30" y="57" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="700">RestartX</text>
+    <!-- Active: Leads -->
+    <rect x="8" y="118" width="88" height="22" rx="5" fill="#111827"/>
+    <text x="18" y="133" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#fff">👥 Leads</text>
+    <text x="18" y="80" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">⊞ Overview</text>
+    <text x="18" y="97" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">⚙ Settings</text>
+    <text x="18" y="157" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">📊 Analytics</text>
+    <text x="18" y="174" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">⚡ Automation</text>
+    <text x="18" y="191" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#9ca3af">🤖 AI Agent</text>
+    <circle cx="16" cy="484" r="3.5" fill="#25D366"/>
+    <text x="24" y="487" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">ready</text>
+
+    <!-- ─── Header ─── -->
+    <text x="120" y="55" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af" letter-spacing="1" font-weight="600">CRM / AI INSIGHTS</text>
+    <text x="120" y="74" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#111827" font-weight="800">Leads Dashboard</text>
+    <text x="120" y="89" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af">Automatically tracked and scored by AI.</text>
+
+    <!-- Action buttons -->
+    <rect x="498" y="42" width="70" height="24" rx="6" fill="#111827"/>
+    <text x="533" y="58" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#fff" font-weight="600">⟳ Refresh</text>
+    <rect x="575" y="42" width="75" height="24" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="613" y="58" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151" font-weight="500">↓ Export CSV</text>
+    <rect x="657" y="42" width="75" height="24" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="695" y="58" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151" font-weight="500">↑ Import CSV</text>
+
+    <!-- ─── Stats row ─── -->
+    <g transform="translate(120, 102)">
+      <rect width="97" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="12" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#111827" font-weight="800">8</text>
+      <text x="12" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">TOTAL</text>
+
+      <rect x="105" width="97" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="117" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#ef4444" font-weight="800">0</text>
+      <text x="117" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">HOT</text>
+
+      <rect x="210" width="97" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="222" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#f59e0b" font-weight="800">1</text>
+      <text x="222" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">WARM</text>
+
+      <rect x="315" width="97" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="327" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#3b82f6" font-weight="800">7</text>
+      <text x="327" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">COLD</text>
+
+      <rect x="420" width="97" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="432" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#111827" font-weight="800">21</text>
+      <text x="432" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">AVG SCORE</text>
+
+      <rect x="525" width="87" height="46" rx="6" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+      <text x="537" y="22" font-family="'Segoe UI', Arial, sans-serif" font-size="20" fill="#111827" font-weight="800">0</text>
+      <text x="537" y="36" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#9ca3af" font-weight="600">ASSIGNED</text>
+    </g>
+
+    <!-- ─── Charts row ─── -->
+    <!-- Donut chart area -->
+    <rect x="120" y="162" width="290" height="150" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="132" y="182" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#111827" font-weight="700">📊 STATUS DISTRIBUTION</text>
+    <!-- Donut -->
+    <circle cx="265" cy="250" r="45" fill="none" stroke="#e5e7eb" stroke-width="16"/>
+    <circle cx="265" cy="250" r="45" fill="none" stroke="#3b82f6" stroke-width="16" stroke-dasharray="220 283" stroke-dashoffset="0" transform="rotate(-90 265 250)"/>
+    <circle cx="265" cy="250" r="45" fill="none" stroke="#f59e0b" stroke-width="16" stroke-dasharray="35 283" stroke-dashoffset="-220" transform="rotate(-90 265 250)"/>
+    <text x="265" y="248" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#374151" font-weight="700">8</text>
+    <text x="265" y="262" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#9ca3af">leads</text>
+    <!-- Legend -->
+    <circle cx="200" cy="300" r="4" fill="#111827"/><text x="208" y="303" font-size="7" fill="#6b7280" font-family="'Segoe UI', Arial, sans-serif">Hot</text>
+    <circle cx="230" cy="300" r="4" fill="#f59e0b"/><text x="238" y="303" font-size="7" fill="#6b7280" font-family="'Segoe UI', Arial, sans-serif">Warm</text>
+    <circle cx="265" cy="300" r="4" fill="#3b82f6"/><text x="273" y="303" font-size="7" fill="#6b7280" font-family="'Segoe UI', Arial, sans-serif">Cold</text>
+
+    <!-- Pipeline chart -->
+    <rect x="420" y="162" width="310" height="150" rx="8" fill="#fff" stroke="#e5e7eb" stroke-width="0.8"/>
+    <text x="432" y="182" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#111827" font-weight="700">⟳ STAGE PIPELINE</text>
+    <!-- Bar chart -->
+    <rect x="455" y="198" width="40" height="95" rx="3" fill="#111827"/>
+    <text x="475" y="302" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="'Segoe UI', Arial, sans-serif">new</text>
+    <rect x="505" y="278" width="40" height="15" rx="3" fill="#e5e7eb"/>
+    <text x="525" y="302" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="'Segoe UI', Arial, sans-serif">qualified</text>
+    <rect x="555" y="288" width="40" height="5" rx="3" fill="#e5e7eb"/>
+    <text x="575" y="302" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="'Segoe UI', Arial, sans-serif">proposal</text>
+    <rect x="605" y="288" width="40" height="5" rx="3" fill="#e5e7eb"/>
+    <text x="625" y="302" text-anchor="middle" font-size="6" fill="#9ca3af" font-family="'Segoe UI', Arial, sans-serif">booking</text>
+    <rect x="655" y="288" width="40" height="5" rx="3" fill="#e5e7eb"/>
+    <text x="675" y="302" text-anchor="middle" font-size="5.5" fill="#9ca3af" font-family="'Segoe UI', Arial, sans-serif">closed</text>
+
+    <!-- ─── Lead Table ─── -->
+    <rect x="120" y="322" width="612" height="24" fill="#f3f4f6"/>
+    <text x="132" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">CONTACT</text>
+    <text x="235" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">STATUS</text>
+    <text x="305" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">STAGE</text>
+    <text x="370" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">SCORE</text>
+    <text x="420" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">TAGS</text>
+    <text x="530" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">LANGUAGE</text>
+    <text x="620" y="338" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#6b7280" font-weight="600">REASONING</text>
+
+    <!-- Row 1 -->
+    <rect x="120" y="346" width="612" height="32" fill="#ffffff" stroke="#f3f4f6" stroke-width="0.5"/>
+    <text x="132" y="366" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="500">918137069871</text>
+    <rect x="235" y="356" width="42" height="16" rx="8" fill="#fef3c7"/>
+    <text x="256" y="368" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#92400e" font-weight="600">WARM</text>
+    <text x="310" y="366" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">● NEW</text>
+    <text x="375" y="366" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="600">54</text>
+    <rect x="420" y="356" width="55" height="14" rx="7" fill="#dbeafe"/>
+    <text x="448" y="367" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="6.5" fill="#1d4ed8">LOW-INTENT</text>
+    <text x="530" y="366" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">—</text>
+    <text x="620" y="366" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#6b7280">Customer engaging with...</text>
+
+    <!-- Row 2 -->
+    <rect x="120" y="378" width="612" height="32" fill="#fafafa" stroke="#f3f4f6" stroke-width="0.5"/>
+    <text x="132" y="398" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="500">918590629143</text>
+    <rect x="235" y="388" width="38" height="16" rx="8" fill="#dbeafe"/>
+    <text x="254" y="400" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8" font-weight="600">COLD</text>
+    <text x="310" y="398" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">● NEW</text>
+    <text x="375" y="398" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="600">26</text>
+    <rect x="420" y="388" width="55" height="14" rx="7" fill="#fce7f3"/>
+    <text x="448" y="399" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="6.5" fill="#9d174d">ENTERPRISE</text>
+    <text x="530" y="398" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">English</text>
+    <text x="620" y="398" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#6b7280">Lead's responses vague...</text>
+
+    <!-- Row 3 -->
+    <rect x="120" y="410" width="612" height="32" fill="#ffffff" stroke="#f3f4f6" stroke-width="0.5"/>
+    <text x="132" y="430" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="500">971567768436</text>
+    <rect x="235" y="420" width="38" height="16" rx="8" fill="#dbeafe"/>
+    <text x="254" y="432" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8" font-weight="600">COLD</text>
+    <text x="310" y="430" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">● NEW</text>
+    <text x="375" y="430" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="600">21</text>
+    <rect x="420" y="420" width="78" height="14" rx="7" fill="#fef3c7"/>
+    <text x="459" y="431" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="6.5" fill="#92400e">COMPETITOR-AWARE</text>
+    <text x="530" y="430" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">—</text>
+    <text x="620" y="430" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#6b7280">Vague greeting without...</text>
+
+    <!-- Row 4 -->
+    <rect x="120" y="442" width="612" height="32" fill="#fafafa" stroke="#f3f4f6" stroke-width="0.5"/>
+    <text x="132" y="462" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="500">917025369535</text>
+    <rect x="235" y="452" width="38" height="16" rx="8" fill="#dbeafe"/>
+    <text x="254" y="464" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#1d4ed8" font-weight="600">COLD</text>
+    <text x="310" y="462" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">● NEW</text>
+    <text x="375" y="462" font-family="'Segoe UI', Arial, sans-serif" font-size="9" fill="#111827" font-weight="600">16</text>
+    <rect x="420" y="452" width="55" height="14" rx="7" fill="#dbeafe"/>
+    <text x="448" y="463" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="6.5" fill="#1d4ed8">LOW-INTENT</text>
+    <text x="530" y="462" font-family="'Segoe UI', Arial, sans-serif" font-size="8" fill="#374151">—</text>
+    <text x="620" y="462" font-family="'Segoe UI', Arial, sans-serif" font-size="7" fill="#6b7280">Message is vague and...</text>
+  </g>
+
+  <rect x="0" y="627" width="1200" height="3" fill="url(#accent2)"/>
+</svg>
