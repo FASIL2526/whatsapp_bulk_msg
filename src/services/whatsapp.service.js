@@ -598,6 +598,7 @@ async function createClientForWorkspace(workspace) {
   console.log(`[DEBUG] Executable being used: ${executablePath || "default (puppeteer)"}`);
 
   // Mark server-originated outgoing messages so mobile auto-takeover ignores them.
+  // We also inject ANTI-BAN measures here: simulated typing and random human-like delays.
   if (!runtime._sendMessageWrapped) {
     const originalSendMessage = runtime.client.sendMessage.bind(runtime.client);
     runtime.client.sendMessage = async (chatId, content, options) => {
@@ -609,10 +610,29 @@ async function createClientForWorkspace(workspace) {
             : typeof options?.caption === "string"
               ? options.caption
               : "";
-        if (contactId.endsWith("@c.us") && trackedText) {
-          markAutoOutgoing(runtime, contactId, trackedText);
+              
+        if (contactId.endsWith("@c.us")) {
+          // Track for mobile continuity
+          if (trackedText) markAutoOutgoing(runtime, contactId, trackedText);
+          
+          // [Anti-Ban] 1. Initial random human pause before engaging
+          const preDelayMs = Math.floor(Math.random() * 2500) + 1000; 
+          await new Promise((resume) => setTimeout(resume, preDelayMs));
+          
+          // [Anti-Ban] 2. Simulate 'Typing...' status proportionate to length
+          if (trackedText && runtime.client) {
+             const chat = await runtime.client.getChatById(contactId).catch(() => null);
+             if (chat && chat.sendStateTyping) {
+                 await chat.sendStateTyping();
+                 // Type realistically: ~50ms per key, capped between 1.5s - 6s
+                 const typeTimeMs = Math.max(1500, Math.min(6000, trackedText.length * 50));
+                 await new Promise((resume) => setTimeout(resume, typeTimeMs));
+             }
+          }
         }
-      } catch (_err) {}
+      } catch (_err) {
+          console.error("[Anti-Ban] Wrapper error (ignored):", _err.message);
+      }
       return originalSendMessage(chatId, content, options);
     };
     runtime._sendMessageWrapped = true;
